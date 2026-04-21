@@ -1,0 +1,316 @@
+/* ═══════════════════════════════════════════════════════════════
+   game.min.css — Revised visual design
+   CSS-only backgrounds, simplified collector/bag, PE line, emoji items
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Block-specific gradient backgrounds ── */
+/* Block hues are set via CSS custom properties --block-hue / --block-sat
+   injected inline by trial.js */
+
+.game-container {
+  height: 80vh;
+  width: 80vw;
+  max-width: 1400px;
+  position: relative;
+  transform: translate(-50%, 0%);
+  border: 2px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  left: 50%;
+  top: 5%;
+  /* fallback; overridden by inline style from trial.js */
+  background: linear-gradient(
+    to bottom,
+    hsl(210, 38%, 18%) 0%,
+    hsl(210, 38%, 28%) 30%,
+    hsl(210, 38%, 42%) 55%,
+    hsl(210, 44%, 58%) 72%,
+    hsl(210, 48%, 72%) 85%,
+    hsl(210, 46%, 80%) 100%
+  );
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  user-select: none;
+}
+
+.main-container {
+  height: 68.5vh;
+  width: 80vw;
+  max-width: 1400px;
+  position: absolute;
+  top: 0%;
+  left: 50%;
+  transform: translate(-50%, 0%);
+  z-index: 3;
+}
+
+/* ── Ground strip (bottom 22%) ── */
+.bg-ground {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 22%;
+  /* overridden inline per block */
+  background: linear-gradient(
+    to bottom,
+    hsl(210, 46%, 80%) 0%,
+    hsl(210, 42%, 74%) 100%
+  );
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 1;
+}
+
+/* ── Shared rail ── */
+.slider-rail {
+  position: absolute;
+  left: 8%;
+  width: 84%;
+  height: 3px;
+  top: 78%;
+  transform: translateY(-50%);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
+  z-index: 8;
+  pointer-events: none;
+}
+
+/* ── Collector box ── */
+.collector-wrap {
+  position: absolute;
+  top: 78%;
+  width: 7%;
+  min-width: 40px;
+  height: 36px;
+  transform: translate(-50%, -50%);
+  z-index: 12;
+  pointer-events: none;
+  transition: left 0.06s linear;
+}
+
+.collector-chevron {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.collector-box {
+  position: absolute;
+  inset: 0;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.15),
+    0 3px 10px rgba(0, 0, 0, 0.25);
+  transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collector-label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: rgba(0, 0, 0, 0.35);
+  text-transform: uppercase;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  transition: color 0.25s;
+}
+
+/* Locked state */
+.collector-box.locked {
+  background: rgba(100, 100, 120, 0.7);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.collector-box.locked .collector-label {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.collector-wrap.locked .collector-chevron {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* ── Prediction-error dashed line ── */
+.pe-line {
+  position: absolute;
+  top: 78%;
+  height: 2px;
+  transform: translateY(-1px);
+  z-index: 10;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.pe-line.reward {
+  background: repeating-linear-gradient(
+    90deg,
+    #39ff14 0 4px,
+    transparent 4px 8px
+  );
+}
+
+.pe-line.loss {
+  background: repeating-linear-gradient(
+    90deg,
+    #ff4444 0 4px,
+    transparent 4px 8px
+  );
+}
+
+/* ── Bag dot (outcome position) ── */
+.bag-dot {
+  position: absolute;
+  top: 78%;
+  transform: translate(-50%, -50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow:
+    0 0 12px rgba(255, 255, 255, 0.2),
+    0 3px 8px rgba(0, 0, 0, 0.35);
+  z-index: 11;
+  pointer-events: none;
+  animation: bagDrop 0.5s cubic-bezier(0.22, 0.8, 0.3, 1);;
+}
+
+.bag-dot.reward {
+  background: radial-gradient(
+    circle,
+    hsl(130, 60%, 55%) 0%,
+    hsl(130, 45%, 38%) 100%
+  );
+}
+
+.bag-dot.loss {
+  background: radial-gradient(
+    circle,
+    hsl(0, 65%, 55%) 0%,
+    hsl(0, 50%, 40%) 100%
+  );
+}
+
+/* ── Feedback value text ── */
+.fb-value {
+  position: absolute;
+  top: 63%;
+  transform: translateX(-50%);
+  z-index: 15;
+  font-size: clamp(30px, 3.5vw, 46px);
+  font-weight: 800;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  text-shadow:
+    0 2px 10px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: valueAppear 0.2s ease-out;
+}
+
+/* ── Stimulus emoji card ── */
+.stimulus-card {
+  position: absolute;
+  top: 24%;
+  transform: translateX(-50%);
+  z-index: 14;
+  width: 250px;
+  height: 250px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+  animation: itemFadeIn 0.35s ease-out;
+}
+
+.stimulus-card .emoji-stim {
+  font-size: 125px;
+  line-height: 1;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Drone (practice only) ── */
+.drone-el {
+  position: absolute;
+  top: 6%;
+  font-size: 32px;
+  transform: translateX(-50%);
+  z-index: 6;
+  visibility: hidden;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+  user-select: none;
+  pointer-events: none;
+  opacity: 0.3;
+  transition: opacity 0.3s;
+}
+
+.drone-el.visible {
+  visibility: visible;
+}
+
+.drone-el.outcome-phase {
+  opacity: 0.9;
+}
+
+/* ── Legacy bird class (kept for block-intro screens) ── */
+.bird {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  left: 35%;
+  top: 5%;
+  height: 10%;
+  width: 10%;
+  overflow: visible;
+  visibility: hidden;
+}
+
+/* ── Animations ── */
+@keyframes bagDrop {
+  0% {
+    transform: translate(-50%, -450%) scale(0.7);
+    opacity: 0;
+  }
+  70% {
+    transform: translate(-50%, -42%) scale(1.04);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes valueAppear {
+  from {
+    transform: translateX(-50%) translateY(8px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes itemFadeIn {
+  from {
+    transform: translateX(-50%) translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
