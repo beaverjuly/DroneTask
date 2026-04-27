@@ -131,24 +131,32 @@ function mockBrightDarkComparison() {
   );
 }
 
+// ---------------------------------------------------------------------
+// Compact GREEN/RED summary card.
+// Renders the side-by-side environment comparison only.
+// The page that uses this should provide its own intro and closing
+// sentences (see inst5 below).
+// ---------------------------------------------------------------------
 function mockGainLossComparison() {
   return (
-    '<div style="display:flex;gap:16px;justify-content:center;align-items:stretch;flex-wrap:wrap;margin:14px auto 4px auto;width:88%;">' +
+    '<div style="display:flex;gap:18px;justify-content:center;align-items:stretch;flex-wrap:wrap;margin:14px auto 4px auto;width:88%;">' +
 
-      '<div style="flex:1;min-width:250px;max-width:340px;padding:16px;border-radius:14px;' +
-        'background:#f7fff8;border:1px solid #d8efdc;box-shadow:0 4px 14px rgba(0,0,0,.06);text-align:center;">' +
-        '<div style="font-size:24px;font-weight:800;color:#0a7f2e;margin-bottom:8px;">GREEN environment</div>' +
-        '<div style="font-size:19px;line-height:1.6;"><strong>Better placement = gain more</strong></div>' +
-        '<div style="font-size:34px;font-weight:900;color:#0a7f2e;margin:10px 0 6px 0;">+10</div>' +
-        '<div style="font-size:18px;line-height:1.6;">Catching more adds points.</div>' +
+      // GREEN environment card
+      '<div style="flex:1;min-width:240px;max-width:340px;padding:18px;border-radius:14px;' +
+        'background:#f7fff8;border:2px solid #d8efdc;box-shadow:0 4px 14px rgba(0,0,0,.06);text-align:center;">' +
+        '<div style="font-size:24px;font-weight:800;color:#0a7f2e;margin-bottom:10px;">GREEN = reward</div>' +
+        '<div style="font-size:18px;line-height:1.55;color:#1f2937;">' +
+          'Better placement<br>→ <strong>gain more points</strong>' +
+        '</div>' +
       '</div>' +
 
-      '<div style="flex:1;min-width:250px;max-width:340px;padding:16px;border-radius:14px;' +
-        'background:#fff8f8;border:1px solid #f0d7d7;box-shadow:0 4px 14px rgba(0,0,0,.06);text-align:center;">' +
-        '<div style="font-size:24px;font-weight:800;color:#b00020;margin-bottom:8px;">RED environment</div>' +
-        '<div style="font-size:19px;line-height:1.6;"><strong>Better placement = lose less</strong></div>' +
-        '<div style="font-size:34px;font-weight:900;color:#b00020;margin:10px 0 6px 0;">-4</div>' +
-        '<div style="font-size:18px;line-height:1.6;">Missing costs points.</div>' +
+      // RED environment card
+      '<div style="flex:1;min-width:240px;max-width:340px;padding:18px;border-radius:14px;' +
+        'background:#fff8f8;border:2px solid #f0d7d7;box-shadow:0 4px 14px rgba(0,0,0,.06);text-align:center;">' +
+        '<div style="font-size:24px;font-weight:800;color:#b00020;margin-bottom:10px;">RED = loss</div>' +
+        '<div style="font-size:18px;line-height:1.55;color:#1f2937;">' +
+          'Better placement<br>→ <strong>lose fewer points</strong>' +
+        '</div>' +
       '</div>' +
 
     '</div>'
@@ -187,11 +195,11 @@ var inst_summary = {
     '<div style="font-size:20px; line-height:1.7; text-align:center;"><strong style="font-size:24px;">Your score</strong><br><br>A <strong>number</strong> appears each turn.</div>' +
       mockRail(52, 52, { boxLocked: true, showDot: true, showLine: false, valence: 'reward', score: '+10', showItem: false }),
 
-    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px;">Reward scoring</strong><br><br>Your score depends on how close your <strong>box</strong> is to the <strong>drop location</strong>.<br><br><strong style="font-size:24px; color:#0a7f2e;">Perfect alignment = +10</strong><br><br>The farther away your box is, the fewer points you get.</div>' +
+    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px;">Reward scoring</strong><br><br>In <strong>green environments</strong>, better placement helps you <strong>gain more points</strong>.<br><br><strong style="font-size:24px; color:#0a7f2e;">Perfect alignment = +10</strong><br><br>If you are farther away, you gain fewer points.</div>' +
       mockRail(52, 52, { boxLocked: true, showDot: true, showLine: false, valence: 'reward', score: '+10', showItem: false }) +
       mockRail(36, 63, { boxLocked: true, showDot: true, showLine: true, valence: 'reward', score: '+3', showItem: false }),
 
-    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px;">Loss scoring</strong><br><br>In some environments, good placement helps you <strong>lose fewer points</strong>.<br><br><strong style="font-size:24px; color:#b00020;">Perfect alignment = 0</strong><br><br>The farther away your box is, the more points you lose.</div>' +
+    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px;">Loss scoring</strong><br><br>In <strong>red environments</strong>, better placement helps you <strong>lose fewer points</strong>.<br><br><strong style="font-size:24px; color:#b00020;">Perfect alignment = 0</strong><br><br>If you are farther away, you lose more points.</div>' +
       mockRail(52, 52, { boxLocked: true, showDot: true, showLine: false, valence: 'loss', score: '0', showItem: false }) +
       mockRail(36, 63, { boxLocked: true, showDot: true, showLine: true, valence: 'loss', score: '-7', showItem: false }),
 
@@ -214,8 +222,9 @@ var inst_summary = {
     '<div style="font-size:20px; line-height:1.7; text-align:center;"><strong style="font-size:24px;">Items and memory test</strong><br><br>Each turn, a distinct <strong>item</strong> will appear. Later, there will be a short <strong>memory test</strong> about those items.</div>' +
       mockRail(50, 50, { boxLocked: true, showDot: true, showLine: false, valence: 'reward', score: '+10', showItem: true, item: '🧩' }),
 
-    '<div style="font-size:20px; line-height:1.7; text-align:center;"><strong style="font-size:24px;">4 environments</strong><br><br>The full game has <strong>4 environments</strong> with different movement patterns and scoring contexts.</div>' +
-      mockGainLossComparison(),
+    '<div style="font-size:20px; line-height:1.7; text-align:center;"><strong style="font-size:24px;">4 environments</strong><br><br>The full game has <strong>both types of environments</strong>, with different movement patterns and scoring contexts.</div>' +
+      mockGainLossComparison() +
+      '<div style="font-size:19px; line-height:1.6; text-align:center; margin-top:10px;">In every environment, <strong>place the box as accurately as possible</strong>.</div>',
 
     '<div style="font-size:20px; line-height:1.7; text-align:center;"><strong style="font-size:24px;">Next step</strong><br><br>You will now answer questions about the game again.<br><strong>You must answer them correctly to continue.</strong></div>'
   ],
@@ -247,6 +256,14 @@ var inst1 = {
   button_label_next: "Next"
 };
 
+// ---------------------------------------------------------------------
+// inst2: locked box → landing → dashed line → Reward scoring → Loss scoring
+//        → next turn → rule → keep responding → try it now
+//
+// The visual Reward and Loss scoring pages live here, immediately
+// after the dashed-line / distance explanation, with updated wording
+// that names the GREEN / RED environment colours explicitly.
+// ---------------------------------------------------------------------
 var inst2 = {
   type: 'instructions',
   pages: [
@@ -259,11 +276,13 @@ var inst2 = {
     '<div style="font-size:20px; line-height:1.7; text-align:center;">A <strong>dashed line</strong> shows the distance between your box and the landing location.</div>' +
       mockRail(42, 60, { boxLocked: true, showDot: true, showLine: true, valence: 'reward', score: '', showItem: false }),
 
-    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px;">Reward scoring</strong><br><br>Your score depends on how close your <strong>box</strong> is to the <strong>drop location</strong>.<br><br><strong style="font-size:24px; color:#0a7f2e;">Perfect alignment = +10</strong><br><br>If you are farther away, you get fewer points.</div>' +
+    // Reward scoring page (visual)
+    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px;">Reward scoring</strong><br><br>In <strong>green environments</strong>, better placement helps you <strong>gain more points</strong>.<br><br><strong style="font-size:24px; color:#0a7f2e;">Perfect alignment = +10</strong><br><br>If you are farther away, you gain fewer points.</div>' +
       mockRail(52, 52, { boxLocked: true, showDot: true, showLine: false, valence: 'reward', score: '+10', showItem: false }) +
       mockRail(36, 63, { boxLocked: true, showDot: true, showLine: true, valence: 'reward', score: '+3', showItem: false }),
 
-    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px;">Loss scoring</strong><br><br>In some environments, good placement helps you <strong>lose fewer points</strong>.<br><br><strong style="font-size:24px; color:#b00020;">Perfect alignment = 0</strong><br><br>If you are farther away, you lose more points.</div>' +
+    // Loss scoring page (visual)
+    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px;">Loss scoring</strong><br><br>In <strong>red environments</strong>, better placement helps you <strong>lose fewer points</strong>.<br><br><strong style="font-size:24px; color:#b00020;">Perfect alignment = 0</strong><br><br>If you are farther away, you lose more points.</div>' +
       mockRail(52, 52, { boxLocked: true, showDot: true, showLine: false, valence: 'loss', score: '0', showItem: false }) +
       mockRail(36, 63, { boxLocked: true, showDot: true, showLine: true, valence: 'loss', score: '-7', showItem: false }),
 
@@ -321,17 +340,23 @@ var inst4 = {
   button_label_next: "Next"
 };
 
+// ---------------------------------------------------------------------
+// inst5: 4-environments intro → ONE compact summary card → reminder.
+//
+// The two text-only "In some environments..." / "In other environments..."
+// pages have been removed. The summary card is a single page that
+// combines the intro, the GREEN/RED comparison, and the closing
+// "place accurately" rule.
+// ---------------------------------------------------------------------
 var inst5 = {
   type: 'instructions',
   pages: [
     '<div style="font-size:20px; line-height:1.7; text-align:center;"><strong style="font-size:25px;">The full game</strong><br><br>There are <strong>4 environments</strong>.<br>Each has a different movement pattern and scoring context.</div>',
 
-    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px; color:#0a7f2e;">In some environments:</strong><br><br><strong>Better placement = gain more</strong><br><br><span style="font-weight:bold; color:#0a7f2e;">GREEN = gain</span></div>',
-
-    '<div style="font-size:20px; line-height:1.8; text-align:center;"><strong style="font-size:25px; color:#b00020;">In other environments:</strong><br><br><strong>Better placement = lose fewer</strong><br><br><span style="font-weight:bold; color:#b00020;">RED = loss</span></div>' +
-      mockGainLossComparison(),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;"><strong>Key idea:</strong><br><br>Always place the box as accurately as possible. That helps you either <strong style="color:#0a7f2e;">gain more</strong> or <strong style="color:#b00020;">lose less</strong>.</div>',
+    // Compact comparison summary (single page)
+    '<div style="font-size:20px; line-height:1.7; text-align:center;"><strong style="font-size:24px;">Two types of environments</strong><br><br>The full game has both types of environments.</div>' +
+      mockGainLossComparison() +
+      '<div style="font-size:19px; line-height:1.6; text-align:center; margin-top:10px;">In every environment, <strong>place the box as accurately as possible</strong>.</div>',
 
     '<div style="font-size:20px; line-height:1.7; text-align:center;">You will be reminded whenever the environment changes.</div>'
   ],
