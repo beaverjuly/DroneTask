@@ -14,6 +14,7 @@ This repository contains the jsPsych implementation of the Drone Task, optimized
 - **Dev Modes:** Consent can be skipped for dev/testing with `?consent=0`.
 
 ## Repository Structure
+```
 ├── index.html                      # Main experiment entry point & consent trial
 ├── static/
 │   ├── lib/
@@ -24,7 +25,7 @@ This repository contains the jsPsych implementation of the Drone Task, optimized
 │   └── css/
 │       └── jspsych.css
 └── README.md
-
+```
 ## Setup Instructions
 
 ### 1. Verify the Pavlovia plugin
