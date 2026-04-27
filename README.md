@@ -66,8 +66,8 @@ Typical pilot behavior:
 - No Prolific redirect.
 
 **Optional testing links after launch:**
-- Standard Pilot: `https://run.pavlovia.org/<username>/<experiment>/?pilot=1`
-- Skip consent for quick internal testing: `https://run.pavlovia.org/<username>/<experiment>/?pilot=1&consent=0`
+- Standard Pilot: `https://run.pavlovia.org/<username>/DroneTask/?pilot=1`
+- Skip consent for quick internal testing: `https://run.pavlovia.org/<username>/DroneTask/?pilot=1&consent=0`
 
 ### Running mode / shareable testing link
 
