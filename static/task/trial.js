@@ -78,7 +78,7 @@ jsPsych.plugins["trial"] = (function () {
         array: true,
         pretty_name: "distribution of drop objects",
         default: [-4.25, -3, -1.75, -0.75, -0.25, 0.25, 0.75, 1.75, 3, 4.25],
-        description: "legacy distribution parameter"
+        description: "horizontal spread of fragments around bag landing position"
       },
       coins_duration: {
         type: jsPsych.plugins.parameterType.INT,
@@ -235,22 +235,25 @@ jsPsych.plugins["trial"] = (function () {
 
     html += '<div class="slider-rail" id="slider-rail"></div>';
 
+    // Collector box — kept, but the "YOU" label is removed.
     html +=
       '<div class="collector-wrap" id="collector" style="left:' +
       trial.bucket_position +
       '%;">' +
       '<div class="collector-chevron" id="collector-chevron">&#9660;</div>' +
-      '<div class="collector-box" id="collector-box">' +
-      '<span class="collector-label">YOU</span>' +
-      "</div></div>";
+      '<div class="collector-box" id="collector-box"></div>' +
+      "</div>";
 
     // Drone indicator (practice only — emoji, not an image)
     html += '<div class="drone-el" id="drone">&#128760;</div>';
 
-    // PE line (hidden initially)
+    // PE line is kept in the DOM but never displayed (legacy element).
     html += '<div class="pe-line" id="pe-line" style="display:none;"></div>';
 
-    // Bag dot (hidden initially)
+    // Fragment layer — fragments from the bag burst are appended here.
+    html += '<div class="fragment-layer" id="fragment-layer"></div>';
+
+    // Bag dot (hidden initially). Drop animation is driven by the .dropping class.
     html += '<div class="bag-dot" id="bag-dot" style="display:none;"></div>';
 
     // Feedback value (hidden initially)
@@ -316,17 +319,67 @@ jsPsych.plugins["trial"] = (function () {
     return 0;
   }
 
+  /* ── Bag explosion: spawn fragments at the landing point ── */
+  function showBagExplosion(trial, captureCount, valenceClass) {
+    var layer = document.getElementById("fragment-layer");
+    if (!layer) return;
+
+    // Clear any leftover fragments from a previous trial.
+    layer.innerHTML = "";
+
+    var defaultDist = [-4.25, -3, -1.75, -0.75, -0.25, 0.25, 0.75, 1.75, 3, 4.25];
+    var offsets =
+      Array.isArray(trial.coins_distribution) && trial.coins_distribution.length
+        ? trial.coins_distribution
+        : defaultDist;
+
+    var bagX = clampPercent(trial.bag_position, 12, 88);
+
+    offsets.forEach(function (offset, i) {
+      var frag = document.createElement("div");
+      frag.className = "bag-fragment " + valenceClass;
+      // Alternate shade for visual variety (green/yellow or red/pink).
+      if (i % 2 === 0) frag.classList.add("alt");
+
+      // Each fragment starts at bagX. Final x = bagX + offset (in % of container).
+      // game-container width is 80vw, so offset% of container ≈ offset * 0.8 vw.
+      var dxVw = offset * 0.8;
+      // A small initial upward "pop" before gravity takes over.
+      var dyVh = -(0.6 + Math.random() * 0.9);
+      // Vertical fall distance — varied so fragments don't land at identical heights.
+      var fallVh = 11 + Math.random() * 5;
+      // Spin during flight.
+      var rotDeg = Math.random() * 720 - 360;
+      // Small per-fragment delay so the burst doesn't feel uniform.
+      // Total animation budget kept under ~1100 ms (delay ≤ 110ms + 850ms anim).
+      var delayMs = 20 + Math.random() * 90;
+
+      frag.style.left = bagX + "%";
+      frag.style.setProperty("--dx", dxVw + "vw");
+      frag.style.setProperty("--dy", dyVh + "vh");
+      frag.style.setProperty("--fall", fallVh + "vh");
+      frag.style.setProperty("--rot", rotDeg + "deg");
+      frag.style.animationDelay = delayMs + "ms";
+
+      layer.appendChild(frag);
+    });
+  }
+
   function fly(trial) {
     var valence = trial.valence || "reward";
     var va = getValenceConfig(valence);
 
+    // Timing — bag drop begins at bagDelay, lands at landDelay (drop duration matches CSS).
     var lockDelay = 300;
-    var bagDelay = lockDelay + 200;
-    var valueDelay = bagDelay + 150;
-    var itemDelay = valueDelay + 280;
+    var bagDelay = lockDelay + 200;          // ~500 ms — bag appears at top, drop animation begins
+    var dropDuration = 520;                  // matches @keyframes bagDropDown duration
+    var landDelay = bagDelay + dropDuration; // ~1020 ms — explosion begins
+    var valueDelay = landDelay + 100;        // ~1120 ms — value appears shortly after explosion
+    var itemDelay = valueDelay + 300;        // ~1420 ms — item card appears
 
     setCollectorLocked();
 
+    // — Step 1: bag dot appears at the top and drops to the landing point.
     setTimeout(function () {
       // Show drone in practice
       if (trial.show_drone || trial.show_bird) {
@@ -337,34 +390,43 @@ jsPsych.plugins["trial"] = (function () {
         }
       }
 
-      // Show bag dot
+      // Place bag dot at the true bag x; the .dropping class animates it from
+      // the top of the game area down to the landing point above the rail.
       var bagDot = document.getElementById("bag-dot");
       if (bagDot) {
         var bagLeft = clampPercent(trial.bag_position, 12, 88);
         bagDot.style.left = bagLeft + "%";
-        bagDot.style.display = "block";
+        // Reset any state from a previous trial.
         bagDot.className = "bag-dot " + va.bagClass;
+        bagDot.style.display = "block";
+        // Force a reflow so the animation reliably restarts on re-show.
+        void bagDot.offsetWidth;
+        bagDot.classList.add("dropping");
       }
 
-      // Show PE line
-      var peLine = document.getElementById("pe-line");
-      if (peLine) {
-        var peLeft = Math.min(trial.bucket_position, trial.bag_position);
-        var peWidth = Math.abs(trial.bucket_position - trial.bag_position);
-        if (peWidth > 0.5) {
-          peLine.style.left = peLeft + "%";
-          peLine.style.width = peWidth + "%";
-          peLine.style.display = "block";
-          peLine.className = "pe-line " + va.peClass;
-        }
-      }
+      // PE line is intentionally NOT displayed.
     }, bagDelay);
 
+    // — Step 2: bag has landed → pulse + fragment burst.
     setTimeout(function () {
       var distance = Math.abs(trial.bucket_position - trial.bag_position);
       var captureCount = computeCaptureCount(distance);
       trial.coins_caught = captureCount;
 
+      // Switch from drop animation to landing pulse. The pulse fades out the
+      // bag dot while the fragments take over the visual space.
+      var bagDot = document.getElementById("bag-dot");
+      if (bagDot) {
+        bagDot.classList.remove("dropping");
+        bagDot.classList.add("landed");
+      }
+
+      showBagExplosion(trial, captureCount, va.bagClass);
+    }, landDelay);
+
+    // — Step 3: feedback value text appears near the landing position.
+    setTimeout(function () {
+      var captureCount = trial.coins_caught;
       var valueChange = va.feedback_sign(captureCount);
       var displayText;
 
@@ -383,6 +445,7 @@ jsPsych.plugins["trial"] = (function () {
       }
     }, valueDelay);
 
+    // — Step 4: item stimulus card appears (unchanged behaviour).
     setTimeout(function () {
       var card = document.getElementById("stimulus-card");
       var emojiEl = document.getElementById("emoji-stim");
@@ -393,18 +456,24 @@ jsPsych.plugins["trial"] = (function () {
       }
     }, itemDelay);
 
+    // — Step 5: cleanup — clear bag, fragments, value, card, drone, landing marker.
     setTimeout(function () {
       var fb = document.getElementById("fb");
       var card = document.getElementById("stimulus-card");
       var bagDot = document.getElementById("bag-dot");
       var peLine = document.getElementById("pe-line");
       var drone = document.getElementById("drone");
+      var fragLayer = document.getElementById("fragment-layer");
 
       if (fb) fb.style.display = "none";
       if (card) card.style.display = "none";
-      if (bagDot) bagDot.style.display = "none";
+      if (bagDot) {
+        bagDot.style.display = "none";
+        bagDot.classList.remove("dropping", "landed");
+      }
       if (peLine) peLine.style.display = "none";
       if (drone) drone.classList.remove("visible", "outcome-phase");
+      if (fragLayer) fragLayer.innerHTML = "";
     }, itemDelay + 2800);
   }
 
