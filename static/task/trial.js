@@ -319,6 +319,7 @@ jsPsych.plugins["trial"] = (function () {
   }
 
   /* ── Bag explosion: spawn fragments at the landing point ── */
+  /* ── Bag explosion: spawn fragments at the landing point ── */
   function showBagExplosion(trial, captureCount, valenceClass) {
     var layer = document.getElementById("fragment-layer");
     if (!layer) return;
@@ -338,26 +339,32 @@ jsPsych.plugins["trial"] = (function () {
       var frag = document.createElement("div");
       frag.className = "bag-fragment " + valenceClass;
 
-      // Each fragment starts at bagX. Final x = bagX + offset (in % of container).
-      // game-container width is 80vw, so offset% of container ≈ offset * 0.8 vw.
-      var dxVw = offset * 2.0;
-      var dxMidVw = dxVw * 0.45;
-      // A small initial upward "pop" before gravity takes over.
-      var dyVh = -(0.6 + Math.random() * 0.9);
-      // Vertical fall distance — varied so fragments don't land at identical heights.
-      var fallVh = 4.8 + Math.random() * 1.2;
-      // Spin during flight.
-      var rotDeg = Math.random() * 720 - 360;
-      // Small per-fragment delay so the burst doesn't feel uniform.
-      // Total animation budget kept under ~1100 ms (delay ≤ 110ms + 850ms anim).
-      var delayMs = 20 + Math.random() * 90;
+      var dxVw = offset * 1.15;
+
+      // small upward pop
+      var dyVh = -(0.6 + Math.random() * 0.5);
+
+      // slight per-fragment fall variation so they don't hit in one flat line
+      var fallVh = 4.5 + Math.random() * 0.9;
+
+      // a middle falling point for a more curved trajectory
+      var fallMidVh = 2.5 + Math.random() * 0.5;
+
+      // individual speed variation
+      var durationMs = 450 + Math.random() * 120;
+
+      var rotDeg = Math.random() * 160 - 80;
+      var delayMs = Math.random() * 12;
 
       frag.style.left = bagX + "%";
-      frag.style.setProperty("--dx-mid", dxMidVw + "vw");
+      frag.style.setProperty("--dx", dxVw + "vw");
+      frag.style.setProperty("--dx-mid", dxVw * 0.72 + "vw");
       frag.style.setProperty("--dy", dyVh + "vh");
+      frag.style.setProperty("--fall-mid", fallMidVh + "vh");
       frag.style.setProperty("--fall", fallVh + "vh");
       frag.style.setProperty("--rot", rotDeg + "deg");
       frag.style.animationDelay = delayMs + "ms";
+      frag.style.animationDuration = durationMs + "ms";
 
       layer.appendChild(frag);
     });
@@ -370,8 +377,8 @@ jsPsych.plugins["trial"] = (function () {
     // Timing — bag drop begins at bagDelay, lands at landDelay (drop duration matches CSS).
     var lockDelay = 300;
     var bagDelay = lockDelay + 200;          // ~500 ms — bag appears at top, drop animation begins
-    var dropDuration = 520;                  // matches @keyframes bagDropDown duration
-    var landDelay = bagDelay + dropDuration; // ~1020 ms — explosion begins
+    var dropDuration = 720;                  // matches @keyframes bagDropDown duration
+    var landDelay = bagDelay + dropDuration - 200; // explosion begins
     var valueDelay = landDelay + 100;        // ~1120 ms — value appears shortly after explosion
     var itemDelay = valueDelay + 300;        // ~1420 ms — item card appears
 
