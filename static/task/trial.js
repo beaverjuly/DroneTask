@@ -240,7 +240,6 @@ jsPsych.plugins["trial"] = (function () {
       '<div class="collector-wrap" id="collector" style="left:' +
       trial.bucket_position +
       '%;">' +
-      '<div class="collector-chevron" id="collector-chevron">&#9660;</div>' +
       '<div class="collector-box" id="collector-box"></div>' +
       "</div>";
 
@@ -338,16 +337,15 @@ jsPsych.plugins["trial"] = (function () {
     offsets.forEach(function (offset, i) {
       var frag = document.createElement("div");
       frag.className = "bag-fragment " + valenceClass;
-      // Alternate shade for visual variety (green/yellow or red/pink).
-      if (i % 2 === 0) frag.classList.add("alt");
 
       // Each fragment starts at bagX. Final x = bagX + offset (in % of container).
       // game-container width is 80vw, so offset% of container ≈ offset * 0.8 vw.
-      var dxVw = offset * 0.8;
+      var dxVw = offset * 2.0;
+      var dxMidVw = dxVw * 0.45;
       // A small initial upward "pop" before gravity takes over.
       var dyVh = -(0.6 + Math.random() * 0.9);
       // Vertical fall distance — varied so fragments don't land at identical heights.
-      var fallVh = 11 + Math.random() * 5;
+      var fallVh = 4.8 + Math.random() * 1.2;
       // Spin during flight.
       var rotDeg = Math.random() * 720 - 360;
       // Small per-fragment delay so the burst doesn't feel uniform.
@@ -355,7 +353,7 @@ jsPsych.plugins["trial"] = (function () {
       var delayMs = 20 + Math.random() * 90;
 
       frag.style.left = bagX + "%";
-      frag.style.setProperty("--dx", dxVw + "vw");
+      frag.style.setProperty("--dx-mid", dxMidVw + "vw");
       frag.style.setProperty("--dy", dyVh + "vh");
       frag.style.setProperty("--fall", fallVh + "vh");
       frag.style.setProperty("--rot", rotDeg + "deg");
