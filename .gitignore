@@ -1,0 +1,5 @@
+
+# Local / Pavlovia data files
+/data/
+DroneTask_PARTICIPANT_SESSION_*.csv
+*.csv
