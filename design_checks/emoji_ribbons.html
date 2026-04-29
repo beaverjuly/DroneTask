@@ -1,0 +1,280 @@
+<!DOCTYPE html><html><head><meta charset="UTF-8">
+<title>DroneTask emoji ribbons</title>
+
+<style>
+  .ribbon-doc {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    color: #222; background: #fff; padding: 18px 8px;
+  }
+  .ribbon-doc h1 { font-size: 18px; font-weight: 750; margin: 0 0 8px 0; }
+  .ribbon-doc h2 { font-size: 14px; font-weight: 700; margin: 22px 0 6px 0; }
+  .ribbon-doc .figure-note,
+  .ribbon-doc .caption    { font-size: 11.5px; color: #444; line-height: 1.45; max-width: 1350px; }
+  .ribbon-doc .legend     { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center;
+                            font-size: 11.5px; color: #333; margin: 8px 0 14px 0; }
+  .ribbon-doc .legend-item{ display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .ribbon-doc .swatch     { display: inline-block; width: 16px; height: 12px; border-radius: 2px; }
+  .ribbon-doc .swatch.tested         { background: #fff3a3; border: 1px solid #b58a00; }
+  .ribbon-doc .swatch.slider         { background: #cfe8ff; border: 1px solid #2b6cb0; }
+  .ribbon-doc .swatch.boundary-item  { background: #fff;    border: 2px solid #d62728; }
+  .ribbon-doc .swatch.boundary-line  { width: 3px; height: 16px; background: #d62728; }
+  .ribbon-doc .pair-legend { font-size: 11px; line-height: 1.45; max-width: 1400px;
+                             font-family: ui-monospace, Menlo, Consolas, monospace; margin-bottom: 14px; }
+  .ribbon-doc .ribbon-title { font-weight: 700; font-size: 12.5px; margin: 14px 0 4px 0; }
+  .ribbon-doc table.ribbon  { border-collapse: collapse; table-layout: fixed; width: 100%;
+                              max-width: 1500px; }
+  .ribbon-doc table.ribbon td { width: 2%; height: 56px; border: 1px solid #d2d2d2;
+                                font-size: 19px; text-align: center; vertical-align: middle;
+                                position: relative; background: #fff; overflow: visible; }
+  .ribbon-doc table.ribbon td.tested        { background: #fff3a3; border-color: #b58a00; }
+  .ribbon-doc table.ribbon td.slider-mid    { background: #cfe8ff; border-color: #2b6cb0; }
+  .ribbon-doc table.ribbon td.boundary-item { outline: 3px solid #d62728; outline-offset: -3px; }
+  .ribbon-doc table.ribbon td.boundary-after::after {
+      content: ""; position: absolute; top: -6px; right: -2px; height: 68px;
+      border-right: 3px solid #d62728; z-index: 6; }
+  .ribbon-doc .pair-label, .ribbon-doc .slider-label, .ribbon-doc .boundary-label {
+      position: absolute; font-family: ui-monospace, Menlo, Consolas, monospace;
+      font-size: 8px; line-height: 1.05; font-weight: 800;
+      background: rgba(255,255,255,0.85); border-radius: 3px; padding: 1px 2px; }
+  .ribbon-doc .pair-label    { top: 2px; left: 2px;   color: #5b4400; }
+  .ribbon-doc .slider-label  { top: 2px; right: 2px;  color: #004b88; }
+  .ribbon-doc .boundary-label{ bottom: 2px; left: 3px; color: #d62728; z-index: 7; }
+  .ribbon-doc .trial-num     { position: absolute; bottom: 2px; right: 3px; font-size: 8px; color: #777; }
+  .ribbon-doc table.boundary-table  { border-collapse: collapse; font-size: 11.5px;
+                                      max-width: 1200px; margin-top: 6px; }
+  .ribbon-doc table.boundary-table th, .ribbon-doc table.boundary-table td {
+      border: 1px solid #d6d6d6; padding: 5px 8px; text-align: left; vertical-align: top; }
+  .ribbon-doc table.boundary-table th { background: #f1f1f1; font-weight: 700; }
+  .ribbon-doc code { background: #f4f4f4; border: 1px solid #ddd; padding: 1px 4px; border-radius: 3px; }
+</style>
+
+</head><body>
+<div class="ribbon-doc">
+<h1>DroneTask emoji ribbons</h1>
+<div class="figure-note">Each row shows one block's 50-item sequence. Pair-test items, slider middle items, and inferred latent-position boundaries are annotated directly on the cells.</div>
+<div class="legend">
+<span class="legend-item"><span class="swatch tested"></span>pair-tested item</span>
+<span class="legend-item"><span class="swatch slider"></span>slider middle item</span>
+<span class="legend-item"><span class="swatch boundary-item"></span>first post-boundary item</span>
+<span class="legend-item"><span class="swatch boundary-line"></span>boundary between items</span>
+<span class="legend-item"><strong>Pxx</strong> pair ID</span>
+<span class="legend-item"><strong>B</strong> post-boundary marker</span>
+</div>
+<div class="pair-legend"><strong>Pair IDs:</strong> P01: 2↔4; P02: 6↔9; P03: 7↔10; P04: 11↔13; P05: 16↔18; P06: 17↔20; P07: 22↔24; P08: 23↔26; P09: 28↔31; P10: 30↔33; P11: 34↔36; P12: 35↔38; P13: 39↔41; P14: 42↔45</div>
+<div class="ribbon-title">Block 1</div><table class="ribbon"><tr>
+<td class=""><span style="font-size:20px">🚦</span><div class="trial-num">1</div></td>
+<td class="tested"><div class="pair-label">P01</div><span style="font-size:20px">🧆</span><div class="trial-num">2</div></td>
+<td class="slider-mid"><div class="slider-label">MID</div><span style="font-size:20px">🪣</span><div class="trial-num">3</div></td>
+<td class="tested"><div class="pair-label">P01</div><span style="font-size:20px">🪅</span><div class="trial-num">4</div></td>
+<td class=""><span style="font-size:20px">🪤</span><div class="trial-num">5</div></td>
+<td class="tested"><div class="pair-label">P02</div><span style="font-size:20px">🤿</span><div class="trial-num">6</div></td>
+<td class="tested"><div class="pair-label">P03</div><span style="font-size:20px">🧄</span><div class="trial-num">7</div></td>
+<td class=""><span style="font-size:20px">💴</span><div class="trial-num">8</div></td>
+<td class="tested"><div class="pair-label">P02</div><span style="font-size:20px">📽️</span><div class="trial-num">9</div></td>
+<td class="tested"><div class="pair-label">P03</div><span style="font-size:20px">☎️</span><div class="trial-num">10</div></td>
+<td class="tested"><div class="pair-label">P04</div><span style="font-size:20px">🫘</span><div class="trial-num">11</div></td>
+<td class="slider-mid"><div class="slider-label">MID</div><span style="font-size:20px">🖍️</span><div class="trial-num">12</div></td>
+<td class="tested"><div class="pair-label">P04</div><span style="font-size:20px">🌺</span><div class="trial-num">13</div></td>
+<td class=""><span style="font-size:20px">🧣</span><div class="trial-num">14</div></td>
+<td class=""><span style="font-size:20px">👢</span><div class="trial-num">15</div></td>
+<td class="tested"><div class="pair-label">P05</div><span style="font-size:20px">🪕</span><div class="trial-num">16</div></td>
+<td class="tested slider-mid"><div class="pair-label">P06</div><div class="slider-label">MID</div><span style="font-size:20px">🪮</span><div class="trial-num">17</div></td>
+<td class="tested"><div class="pair-label">P05</div><span style="font-size:20px">👖</span><div class="trial-num">18</div></td>
+<td class=""><span style="font-size:20px">🧵</span><div class="trial-num">19</div></td>
+<td class="tested"><div class="pair-label">P06</div><span style="font-size:20px">🍧</span><div class="trial-num">20</div></td>
+<td class=""><span style="font-size:20px">🎍</span><div class="trial-num">21</div></td>
+<td class="tested"><div class="pair-label">P07</div><span style="font-size:20px">🌻</span><div class="trial-num">22</div></td>
+<td class="tested slider-mid"><div class="pair-label">P08</div><div class="slider-label">MID</div><span style="font-size:20px">🎹</span><div class="trial-num">23</div></td>
+<td class="tested"><div class="pair-label">P07</div><span style="font-size:20px">🫖</span><div class="trial-num">24</div></td>
+<td class=""><span style="font-size:20px">👗</span><div class="trial-num">25</div></td>
+<td class="tested"><div class="pair-label">P08</div><span style="font-size:20px">🍱</span><div class="trial-num">26</div></td>
+<td class=""><span style="font-size:20px">🚜</span><div class="trial-num">27</div></td>
+<td class="tested"><div class="pair-label">P09</div><span style="font-size:20px">🎱</span><div class="trial-num">28</div></td>
+<td class=""><span style="font-size:20px">🩴</span><div class="trial-num">29</div></td>
+<td class="tested"><div class="pair-label">P10</div><span style="font-size:20px">🏉</span><div class="trial-num">30</div></td>
+<td class="tested"><div class="pair-label">P09</div><span style="font-size:20px">🪶</span><div class="trial-num">31</div></td>
+<td class=""><span style="font-size:20px">🛥️</span><div class="trial-num">32</div></td>
+<td class="tested"><div class="pair-label">P10</div><span style="font-size:20px">🪞</span><div class="trial-num">33</div></td>
+<td class="tested"><div class="pair-label">P11</div><span style="font-size:20px">🛰️</span><div class="trial-num">34</div></td>
+<td class="tested slider-mid"><div class="pair-label">P12</div><div class="slider-label">MID</div><span style="font-size:20px">🪷</span><div class="trial-num">35</div></td>
+<td class="tested"><div class="pair-label">P11</div><span style="font-size:20px">💐</span><div class="trial-num">36</div></td>
+<td class=""><span style="font-size:20px">🚤</span><div class="trial-num">37</div></td>
+<td class="tested"><div class="pair-label">P12</div><span style="font-size:20px">🥕</span><div class="trial-num">38</div></td>
+<td class="tested"><div class="pair-label">P13</div><span style="font-size:20px">🛋️</span><div class="trial-num">39</div></td>
+<td class="slider-mid"><div class="slider-label">MID</div><span style="font-size:20px">🛶</span><div class="trial-num">40</div></td>
+<td class="tested"><div class="pair-label">P13</div><span style="font-size:20px">🧱</span><div class="trial-num">41</div></td>
+<td class="tested"><div class="pair-label">P14</div><span style="font-size:20px">🪓</span><div class="trial-num">42</div></td>
+<td class=""><span style="font-size:20px">🪙</span><div class="trial-num">43</div></td>
+<td class=""><span style="font-size:20px">🪥</span><div class="trial-num">44</div></td>
+<td class="tested"><div class="pair-label">P14</div><span style="font-size:20px">🎙️</span><div class="trial-num">45</div></td>
+<td class=""><span style="font-size:20px">⛸️</span><div class="trial-num">46</div></td>
+<td class=""><span style="font-size:20px">⛺️</span><div class="trial-num">47</div></td>
+<td class=""><span style="font-size:20px">🧼</span><div class="trial-num">48</div></td>
+<td class=""><span style="font-size:20px">👒</span><div class="trial-num">49</div></td>
+<td class=""><span style="font-size:20px">🩰</span><div class="trial-num">50</div></td>
+</tr></table>
+<div class="ribbon-title">Block 2</div><table class="ribbon"><tr>
+<td class=""><span style="font-size:20px">🪻</span><div class="trial-num">1</div></td>
+<td class="tested boundary-after"><div class="pair-label">P01</div><span style="font-size:20px">🥞</span><div class="trial-num">2</div></td>
+<td class="slider-mid boundary-item"><div class="slider-label">MID</div><div class="boundary-label">B</div><span style="font-size:20px">🍿</span><div class="trial-num">3</div></td>
+<td class="tested boundary-after"><div class="pair-label">P01</div><span style="font-size:20px">🥜</span><div class="trial-num">4</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🫒</span><div class="trial-num">5</div></td>
+<td class="tested"><div class="pair-label">P02</div><span style="font-size:20px">🧶</span><div class="trial-num">6</div></td>
+<td class="tested"><div class="pair-label">P03</div><span style="font-size:20px">🥁</span><div class="trial-num">7</div></td>
+<td class=""><span style="font-size:20px">🎻</span><div class="trial-num">8</div></td>
+<td class="tested"><div class="pair-label">P02</div><span style="font-size:20px">🍛</span><div class="trial-num">9</div></td>
+<td class="tested"><div class="pair-label">P03</div><span style="font-size:20px">🪈</span><div class="trial-num">10</div></td>
+<td class="tested boundary-after"><div class="pair-label">P04</div><span style="font-size:20px">🥘</span><div class="trial-num">11</div></td>
+<td class="slider-mid boundary-item"><div class="slider-label">MID</div><div class="boundary-label">B</div><span style="font-size:20px">💺</span><div class="trial-num">12</div></td>
+<td class="tested"><div class="pair-label">P04</div><span style="font-size:20px">🛵</span><div class="trial-num">13</div></td>
+<td class=""><span style="font-size:20px">🧹</span><div class="trial-num">14</div></td>
+<td class=""><span style="font-size:20px">🥯</span><div class="trial-num">15</div></td>
+<td class="tested"><div class="pair-label">P05</div><span style="font-size:20px">🛴</span><div class="trial-num">16</div></td>
+<td class="tested slider-mid"><div class="pair-label">P06</div><div class="slider-label">MID</div><span style="font-size:20px">🍲</span><div class="trial-num">17</div></td>
+<td class="tested boundary-after"><div class="pair-label">P05</div><span style="font-size:20px">🥓</span><div class="trial-num">18</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">👡</span><div class="trial-num">19</div></td>
+<td class="tested boundary-after"><div class="pair-label">P06</div><span style="font-size:20px">🥋</span><div class="trial-num">20</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">👞</span><div class="trial-num">21</div></td>
+<td class="tested"><div class="pair-label">P07</div><span style="font-size:20px">🔌</span><div class="trial-num">22</div></td>
+<td class="tested slider-mid"><div class="pair-label">P08</div><div class="slider-label">MID</div><span style="font-size:20px">🎣</span><div class="trial-num">23</div></td>
+<td class="tested boundary-after"><div class="pair-label">P07</div><span style="font-size:20px">👝</span><div class="trial-num">24</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🫑</span><div class="trial-num">25</div></td>
+<td class="tested boundary-after"><div class="pair-label">P08</div><span style="font-size:20px">🌳</span><div class="trial-num">26</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">📠</span><div class="trial-num">27</div></td>
+<td class="tested"><div class="pair-label">P09</div><span style="font-size:20px">🏈</span><div class="trial-num">28</div></td>
+<td class=""><span style="font-size:20px">🥽</span><div class="trial-num">29</div></td>
+<td class="tested"><div class="pair-label">P10</div><span style="font-size:20px">🧺</span><div class="trial-num">30</div></td>
+<td class="tested"><div class="pair-label">P09</div><span style="font-size:20px">🛢</span><div class="trial-num">31</div></td>
+<td class=""><span style="font-size:20px">🪒</span><div class="trial-num">32</div></td>
+<td class="tested"><div class="pair-label">P10</div><span style="font-size:20px">💈</span><div class="trial-num">33</div></td>
+<td class="tested"><div class="pair-label">P11</div><span style="font-size:20px">🪺</span><div class="trial-num">34</div></td>
+<td class="tested slider-mid"><div class="pair-label">P12</div><div class="slider-label">MID</div><span style="font-size:20px">📡</span><div class="trial-num">35</div></td>
+<td class="tested boundary-after"><div class="pair-label">P11</div><span style="font-size:20px">🪟</span><div class="trial-num">36</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🪩</span><div class="trial-num">37</div></td>
+<td class="tested"><div class="pair-label">P12</div><span style="font-size:20px">🪇</span><div class="trial-num">38</div></td>
+<td class="tested boundary-after"><div class="pair-label">P13</div><span style="font-size:20px">🥾</span><div class="trial-num">39</div></td>
+<td class="slider-mid boundary-item"><div class="slider-label">MID</div><div class="boundary-label">B</div><span style="font-size:20px">🪃</span><div class="trial-num">40</div></td>
+<td class="tested"><div class="pair-label">P13</div><span style="font-size:20px">⛑️</span><div class="trial-num">41</div></td>
+<td class="tested"><div class="pair-label">P14</div><span style="font-size:20px">🪑</span><div class="trial-num">42</div></td>
+<td class=""><span style="font-size:20px">🛞</span><div class="trial-num">43</div></td>
+<td class=""><span style="font-size:20px">🥃</span><div class="trial-num">44</div></td>
+<td class="tested boundary-after"><div class="pair-label">P14</div><span style="font-size:20px">🎐</span><div class="trial-num">45</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🎰</span><div class="trial-num">46</div></td>
+<td class="boundary-after"><span style="font-size:20px">🛹</span><div class="trial-num">47</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🫙</span><div class="trial-num">48</div></td>
+<td class=""><span style="font-size:20px">🥩</span><div class="trial-num">49</div></td>
+<td class=""><span style="font-size:20px">📯</span><div class="trial-num">50</div></td>
+</tr></table>
+<div class="ribbon-title">Block 3</div><table class="ribbon"><tr>
+<td class=""><span style="font-size:20px">🍶</span><div class="trial-num">1</div></td>
+<td class="tested"><div class="pair-label">P01</div><span style="font-size:20px">🪫</span><div class="trial-num">2</div></td>
+<td class="slider-mid"><div class="slider-label">MID</div><span style="font-size:20px">📟</span><div class="trial-num">3</div></td>
+<td class="tested"><div class="pair-label">P01</div><span style="font-size:20px">🎽</span><div class="trial-num">4</div></td>
+<td class=""><span style="font-size:20px">🥫</span><div class="trial-num">5</div></td>
+<td class="tested"><div class="pair-label">P02</div><span style="font-size:20px">🥪</span><div class="trial-num">6</div></td>
+<td class="tested"><div class="pair-label">P03</div><span style="font-size:20px">🧇</span><div class="trial-num">7</div></td>
+<td class=""><span style="font-size:20px">🪠</span><div class="trial-num">8</div></td>
+<td class="tested"><div class="pair-label">P02</div><span style="font-size:20px">🩱</span><div class="trial-num">9</div></td>
+<td class="tested"><div class="pair-label">P03</div><span style="font-size:20px">🌾</span><div class="trial-num">10</div></td>
+<td class="tested"><div class="pair-label">P04</div><span style="font-size:20px">🧳</span><div class="trial-num">11</div></td>
+<td class="slider-mid"><div class="slider-label">MID</div><span style="font-size:20px">🥨</span><div class="trial-num">12</div></td>
+<td class="tested"><div class="pair-label">P04</div><span style="font-size:20px">🧈</span><div class="trial-num">13</div></td>
+<td class=""><span style="font-size:20px">🛎️</span><div class="trial-num">14</div></td>
+<td class=""><span style="font-size:20px">🧥</span><div class="trial-num">15</div></td>
+<td class="tested"><div class="pair-label">P05</div><span style="font-size:20px">🍹</span><div class="trial-num">16</div></td>
+<td class="tested slider-mid"><div class="pair-label">P06</div><div class="slider-label">MID</div><span style="font-size:20px">💿</span><div class="trial-num">17</div></td>
+<td class="tested"><div class="pair-label">P05</div><span style="font-size:20px">🕯️</span><div class="trial-num">18</div></td>
+<td class=""><span style="font-size:20px">🔭</span><div class="trial-num">19</div></td>
+<td class="tested"><div class="pair-label">P06</div><span style="font-size:20px">🪜</span><div class="trial-num">20</div></td>
+<td class=""><span style="font-size:20px">🏺</span><div class="trial-num">21</div></td>
+<td class="tested"><div class="pair-label">P07</div><span style="font-size:20px">📻</span><div class="trial-num">22</div></td>
+<td class="tested slider-mid"><div class="pair-label">P08</div><div class="slider-label">MID</div><span style="font-size:20px">🗺️</span><div class="trial-num">23</div></td>
+<td class="tested"><div class="pair-label">P07</div><span style="font-size:20px">🏓</span><div class="trial-num">24</div></td>
+<td class=""><span style="font-size:20px">🌵</span><div class="trial-num">25</div></td>
+<td class="tested"><div class="pair-label">P08</div><span style="font-size:20px">🥊</span><div class="trial-num">26</div></td>
+<td class=""><span style="font-size:20px">🗄️</span><div class="trial-num">27</div></td>
+<td class="tested"><div class="pair-label">P09</div><span style="font-size:20px">🧰</span><div class="trial-num">28</div></td>
+<td class=""><span style="font-size:20px">🎸</span><div class="trial-num">29</div></td>
+<td class="tested"><div class="pair-label">P10</div><span style="font-size:20px">🪦</span><div class="trial-num">30</div></td>
+<td class="tested"><div class="pair-label">P09</div><span style="font-size:20px">⏱️</span><div class="trial-num">31</div></td>
+<td class=""><span style="font-size:20px">🧂</span><div class="trial-num">32</div></td>
+<td class="tested"><div class="pair-label">P10</div><span style="font-size:20px">🎡</span><div class="trial-num">33</div></td>
+<td class="tested"><div class="pair-label">P11</div><span style="font-size:20px">🏐</span><div class="trial-num">34</div></td>
+<td class="tested slider-mid"><div class="pair-label">P12</div><div class="slider-label">MID</div><span style="font-size:20px">🪗</span><div class="trial-num">35</div></td>
+<td class="tested"><div class="pair-label">P11</div><span style="font-size:20px">👛</span><div class="trial-num">36</div></td>
+<td class=""><span style="font-size:20px">🪸</span><div class="trial-num">37</div></td>
+<td class="tested"><div class="pair-label">P12</div><span style="font-size:20px">🌂</span><div class="trial-num">38</div></td>
+<td class="tested"><div class="pair-label">P13</div><span style="font-size:20px">🔬</span><div class="trial-num">39</div></td>
+<td class="slider-mid"><div class="slider-label">MID</div><span style="font-size:20px">🛡</span><div class="trial-num">40</div></td>
+<td class="tested"><div class="pair-label">P13</div><span style="font-size:20px">🍠</span><div class="trial-num">41</div></td>
+<td class="tested"><div class="pair-label">P14</div><span style="font-size:20px">🧃</span><div class="trial-num">42</div></td>
+<td class=""><span style="font-size:20px">🛼</span><div class="trial-num">43</div></td>
+<td class=""><span style="font-size:20px">🍯</span><div class="trial-num">44</div></td>
+<td class="tested"><div class="pair-label">P14</div><span style="font-size:20px">🎛️</span><div class="trial-num">45</div></td>
+<td class=""><span style="font-size:20px">🧉</span><div class="trial-num">46</div></td>
+<td class=""><span style="font-size:20px">🍨</span><div class="trial-num">47</div></td>
+<td class=""><span style="font-size:20px">🍋‍🟩</span><div class="trial-num">48</div></td>
+<td class=""><span style="font-size:20px">🪘</span><div class="trial-num">49</div></td>
+<td class=""><span style="font-size:20px">🕰️</span><div class="trial-num">50</div></td>
+</tr></table>
+<div class="ribbon-title">Block 4</div><table class="ribbon"><tr>
+<td class=""><span style="font-size:20px">⚱️</span><div class="trial-num">1</div></td>
+<td class="tested boundary-after"><div class="pair-label">P01</div><span style="font-size:20px">🦺</span><div class="trial-num">2</div></td>
+<td class="slider-mid boundary-item"><div class="slider-label">MID</div><div class="boundary-label">B</div><span style="font-size:20px">📜</span><div class="trial-num">3</div></td>
+<td class="tested boundary-after"><div class="pair-label">P01</div><span style="font-size:20px">🛟</span><div class="trial-num">4</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🪀</span><div class="trial-num">5</div></td>
+<td class="tested"><div class="pair-label">P02</div><span style="font-size:20px">🏹</span><div class="trial-num">6</div></td>
+<td class="tested"><div class="pair-label">P03</div><span style="font-size:20px">⚗️</span><div class="trial-num">7</div></td>
+<td class=""><span style="font-size:20px">🏸</span><div class="trial-num">8</div></td>
+<td class="tested"><div class="pair-label">P02</div><span style="font-size:20px">🔦</span><div class="trial-num">9</div></td>
+<td class="tested"><div class="pair-label">P03</div><span style="font-size:20px">🧸</span><div class="trial-num">10</div></td>
+<td class="tested boundary-after"><div class="pair-label">P04</div><span style="font-size:20px">🪚</span><div class="trial-num">11</div></td>
+<td class="slider-mid boundary-item"><div class="slider-label">MID</div><div class="boundary-label">B</div><span style="font-size:20px">📮</span><div class="trial-num">12</div></td>
+<td class="tested"><div class="pair-label">P04</div><span style="font-size:20px">🥅</span><div class="trial-num">13</div></td>
+<td class=""><span style="font-size:20px">🛺</span><div class="trial-num">14</div></td>
+<td class=""><span style="font-size:20px">🚪</span><div class="trial-num">15</div></td>
+<td class="tested"><div class="pair-label">P05</div><span style="font-size:20px">🦯</span><div class="trial-num">16</div></td>
+<td class="tested slider-mid"><div class="pair-label">P06</div><div class="slider-label">MID</div><span style="font-size:20px">🌰</span><div class="trial-num">17</div></td>
+<td class="tested boundary-after"><div class="pair-label">P05</div><span style="font-size:20px">🎺</span><div class="trial-num">18</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🍈</span><div class="trial-num">19</div></td>
+<td class="tested boundary-after"><div class="pair-label">P06</div><span style="font-size:20px">🪨</span><div class="trial-num">20</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🪢</span><div class="trial-num">21</div></td>
+<td class="tested"><div class="pair-label">P07</div><span style="font-size:20px">🧮</span><div class="trial-num">22</div></td>
+<td class="tested slider-mid"><div class="pair-label">P08</div><div class="slider-label">MID</div><span style="font-size:20px">🗞️</span><div class="trial-num">23</div></td>
+<td class="tested boundary-after"><div class="pair-label">P07</div><span style="font-size:20px">🫛</span><div class="trial-num">24</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🛝</span><div class="trial-num">25</div></td>
+<td class="tested boundary-after"><div class="pair-label">P08</div><span style="font-size:20px">📌</span><div class="trial-num">26</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🍍</span><div class="trial-num">27</div></td>
+<td class="tested"><div class="pair-label">P09</div><span style="font-size:20px">🪵</span><div class="trial-num">28</div></td>
+<td class=""><span style="font-size:20px">🥡</span><div class="trial-num">29</div></td>
+<td class="tested"><div class="pair-label">P10</div><span style="font-size:20px">⌚️</span><div class="trial-num">30</div></td>
+<td class="tested"><div class="pair-label">P09</div><span style="font-size:20px">🪭</span><div class="trial-num">31</div></td>
+<td class=""><span style="font-size:20px">⌨️</span><div class="trial-num">32</div></td>
+<td class="tested"><div class="pair-label">P10</div><span style="font-size:20px">🥏</span><div class="trial-num">33</div></td>
+<td class="tested"><div class="pair-label">P11</div><span style="font-size:20px">🫚</span><div class="trial-num">34</div></td>
+<td class="tested slider-mid"><div class="pair-label">P12</div><div class="slider-label">MID</div><span style="font-size:20px">⛓️</span><div class="trial-num">35</div></td>
+<td class="tested boundary-after"><div class="pair-label">P11</div><span style="font-size:20px">🫐</span><div class="trial-num">36</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🖲️</span><div class="trial-num">37</div></td>
+<td class="tested"><div class="pair-label">P12</div><span style="font-size:20px">🧯</span><div class="trial-num">38</div></td>
+<td class="tested boundary-after"><div class="pair-label">P13</div><span style="font-size:20px">🚂</span><div class="trial-num">39</div></td>
+<td class="slider-mid boundary-item"><div class="slider-label">MID</div><div class="boundary-label">B</div><span style="font-size:20px">🖌️</span><div class="trial-num">40</div></td>
+<td class="tested"><div class="pair-label">P13</div><span style="font-size:20px">🧤</span><div class="trial-num">41</div></td>
+<td class="tested"><div class="pair-label">P14</div><span style="font-size:20px">👜</span><div class="trial-num">42</div></td>
+<td class=""><span style="font-size:20px">🧽</span><div class="trial-num">43</div></td>
+<td class=""><span style="font-size:20px">🫔</span><div class="trial-num">44</div></td>
+<td class="tested boundary-after"><div class="pair-label">P14</div><span style="font-size:20px">🪛</span><div class="trial-num">45</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🎳</span><div class="trial-num">46</div></td>
+<td class="boundary-after"><span style="font-size:20px">🧴</span><div class="trial-num">47</div></td>
+<td class="boundary-item"><div class="boundary-label">B</div><span style="font-size:20px">🗳️</span><div class="trial-num">48</div></td>
+<td class=""><span style="font-size:20px">🎷</span><div class="trial-num">49</div></td>
+<td class=""><span style="font-size:20px">🪔</span><div class="trial-num">50</div></td>
+</tr></table>
+<h2>Boundary summary</h2>
+<div class="caption">Boundaries are inferred from large trial-to-trial changes in the latent bird position. <code>18|19 ↓6.6</code> means a boundary between trials 18 and 19; trial 19 is the first post-boundary item; the bird moved down by 6.6 percentage points.</div>
+<table class="boundary-table"><tr><th>Block</th><th>Rule</th><th>Boundaries</th></tr>
+<tr><td>Block 1</td><td>jump ≥ 8.00 pts</td><td>none</td></tr>
+<tr><td>Block 2</td><td>jump ≥ 8.00 pts</td><td>2|3 ↑8.3; 4|5 ↓13.1; 11|12 ↓20.8; 18|19 ↓23.2; 20|21 ↑22.4; 24|25 ↑27.2; 26|27 ↓23.3; 36|37 ↑13.4; 39|40 ↑13.3; 45|46 ↓8.1; 47|48 ↓15.4</td></tr>
+<tr><td>Block 3</td><td>jump ≥ 8.00 pts</td><td>none</td></tr>
+<tr><td>Block 4</td><td>jump ≥ 8.00 pts</td><td>2|3 ↑8.3; 4|5 ↓13.1; 11|12 ↓20.8; 18|19 ↓22.0; 20|21 ↑21.2; 24|25 ↑27.2; 26|27 ↓23.3; 36|37 ↑13.4; 39|40 ↑13.3; 45|46 ↓8.1; 47|48 ↓15.4</td></tr>
+</table>
+</div></body></html>
