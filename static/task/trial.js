@@ -163,6 +163,10 @@ jsPsych.plugins["trial"] = (function () {
   // Practice uses a neutral grey-blue
   var PRACTICE_THEME = { hue: 220, sat: 15 };
 
+  // Expose for memory_task.js to use matching backgrounds
+  window.BLOCK_THEMES = BLOCK_THEMES;
+  window.PRACTICE_THEME = PRACTICE_THEME;
+
   function getBlockTheme(trial) {
     var idx = typeof trial.block_index === "number" ? trial.block_index : 0;
     if (idx < 0 || idx >= BLOCK_THEMES.length) return PRACTICE_THEME;
@@ -180,6 +184,7 @@ jsPsych.plugins["trial"] = (function () {
       "hsl(" + h + "," + (s + 8) + "%,80%) 100%)"
     );
   }
+  window.skyGradientCSS = skyGradientCSS;
 
   function groundGradientCSS(h, s) {
     return (
@@ -482,7 +487,7 @@ jsPsych.plugins["trial"] = (function () {
     }, itemDelay + 2800);
   }
 
-  plugin.trial = function (display_element, trial) {
+plugin.trial = function (display_element, trial) {
     var _trial_onset_perf =
       typeof performance !== "undefined" && performance.now
         ? performance.now()
@@ -493,10 +498,10 @@ jsPsych.plugins["trial"] = (function () {
         : null;
 
     var _bucket_start_pos = trial.bucket_position;
-    var _bucket_end_pos = trial.bucket_position;
+    var _bucket_end_pos   = trial.bucket_position;
     var _rt_first_move_ms = null;
-    var _rt_last_move_ms = null;
-    var _num_moves = 0;
+    var _rt_last_move_ms  = null;
+    var _num_moves        = 0;
 
     var _record_move_if_changed = function (prev_pos) {
       if (trial.bucket_position !== prev_pos) {
@@ -505,7 +510,6 @@ jsPsych.plugins["trial"] = (function () {
             ? performance.now()
             : Date.now();
         var ms = now - _trial_onset_perf;
-
         if (_rt_first_move_ms === null) _rt_first_move_ms = ms;
         _rt_last_move_ms = ms;
         _num_moves += 1;
@@ -516,9 +520,7 @@ jsPsych.plugins["trial"] = (function () {
     if (trial.show_bird && !trial.show_drone) trial.show_drone = trial.show_bird;
 
     if (trial.terminate_now) {
-      setTimeout(function () {
-        end_trial(2);
-      }, 1);
+      setTimeout(function () { end_trial(2); }, 1);
     }
 
     if (trial.is_moving_practice) {
@@ -531,8 +533,45 @@ jsPsych.plugins["trial"] = (function () {
     var collector = document.getElementById("collector");
     if (collector) collector.style.left = trial.bucket_position + "%";
 
+    // ── Next button for the slider warm-up ──────────────────────────
+    if (trial.is_moving_practice) {
+      // Tip shown when participant clicks Next before sliding at all.
+      var tipEl = document.createElement('div');
+      tipEl.id = 'practice-tip';
+      tipEl.textContent = '← Try sliding with the arrow keys first! →';
+      tipEl.style.cssText =
+        'position:fixed;bottom:90px;right:40px;' +
+        'background:#fff3cd;color:#7a5500;' +
+        'font-size:14px;font-weight:600;' +
+        'padding:8px 14px;border-radius:8px;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,.2);' +
+        'opacity:0;transition:opacity 0.3s;' +
+        'pointer-events:none;z-index:998;';
+      display_element.appendChild(tipEl);
+
+      var nextBtn = document.createElement('button');
+      nextBtn.id  = 'practice-next-btn';
+      nextBtn.textContent = 'Next →';
+      nextBtn.style.cssText =
+        'position:fixed;bottom:32px;right:40px;' +
+        'padding:10px 26px;font-size:16px;font-weight:700;' +
+        'border:none;border-radius:8px;cursor:pointer;z-index:999;' +
+        'background:#fff;color:#1f2937;' +
+        'box-shadow:0 3px 12px rgba(0,0,0,.25);';
+      nextBtn.addEventListener('click', function () {
+        if (_num_moves === 0) {
+          // Participant hasn't slid yet — flash the tip instead of advancing.
+          tipEl.style.opacity = '1';
+          setTimeout(function () { tipEl.style.opacity = '0'; }, 2200);
+        } else {
+          end_trial(1);
+        }
+      });
+      display_element.appendChild(nextBtn);
+    }
+
     var keyboardListener1 = null;
-    var keyboardListener = null;
+    var keyboardListener  = null;
 
     var after_response = function (info) {
       var prev_pos = trial.bucket_position;
@@ -557,15 +596,16 @@ jsPsych.plugins["trial"] = (function () {
         allow_held_key: true
       });
 
-      setTimeout(function () {
-        jsPsych.pluginAPI.cancelAllKeyboardResponses();
-        if (!trial.is_moving_practice) {
+      // Practice: keyboard stays live; Next button drives end_trial.
+      if (!trial.is_moving_practice) {
+        setTimeout(function () {
+          jsPsych.pluginAPI.cancelAllKeyboardResponses();
           fly(trial);
-        }
-        jsPsych.pluginAPI.setTimeout(function () {
-          end_trial(1);
-        }, trial.drop_duration);
-      }, trial.response_remaining_duration);
+          jsPsych.pluginAPI.setTimeout(function () {
+            end_trial(1);
+          }, trial.drop_duration);
+        }, trial.response_remaining_duration);
+      }
     };
 
     setTimeout(function () {
@@ -581,20 +621,15 @@ jsPsych.plugins["trial"] = (function () {
     var missed_response = function () {
       jsPsych.pluginAPI.cancelAllKeyboardResponses();
       var msg;
-
       if (trial.is_moving_practice) {
-        msg =
-          '<p style="font-size: 20px; line-height: 1.5em">Are you there? You should try to move the collector using left and right arrow keys.<br><br>Please pay more attention and move the collector, otherwise we will end the game here!</p>';
+        msg = '<p style="font-size:20px;line-height:1.5em">Are you there? You should try to move the collector using left and right arrow keys.<br><br>Please pay more attention and move the collector, otherwise we will end the game here!</p>';
       } else if (trial.strong_warning) {
-        msg =
-          '<p style="font-size: 20px; line-height: 1.5em">Are you there? You have not moved the collector for a long time.<br><br>We have warned you more than ' +
-          trial.missing_msg_warning_number +
-          " times. <br><br><b>Warning: we are about to reject your work!</b></p>";
+        msg = '<p style="font-size:20px;line-height:1.5em">Are you there? You have not moved the collector for a long time.<br><br>We have warned you more than ' +
+              trial.missing_msg_warning_number +
+              ' times. <br><br><b>Warning: we are about to reject your work!</b></p>';
       } else {
-        msg =
-          '<p style="font-size: 20px; line-height: 1.5em">Are you there? You have not moved the collector for a long time.<br><br>Please pay more attention and play with your collector, otherwise we may end the experiment early and reject your work.</p>';
+        msg = '<p style="font-size:20px;line-height:1.5em">Are you there? You have not moved the collector for a long time.<br><br>Please pay more attention and play with your collector, otherwise we may end the experiment early and reject your work.</p>';
       }
-
       display_element.innerHTML = msg;
       jsPsych.pluginAPI.setTimeout(function () {
         end_trial(0);
@@ -628,30 +663,26 @@ jsPsych.plugins["trial"] = (function () {
       if (completed === 2) miss_reason = "terminated";
 
       var trial_data = {
-        bird_position: trial.bird_position,
-        bag_position: trial.bag_position,
-        bucket_position: trial.bucket_position,
-        completed: completed,
-        stayed: trial.stayed,
-        coins_caught: coins_caught_value,
-        valence: trial.valence || "reward",
-        bucket_start_pos: _bucket_start_pos,
-        bucket_end_pos: _bucket_end_pos,
-        num_moves: _num_moves,
-        rt_first_move_ms: _rt_first_move_ms,
-        rt_last_move_ms: _rt_last_move_ms,
+        bird_position:       trial.bird_position,
+        bag_position:        trial.bag_position,
+        bucket_position:     trial.bucket_position,
+        completed:           completed,
+        stayed:              trial.stayed,
+        coins_caught:        coins_caught_value,
+        valence:             trial.valence || "reward",
+        bucket_start_pos:    _bucket_start_pos,
+        bucket_end_pos:      _bucket_end_pos,
+        num_moves:           _num_moves,
+        rt_first_move_ms:    _rt_first_move_ms,
+        rt_last_move_ms:     _rt_last_move_ms,
         movement_duration_ms: movement_duration_ms,
         trial_onset_elapsed: _trial_onset_elapsed,
-        trial_duration_ms: _trial_duration_ms,
-        miss_reason: miss_reason,
+        trial_duration_ms:   _trial_duration_ms,
+        miss_reason:         miss_reason,
         true_vol_param:
-          typeof trial.true_vol_param !== "undefined"
-            ? trial.true_vol_param
-            : null,
+          typeof trial.true_vol_param !== "undefined" ? trial.true_vol_param : null,
         true_stc_param:
-          typeof trial.true_stc_param !== "undefined"
-            ? trial.true_stc_param
-            : null,
+          typeof trial.true_stc_param !== "undefined" ? trial.true_stc_param : null,
         vol_level: typeof trial.vol_level !== "undefined" ? trial.vol_level : null,
         stc_level: typeof trial.stc_level !== "undefined" ? trial.stc_level : null
       };
@@ -660,19 +691,20 @@ jsPsych.plugins["trial"] = (function () {
       jsPsych.finishTrial(trial_data);
     };
 
-    jsPsych.pluginAPI.setTimeout(function () {
-      if (trial.show_missing) {
-        missed_response();
-      } else {
-        jsPsych.pluginAPI.cancelAllKeyboardResponses();
-        if (!trial.is_moving_practice) {
+    // Practice: no auto-advance; Next button is the only exit.
+    if (!trial.is_moving_practice) {
+      jsPsych.pluginAPI.setTimeout(function () {
+        if (trial.show_missing) {
+          missed_response();
+        } else {
+          jsPsych.pluginAPI.cancelAllKeyboardResponses();
           fly(trial);
+          jsPsych.pluginAPI.setTimeout(function () {
+            end_trial(1);
+          }, trial.drop_duration);
         }
-        jsPsych.pluginAPI.setTimeout(function () {
-          end_trial(1);
-        }, trial.drop_duration);
-      }
-    }, trial.no_response_duration);
+      }, trial.no_response_duration);
+    }
   };
 
   return plugin;

@@ -25,6 +25,11 @@ jsPsych.plugins['memory-task'] = (function() {
       block_num: {
         type: jsPsych.plugins.parameterType.INT,
         default: undefined
+      },
+      block_index: {
+        type: jsPsych.plugins.parameterType.INT,
+        default: 0,
+        description: '0-based block index for matching background theme to BLOCK_THEMES.'
       }
     }
   };
@@ -108,7 +113,11 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
     wrap.className = 'preview-screen block3-screen';
     wrap.style.cssText =
       'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
-      'height:80vh;width:100%;margin:0 auto;';
+      'height:80vh;width:100%;max-width:900px;margin:0 auto;padding:20px;' +
+      'border-radius:16px;' +
+      'background:rgba(255,255,255,.85);' +
+      'backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);' +
+      'box-shadow:0 8px 32px rgba(0,0,0,.12);';
     return wrap;
   }
 
@@ -201,7 +210,21 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
   }
 
   plugin.trial = function(display_element, trial) {
-    document.body.style.backgroundImage = '';
+    // ── Apply the same sky gradient as the corresponding trial block ──
+    // BLOCK_THEMES and skyGradientCSS are exported by trial.js.
+    var _themes = window.BLOCK_THEMES || [];
+    var _blockIdx = (typeof trial.block_index === 'number') ? trial.block_index : 0;
+    var _theme = (_blockIdx >= 0 && _blockIdx < _themes.length)
+      ? _themes[_blockIdx]
+      : (window.PRACTICE_THEME || { hue: 220, sat: 15 });
+
+    if (typeof window.skyGradientCSS === 'function') {
+      document.body.style.background = window.skyGradientCSS(_theme.hue, _theme.sat);
+      document.body.style.backgroundAttachment = 'fixed';
+    } else {
+      // Fallback: clear to neutral
+      document.body.style.backgroundImage = '';
+    }
     document.body.style.backgroundSize = '';
     document.body.style.backgroundPosition = '';
     document.body.style.backgroundRepeat = '';
@@ -237,6 +260,8 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
     var pair = nextPairForBlock(block);
 
     if (pair === null) {
+      document.body.style.background = '';
+      document.body.style.backgroundAttachment = '';
       jsPsych.finishTrial({
         task_phase: 'memory',
         block: block,
@@ -693,6 +718,9 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
       };
 
       display_element.innerHTML = '';
+      // Clear block gradient so it doesn't leak into non-memory screens
+      document.body.style.background = '';
+      document.body.style.backgroundAttachment = '';
       jsPsych.finishTrial(trial_data);
     }
 

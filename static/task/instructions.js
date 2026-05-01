@@ -1,574 +1,702 @@
-// instructions.js — Revised for current DroneTask visuals and reward/loss practice
-//
-// Matches current task design:
-// - flattened collector plate, no "YOU" label
-// - bag drops from top and bursts into fragments
-// - reward blocks: green fragments, score range 0 to +10
-// - loss blocks: red fragments, score range -10 to 0
-// - drone usually stays in place, then jumps
-// - memory task after each environment
-//
-// NOTE:
-// To make the practice flow match these instructions, index.html should force
-// practice_no === 3 and practice_no === 5 to use valence: 'loss'.
-// Otherwise participants will read about red/loss scoring but only practice reward.
+// instructions.js
 
-var instructions = [];
-const style1 = "font-size:20px";
+// ═══════════════════════════════════════════════════════════════════
+// A — Game-accurate mock-up library
+// ═══════════════════════════════════════════════════════════════════
+var MOCK_SCENE = {
+  width:    '80vw',
+  height:   '80vh',
+  maxWidth: '1400px'
+};
 
-// ---------------------------------------------------------------------
-// Reusable HTML mock-ups styled to resemble the real task
-// ---------------------------------------------------------------------
-
-function mockGameFrame(inner, extraStyle) {
+function mockFrame(innerHTML, frameStyle, scale) {
+  scale = scale || 1;
+  var w = (80 * scale) + 'vw';
+  var h = (80 * scale) + 'vh';
   return (
     '<div style="' +
-      'width:78%;max-width:760px;margin:18px auto 10px auto;padding:18px 16px 20px 16px;' +
-      'border-radius:16px;overflow:hidden;position:relative;' +
-      'background:linear-gradient(to bottom,' +
-        'hsl(210,38%,18%) 0%,' +
-        'hsl(210,38%,28%) 30%,' +
-        'hsl(210,38%,42%) 55%,' +
-        'hsl(210,44%,58%) 72%,' +
-        'hsl(210,48%,72%) 85%,' +
-        'hsl(210,46%,80%) 100%);' +
+      'position:relative;' +
+      'width:' + w + ';' +
+      'height:' + h + ';' +                  // ← explicit vh, not padding-bottom
+      'max-width:' + MOCK_SCENE.maxWidth + ';' +
+      'margin:18px auto;border-radius:14px;overflow:hidden;' +
       'box-shadow:0 12px 30px rgba(0,0,0,.28);' +
       'border:2px solid rgba(255,255,255,.08);' +
-      (extraStyle || '') +
+      'background:linear-gradient(to bottom,' +
+        'hsl(210,38%,18%) 0%,hsl(210,38%,28%) 30%,hsl(210,38%,42%) 55%,' +
+        'hsl(210,44%,58%) 72%,hsl(210,48%,72%) 85%,hsl(210,46%,80%) 100%);' +
+      (frameStyle || '') +
     '">' +
       '<div style="position:absolute;left:0;right:0;bottom:0;height:22%;' +
         'background:linear-gradient(to bottom,hsl(210,46%,80%) 0%,hsl(210,42%,74%) 100%);' +
         'border-top:1px solid rgba(255,255,255,.2);"></div>' +
-      '<div style="position:relative;z-index:2;">' + inner + '</div>' +
+      innerHTML +
     '</div>'
   );
 }
 
-function mockPlate(leftPct, locked) {
-  var bg = locked ? 'rgba(100,100,120,.72)' : 'rgba(255,255,255,.92)';
-  var border = locked ? 'rgba(255,255,255,.14)' : 'rgba(255,255,255,.65)';
-  return (
-    '<div style="position:absolute;left:' + leftPct + '%;top:72%;transform:translate(-50%,-50%);' +
-      'width:112px;height:22px;border-radius:999px;background:' + bg + ';border:2px solid ' + border + ';' +
-      'box-shadow:0 3px 10px rgba(0,0,0,.25);"></div>'
-  );
-}
+function buildScene(opts) {
+  opts = opts || {};
+  var droneX     = opts.droneX;
+  var collectorX = (typeof opts.collectorX === 'number') ? opts.collectorX : 50;
+  var bagX       = opts.bagX;
+  var valence    = opts.valence || 'reward';
+  var locked     = !!opts.collectorLocked;
+  var scoreText  = opts.scoreText;
+  var itemEmoji  = opts.itemEmoji;
+  var itemTop  = (typeof opts.itemTop === 'number') ? opts.itemTop : 30;
+  var scoreTop = (typeof opts.scoreTop === 'number') ? opts.scoreTop : 40;
+  var pieces     = [];
 
-function mockBagDot(leftPct, valence) {
-  var dotBg = valence === 'loss'
-    ? 'radial-gradient(circle, hsl(0,65%,55%) 0%, hsl(0,50%,40%) 100%)'
-    : 'radial-gradient(circle, hsl(130,60%,55%) 0%, hsl(130,45%,38%) 100%)';
+  if (itemEmoji) {
+    var itemX = (typeof opts.itemX === 'number') ? opts.itemX : 50;
+    var itemSize = (typeof opts.itemSize === 'number') ? opts.itemSize : 110;
+    var itemFontSize = (typeof opts.itemFontSize === 'number') ? opts.itemFontSize : 58;
 
-  return (
-    '<div style="position:absolute;left:' + leftPct + '%;top:56%;transform:translate(-50%,-50%);' +
-      'width:24px;height:24px;border-radius:50%;background:' + dotBg + ';' +
-      'border:2px solid rgba(255,255,255,.55);box-shadow:0 0 12px rgba(255,255,255,.2),0 3px 8px rgba(0,0,0,.35);"></div>'
-  );
-}
-
-function mockFragments(centerPct, valence) {
-  var color = valence === 'loss'
-    ? 'linear-gradient(180deg, hsl(0,78%,62%), hsl(0,62%,42%))'
-    : 'linear-gradient(180deg, hsl(130,75%,62%), hsl(130,62%,42%))';
-
-  var offsets = [-34, -24, -14, -6, 4, 12, 20, 30];
-  var tops = [66, 64, 68, 65, 67, 64, 69, 66];
-
-  var html = '';
-  for (var i = 0; i < offsets.length; i++) {
-    html += (
-      '<div style="position:absolute;left:calc(' + centerPct + '% + ' + offsets[i] + 'px);top:' + tops[i] + '%;' +
-        'width:7px;height:7px;border-radius:2px;background:' + color + ';' +
-        'box-shadow:0 0 4px rgba(0,0,0,.25);transform:translate(-50%,-50%) rotate(' + (i * 17) + 'deg);"></div>'
+    pieces.push(
+      '<div style="position:absolute;left:' + itemX + '%;top:' + itemTop + '%;' +
+        'transform:translate(-50%,-50%);' +
+        'width:' + itemSize + 'px;height:' + itemSize + 'px;' +
+        'background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.22);' +
+        'border-radius:14px;display:flex;align-items:center;justify-content:center;' +
+        'box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:14;">' +
+        '<span style="font-size:' + itemFontSize + 'px;line-height:1;">' + itemEmoji + '</span>' +
+      '</div>'
     );
   }
-  return html;
+
+  if (typeof droneX === 'number') {
+    pieces.push(
+      '<div style="position:absolute;left:' + droneX + '%;top:7%;' +
+        'transform:translateX(-50%);font-size:36px;opacity:.9;' +
+        'filter:drop-shadow(0 4px 8px rgba(0,0,0,.4));">🛸</div>'
+    );
+  }
+
+  if (scoreText) {
+    var scoreColor = (valence === 'loss')
+      ? (scoreText === '0' ? '#FFD700' : '#FF4444')
+      : '#39FF14';
+    var scoreX = (typeof bagX === 'number') ? bagX : 50;
+    pieces.push(
+      '<div style="position:absolute;left:' + scoreX + '%;top:' + scoreTop + '%;' +
+        'transform:translate(-50%,-50%);font-size:40px;font-weight:800;' +
+        'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;' +
+        'color:' + scoreColor + ';text-shadow:0 2px 10px rgba(0,0,0,.5);z-index:15;">' +
+        scoreText + '</div>'
+    );
+  }
+
+  pieces.push(
+    '<div style="position:absolute;left:8%;width:84%;top:78%;height:3px;' +
+      'transform:translateY(-50%);border-radius:999px;' +
+      'background:rgba(255,255,255,.55);box-shadow:0 0 8px rgba(255,255,255,.15);"></div>'
+  );
+
+  var boxBg     = locked ? 'rgba(100,100,120,.7)'  : 'rgba(255,255,255,.88)';
+  var boxBorder = locked ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.65)';
+  var boxShadow = locked
+    ? '0 2px 6px rgba(0,0,0,.3)'
+    : '0 0 0 1px rgba(255,255,255,.15),0 3px 10px rgba(0,0,0,.25)';
+  pieces.push(
+    '<div style="position:absolute;left:' + collectorX + '%;top:78%;' +
+      'transform:translate(-50%,-50%);width:12%;min-width:60px;max-width:120px;height:22px;">' +
+      '<div style="position:absolute;inset:0;border-radius:999px;background:' + boxBg + ';' +
+        'border:2px solid ' + boxBorder + ';box-shadow:' + boxShadow + ';"></div>' +
+    '</div>'
+  );
+
+  if (typeof bagX === 'number') {
+    var bagBg = (valence === 'loss')
+      ? 'radial-gradient(circle,hsl(0,65%,55%) 0%,hsl(0,50%,40%) 100%)'
+      : 'radial-gradient(circle,hsl(130,60%,55%) 0%,hsl(130,45%,38%) 100%)';
+    pieces.push(
+      '<div style="position:absolute;left:' + bagX + '%;top:71%;' +
+        'transform:translate(-50%,-50%);width:24px;height:24px;' +
+        'border-radius:50%;background:' + bagBg + ';' +
+        'border:2px solid rgba(255,255,255,.55);z-index:11;' +
+        'box-shadow:0 0 12px rgba(255,255,255,.22),0 3px 8px rgba(0,0,0,.4);"></div>'
+    );
+  }
+
+  if (opts.showFragments && typeof bagX === 'number') {
+    var fragColor = (valence === 'loss')
+      ? 'linear-gradient(180deg,hsl(0,78%,62%),hsl(0,62%,42%))'
+      : 'linear-gradient(180deg,hsl(130,75%,62%),hsl(130,62%,42%))';
+    [-3.5, -2, -0.7, 0.7, 2, 3.5].forEach(function (off, i) {
+      pieces.push(
+        '<div style="position:absolute;left:calc(' + bagX + '% + ' + off + 'vw);' +
+          'top:74%;transform:translate(-50%,-50%) scale(.9) rotate(' + (i * 35) + 'deg);' +
+          'width:10px;height:10px;border-radius:2px;background:' + fragColor + ';' +
+          'box-shadow:0 0 4px rgba(255,255,255,.35);"></div>'
+      );
+    });
+  }
+
+  return pieces.join('');
 }
 
-function mockItem(leftPct, item) {
+function callout(labelXPct, labelYPct, targetXPct, targetYPct, text, accent) {
+  var c = accent || '#ffec80';
+  var key = 'a' + Math.floor(Math.random() * 1e9);
   return (
-    '<div style="position:absolute;left:' + leftPct + '%;top:20%;transform:translateX(-50%);' +
-      'width:94px;height:94px;border-radius:14px;background:rgba(255,255,255,.12);' +
-      'border:2px solid rgba(255,255,255,.22);display:flex;align-items:center;justify-content:center;' +
-      'box-shadow:0 8px 24px rgba(0,0,0,.3);font-size:52px;line-height:1;">' + item + '</div>'
+    '<svg style="position:absolute;inset:0;width:100%;height:100%;' +
+      'pointer-events:none;z-index:25;overflow:visible;" viewBox="0 0 100 100" preserveAspectRatio="none">' +
+      '<defs><marker id="' + key + '" viewBox="0 0 10 10" refX="8" refY="5" ' +
+        'markerWidth="3" markerHeight="3" orient="auto-start-reverse">' +
+        '<path d="M 0 0 L 10 5 L 0 10 z" fill="' + c + '"/></marker></defs>' +
+      '<line x1="' + labelXPct + '" y1="' + labelYPct + '" x2="' + targetXPct + '" y2="' + targetYPct + '" ' +
+        'stroke="' + c + '" stroke-width="0.7" stroke-linecap="round" ' +
+        'marker-end="url(#' + key + ')" vector-effect="non-scaling-stroke"/>' +
+    '</svg>' +
+    '<div style="position:absolute;left:' + labelXPct + '%;top:' + labelYPct + '%;' +
+      'transform:translate(-50%,-50%);background:' + c + ';color:#1a1a1a;' +
+      'font-size:13px;font-weight:700;padding:3px 8px;border-radius:5px;' +
+      'white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:26;' +
+      'font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;">' + text + '</div>'
   );
 }
 
-function mockScore(leftPct, score, valence) {
-  var color = valence === 'loss'
-    ? (score === '0' ? '#FFD700' : '#ff4444')
-    : '#39ff14';
-
-  return (
-    '<div style="position:absolute;left:' + leftPct + '%;top:38%;transform:translateX(-50%);' +
-      'font-size:32px;font-weight:850;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;' +
-      'color:' + color + ';text-shadow:0 2px 10px rgba(0,0,0,.45);">' + score + '</div>'
-  );
+function mockGame(opts, callouts, scale) {
+  var inner = buildScene(opts);
+  if (callouts && callouts.length) inner += callouts.join('');
+  return mockFrame(inner, null, scale);
 }
 
-function mockDrone(leftPct, visible) {
-  if (!visible) return '';
-  return (
-    '<div style="position:absolute;left:' + leftPct + '%;top:10%;transform:translateX(-50%);' +
-      'font-size:34px;filter:drop-shadow(0 4px 8px rgba(0,0,0,.4));">&#128760;</div>'
-  );
-}
+// ═══════════════════════════════════════════════════════════════════
+// B — Text helpers
+// ═══════════════════════════════════════════════════════════════════
 
-function mockRailScene(opts) {
+function pageBody(headline, body, opts) {
   opts = opts || {};
-  var plateLeft = opts.plateLeft || 50;
-  var bagLeft = opts.bagLeft || 56;
-  var valence = opts.valence || 'reward';
-  var locked = !!opts.locked;
-  var showBag = !!opts.showBag;
-  var showFragments = !!opts.showFragments;
-  var score = opts.score || '';
-  var item = opts.item || '';
-  var showDrone = !!opts.showDrone;
-  var droneLeft = opts.droneLeft || bagLeft;
-
-  return mockGameFrame(
-    '<div style="height:220px;position:relative;">' +
-
-      '<div style="position:absolute;left:8%;width:84%;height:3px;top:72%;' +
-        'transform:translateY(-50%);border-radius:999px;background:rgba(255,255,255,.55);' +
-        'box-shadow:0 0 8px rgba(255,255,255,.15);"></div>' +
-
-      mockDrone(droneLeft, showDrone) +
-
-      (showBag ? mockBagDot(bagLeft, valence) : '') +
-      (showFragments ? mockFragments(bagLeft, valence) : '') +
-      (score ? mockScore(bagLeft, score, valence) : '') +
-      (item ? mockItem(bagLeft, item) : '') +
-
-      mockPlate(plateLeft, locked) +
-
-    '</div>'
-  );
-}
-
-function mockMovableLockedComparison() {
   return (
-    '<div style="display:flex;gap:16px;justify-content:center;align-items:stretch;flex-wrap:wrap;margin:12px auto 4px auto;width:84%;">' +
-
-      '<div style="flex:1;min-width:240px;max-width:320px;padding:14px;border-radius:14px;' +
-        'background:#f7f8fb;border:1px solid #e3e6ef;box-shadow:0 4px 14px rgba(0,0,0,.06);">' +
-        '<div style="font-size:22px;font-weight:800;margin-bottom:10px;color:#1f2937;">White plate</div>' +
-        '<div style="display:flex;justify-content:center;align-items:center;height:78px;">' +
-          '<div style="width:116px;height:22px;border-radius:999px;background:rgba(255,255,255,.95);' +
-            'border:2px solid rgba(180,180,180,.8);box-shadow:0 3px 12px rgba(0,0,0,.12);"></div>' +
-        '</div>' +
-        '<div style="font-size:18px;line-height:1.5;text-align:center;margin-top:8px;"><strong>Movable</strong></div>' +
-      '</div>' +
-
-      '<div style="flex:1;min-width:240px;max-width:320px;padding:14px;border-radius:14px;' +
-        'background:#f7f8fb;border:1px solid #e3e6ef;box-shadow:0 4px 14px rgba(0,0,0,.06);">' +
-        '<div style="font-size:22px;font-weight:800;margin-bottom:10px;color:#1f2937;">Grey plate</div>' +
-        '<div style="display:flex;justify-content:center;align-items:center;height:78px;">' +
-          '<div style="width:116px;height:22px;border-radius:999px;background:rgba(100,100,120,.78);' +
-            'border:2px solid rgba(140,140,160,.45);box-shadow:0 3px 12px rgba(0,0,0,.12);"></div>' +
-        '</div>' +
-        '<div style="font-size:18px;line-height:1.5;text-align:center;margin-top:8px;"><strong>Locked</strong></div>' +
-      '</div>' +
-
+    '<div style="font-size:20px;line-height:1.7;text-align:center;max-width:800px;margin:0 auto;">' +
+      '<div style="font-size:25px;font-weight:800;color:' + (opts.headColor || '#1f2937') + ';margin-bottom:14px;">' +
+        headline + '</div>' +
+      (body ? '<div>' + body + '</div>' : '') +
     '</div>'
   );
 }
 
-function mockGainLossComparison() {
+function blockIntroHTML(lines, accentColor, turnLabel) {
+  var c = accentColor || '#1f2937';
+  var bullets = lines.map(function (l) {
+    return '<li style="margin:8px 0;">' + l + '</li>';
+  }).join('');
   return (
-    '<div style="display:flex;gap:18px;justify-content:center;align-items:stretch;flex-wrap:wrap;margin:14px auto 4px auto;width:88%;">' +
-
-      '<div style="flex:1;min-width:250px;max-width:350px;padding:18px;border-radius:14px;' +
-        'background:#f7fff8;border:2px solid #d8efdc;box-shadow:0 4px 14px rgba(0,0,0,.06);text-align:center;">' +
-        '<div style="font-size:24px;font-weight:800;color:#0a7f2e;margin-bottom:10px;">GREEN = reward</div>' +
-        '<div style="font-size:18px;line-height:1.55;color:#1f2937;">' +
-          'Best placement: <strong>+10</strong><br>' +
-          'Worst placement: <strong>0</strong><br><br>' +
-          'Better placement → <strong>gain more points</strong>' +
-        '</div>' +
+    '<div style="font-size:20px;line-height:1.6;text-align:center;' +
+      'max-width:540px;margin:36px auto;padding:22px 28px;' +
+      'border-radius:16px;background:#fafbfc;border:2px solid ' + c + '33;' +
+      'box-shadow:0 6px 18px rgba(0,0,0,.06);">' +
+      (turnLabel
+        ? '<div style="font-size:13px;font-weight:700;color:#999;letter-spacing:.5px;' +
+          'text-transform:uppercase;margin-bottom:10px;">' + turnLabel + '</div>'
+        : '') +
+      '<ul style="list-style:none;padding:0;margin:0 auto;text-align:left;' +
+        'display:inline-block;font-size:18px;">' + bullets + '</ul>' +
+      '<div style="margin-top:18px;font-size:15px;color:#555;">' +
+        'Press <strong>space</strong> or click <strong>Next</strong> to begin.' +
       '</div>' +
-
-      '<div style="flex:1;min-width:250px;max-width:350px;padding:18px;border-radius:14px;' +
-        'background:#fff8f8;border:2px solid #f0d7d7;box-shadow:0 4px 14px rgba(0,0,0,.06);text-align:center;">' +
-        '<div style="font-size:24px;font-weight:800;color:#b00020;margin-bottom:10px;">RED = loss</div>' +
-        '<div style="font-size:18px;line-height:1.55;color:#1f2937;">' +
-          'Best placement: <strong>0</strong><br>' +
-          'Worst placement: <strong>-10</strong><br><br>' +
-          'Better placement → <strong>lose fewer points</strong>' +
-        '</div>' +
-      '</div>' +
-
     '</div>'
   );
 }
 
-function mockWindExamples() {
+function pill(text, bg, fg) {
   return (
-    '<div style="display:flex;gap:12px;justify-content:center;align-items:stretch;flex-wrap:wrap;margin:12px auto 4px auto;width:92%;">' +
-
-      '<div style="flex:1;min-width:190px;max-width:240px;padding:10px;border-radius:12px;background:#f7f8fb;border:1px solid #e3e6ef;text-align:center;">' +
-        '<div style="font-size:16px;font-weight:800;margin-bottom:6px;">lands left</div>' +
-        mockRailScene({ plateLeft: 48, bagLeft: 42, locked: true, showDrone: true, droneLeft: 50, showBag: true, showFragments: false, valence: 'reward' }) +
-      '</div>' +
-
-      '<div style="flex:1;min-width:190px;max-width:240px;padding:10px;border-radius:12px;background:#f7f8fb;border:1px solid #e3e6ef;text-align:center;">' +
-        '<div style="font-size:16px;font-weight:800;margin-bottom:6px;">lands near drone</div>' +
-        mockRailScene({ plateLeft: 50, bagLeft: 50, locked: true, showDrone: true, droneLeft: 50, showBag: true, showFragments: false, valence: 'reward' }) +
-      '</div>' +
-
-      '<div style="flex:1;min-width:190px;max-width:240px;padding:10px;border-radius:12px;background:#f7f8fb;border:1px solid #e3e6ef;text-align:center;">' +
-        '<div style="font-size:16px;font-weight:800;margin-bottom:6px;">lands right</div>' +
-        mockRailScene({ plateLeft: 52, bagLeft: 59, locked: true, showDrone: true, droneLeft: 50, showBag: true, showFragments: false, valence: 'reward' }) +
-      '</div>' +
-
-    '</div>'
+    '<span style="display:inline-block;padding:2px 10px;border-radius:999px;' +
+      'background:' + bg + ';color:' + fg + ';font-weight:700;font-size:14px;">' + text + '</span>'
   );
 }
 
-// ---------------------------------------------------------------------
-// Incorrect / summary screens
-// ---------------------------------------------------------------------
+// Colour helpers for inline text.
+function green(text) { return '<span style="color:#0a7f2e;font-weight:700;">' + text + '</span>'; }
+function red(text)   { return '<span style="color:#b00020;font-weight:700;">' + text + '</span>'; }
+function gold(text)  { return '<span style="color:#b58a00;font-weight:700;">' + text + '</span>'; }
 
-var inst1_incorrect = {
-  type: 'instructions',
-  pages: [
-    '<div style="font-size:20px; line-height:1.6; text-align:center;"><br><br>' +
-      '<strong style="font-size:24px; color:#b00020;">Some answers were incorrect.</strong><br><br>' +
-      'Some instructions will be repeated.<br><strong>Please pay close attention.</strong></div>'
-  ],
-  show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
-};
+// Injected into page-1 HTML of every instruction node so jsPsych's back
+// button is cleanly hidden when there is nothing to go back to.
+// jsPsych replaces the content div on each page navigation, so this tag
+// only lives while page 1 is shown; Prev reappears from page 2 onwards.
+var HIDE_PREV = '<style>#jspsych-instructions-back{display:none!important}</style>';
 
-var inst_summary = {
-  type: 'instructions',
-  pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px; color:#b00020;">You did not answer all questions correctly.</strong><br><br>' +
-      'Some key rules will now be repeated.<br><br><strong>Focus on the rules below.</strong></div>',
+// ═══════════════════════════════════════════════════════════════════
+// C — Instruction pages
+// ═══════════════════════════════════════════════════════════════════
 
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:25px;">Goal</strong><br><br>' +
-      'Move the <strong>collector plate</strong> to where you think the bag will land.</div>' +
-      mockRailScene({ plateLeft: 46, bagLeft: 58, locked: false, showBag: false }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Move the plate</strong><br><br>' +
-      'Use the <strong>left</strong> and <strong>right arrow keys</strong> to move the plate.<br>' +
-      'You can also press the <strong>space bar</strong> to continue on block-start screens.</div>',
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Movable vs. locked</strong><br><br>' +
-      '<strong>White plate = movable</strong><br>' +
-      '<strong>Grey plate = locked</strong><br><br>' +
-      'Once you stop moving, the plate locks and the bag drops.</div>' +
-      mockMovableLockedComparison(),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Bag and fragments</strong><br><br>' +
-      'The bag drops from the top and bursts into fragments near the rail.<br>' +
-      'Place the plate close to the landing position.</div>' +
-      mockRailScene({ plateLeft: 52, bagLeft: 55, locked: true, showBag: true, showFragments: true, valence: 'reward' }),
-
-    '<div style="font-size:20px; line-height:1.8; text-align:center;">' +
-      '<strong style="font-size:25px;">Reward scoring</strong><br><br>' +
-      'In <strong>green environments</strong>, better placement helps you <strong>gain more points</strong>.<br><br>' +
-      '<strong style="font-size:24px; color:#0a7f2e;">Best = +10; worst = 0</strong></div>' +
-      mockRailScene({ plateLeft: 52, bagLeft: 52, locked: true, showBag: true, showFragments: true, valence: 'reward', score: '+10' }),
-
-    '<div style="font-size:20px; line-height:1.8; text-align:center;">' +
-      '<strong style="font-size:25px;">Loss scoring</strong><br><br>' +
-      'In <strong>red environments</strong>, better placement helps you <strong>lose fewer points</strong>.<br><br>' +
-      '<strong style="font-size:24px; color:#b00020;">Best = 0; worst = -10</strong></div>' +
-      mockRailScene({ plateLeft: 52, bagLeft: 52, locked: true, showBag: true, showFragments: true, valence: 'loss', score: '0' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Drone and wind</strong><br><br>' +
-      'The bag tends to land near the drone, but wind shifts the exact landing spot.<br>' +
-      'The drone usually stays in one place for several turns, then jumps.</div>',
-
-    '<div style="font-size:21px; line-height:1.8; text-align:center;">' +
-      '<strong style="font-size:26px;">Best strategy</strong><br><br>' +
-      '<strong>Place the plate under where you think the drone currently is.</strong></div>' +
-      mockRailScene({ plateLeft: 50, bagLeft: 54, locked: false, showDrone: true, droneLeft: 52, showBag: true, valence: 'reward' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Real game</strong><br><br>' +
-      'In the real game, the drone is hidden.<br>' +
-      'You must estimate its location from previous bag landings.</div>' +
-      mockRailScene({ plateLeft: 44, bagLeft: 57, locked: true, showDrone: false, showBag: true, showFragments: true, valence: 'reward', score: '+6' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Items and memory</strong><br><br>' +
-      'Each turn also shows an <strong>item</strong>. Later, you will answer memory questions about the items.</div>' +
-      mockRailScene({ plateLeft: 50, bagLeft: 50, locked: true, showBag: true, showFragments: true, valence: 'reward', score: '+10', item: '🧩' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Keep responding</strong><br><br>' +
-      'If you stop moving the plate for too many turns, you may be warned and the game may end early.</div>',
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Next step</strong><br><br>' +
-      'You will now answer questions about the game again.<br>' +
-      '<strong>You must answer them correctly to continue.</strong></div>'
-  ],
-  show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
-};
-
-var inst3_incorrect = {
-  type: 'instructions',
-  pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;"><br><br>' +
-      '<strong style="font-size:24px; color:#b00020;">You did not respond.</strong><br><br>' +
-      'We must terminate the game here.</div>'
-  ],
-  show_clickable_nav: false
-};
-
-// ---------------------------------------------------------------------
-// Main instruction flow
-// ---------------------------------------------------------------------
-
+// ── inst1: Goal + movement ─────────────────────────────────────────
 var inst1 = {
   type: 'instructions',
   pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:25px;">Goal</strong><br><br>' +
-      'Move the <strong>collector plate</strong> to where you think the bag will land.</div>' +
-      mockRailScene({ plateLeft: 46, bagLeft: 58, locked: false, showBag: false }),
+    pageBody('🧑‍🚀 Your mission',
+      'A drone drops <strong>supplies</strong> to a rail. Use a <strong>collector</strong> to catch them.<br><br>'),
 
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">How to move</strong><br><br>' +
-      'Use the <strong>left</strong> and <strong>right arrow keys</strong> to move the plate.<br><br>' +
-      'On block-start screens, you can press the <strong>space bar</strong> or an arrow key to begin.</div>',
+    pageBody('Here is the scene.') +
+      mockGame(
+        { droneX: 50, collectorX: 50 },
+        [
+          callout(20, 10, 48, 10, 'Drone'),
 
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Try it now</strong><br><br>' +
-      'Press the <strong>left</strong> or <strong>right arrow key</strong> to move the plate.</div>'
-  ],
-  show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
-};
+          // label above-left, arrow points to collector button
+          callout(30, 63, 50, 78, 'Collector'),
 
-var inst2 = {
-  type: 'instructions',
-  pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Movable vs. locked</strong><br><br>' +
-      '<strong>White plate = movable.</strong><br>' +
-      '<strong>Grey plate = locked.</strong><br><br>' +
-      'Once you stop moving, the plate locks and the bag drops.</div>' +
-      mockMovableLockedComparison(),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Bag and fragments</strong><br><br>' +
-      'The bag drops from the top of the screen and bursts into small fragments near the rail.<br><br>' +
-      'Your score depends on how close the plate is to the landing position.</div>' +
-      mockRailScene({ plateLeft: 48, bagLeft: 58, locked: true, showBag: true, showFragments: true, valence: 'reward' }),
-
-    '<div style="font-size:20px; line-height:1.8; text-align:center;">' +
-      '<strong style="font-size:25px;">Reward scoring</strong><br><br>' +
-      'In <strong>green environments</strong>, better placement helps you <strong>gain more points</strong>.<br><br>' +
-      '<strong style="font-size:24px; color:#0a7f2e;">Perfect alignment = +10</strong><br>' +
-      '<strong style="font-size:22px; color:#0a7f2e;">Far away = closer to 0</strong></div>' +
-      mockRailScene({ plateLeft: 52, bagLeft: 52, locked: true, showBag: true, showFragments: true, valence: 'reward', score: '+10' }) +
-      mockRailScene({ plateLeft: 36, bagLeft: 63, locked: true, showBag: true, showFragments: true, valence: 'reward', score: '+3' }),
-
-    '<div style="font-size:20px; line-height:1.8; text-align:center;">' +
-      '<strong style="font-size:25px;">Loss scoring</strong><br><br>' +
-      'In <strong>red environments</strong>, better placement helps you <strong>lose fewer points</strong>.<br><br>' +
-      '<strong style="font-size:24px; color:#b00020;">Perfect alignment = 0</strong><br>' +
-      '<strong style="font-size:22px; color:#b00020;">Far away = closer to -10</strong></div>' +
-      mockRailScene({ plateLeft: 52, bagLeft: 52, locked: true, showBag: true, showFragments: true, valence: 'loss', score: '0' }) +
-      mockRailScene({ plateLeft: 36, bagLeft: 63, locked: true, showBag: true, showFragments: true, valence: 'loss', score: '-7' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Items</strong><br><br>' +
-      'Each turn also shows a distinct <strong>item</strong> near the landing position.<br><br>' +
-      'Later, you will answer memory questions about these items.</div>' +
-      mockRailScene({ plateLeft: 50, bagLeft: 50, locked: true, showBag: true, showFragments: true, valence: 'reward', score: '+10', item: '🎲' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Try reward scoring</strong><br><br>' +
-      'Play a few green reward turns.<br><br>' +
-      'Move while the plate is white. Once it becomes grey, watch where the bag lands and how many points you gain.</div>'
-  ],
-  show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
-};
-
-var inst3 = {
-  type: 'instructions',
-  pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Try loss scoring</strong><br><br>' +
-      'Now play a few red loss turns.<br><br>' +
-      'In red environments, better placement helps you lose fewer points.</div>' +
-      mockRailScene({ plateLeft: 52, bagLeft: 52, locked: true, showBag: true, showFragments: true, valence: 'loss', score: '0' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Wind makes the landing vary</strong><br><br>' +
-      'The bag usually lands near the drone, but wind changes the exact landing spot.<br><br>' +
-      'The wind effect can be small in some environments and larger in others.</div>' +
-      mockWindExamples(),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">The drone jumps</strong><br><br>' +
-      'The drone usually stays in one place for several turns, then jumps to a new location.<br><br>' +
-      'Your best guess for where it is now is based on where it has recently been.</div>',
-
-    '<div style="font-size:21px; line-height:1.8; text-align:center;">' +
-      '<strong style="font-size:26px;">Best strategy</strong><br><br>' +
-      '<strong>Place the plate under where you think the drone currently is.</strong></div>' +
-      mockRailScene({ plateLeft: 50, bagLeft: 54, locked: false, showDrone: true, droneLeft: 52, showBag: true, valence: 'reward' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Try it now</strong><br><br>' +
-      'Play a few more turns and pay attention to <strong>how the drone jumps</strong> and <strong>where the bag lands</strong>.</div>'
-  ],
-  show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
-};
-
-var inst4 = {
-  type: 'instructions',
-  pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:25px;">Important change for the real game</strong><br><br>' +
-      'You will <strong>not</strong> see the drone.<br><br>' +
-      'You will only see where the bag lands after each turn.</div>' +
-      mockRailScene({ plateLeft: 44, bagLeft: 57, locked: true, showDrone: false, showBag: true, showFragments: true, valence: 'reward', score: '+6' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      'You will still move the plate the same way, but now you must <strong>estimate the drone\'s location</strong> from previous bag landings.</div>',
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Try hidden-drone loss scoring</strong><br><br>' +
-      'In the real game, some hidden-drone environments are red.<br><br>' +
-      'Place the plate accurately to lose fewer points.</div>' +
-      mockRailScene({ plateLeft: 52, bagLeft: 52, locked: true, showDrone: false, showBag: true, showFragments: true, valence: 'loss', score: '0', item: '🧩' }),
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Try it now</strong><br><br>' +
-      'Play a few turns where the drone is <strong>not visible</strong>.<br>' +
-      'Also notice the <strong>item</strong> that appears each turn.</div>'
-  ],
-  show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
-};
-
-var inst5 = {
-  type: 'instructions',
-  pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:25px;">The full game</strong><br><br>' +
-      'There are <strong>4 environments</strong>.<br><br>' +
-      'Each environment combines a different drone-jump pattern, wind pattern, and scoring context.</div>',
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Two scoring contexts</strong><br><br>' +
-      'The full game has both reward and loss environments.</div>' +
-      mockGainLossComparison() +
-      '<div style="font-size:19px; line-height:1.6; text-align:center; margin-top:10px;">' +
-        'In every environment, <strong>place the plate as accurately as possible</strong>.</div>',
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      'You will be reminded whenever the environment changes.<br><br>' +
-      'On each new environment screen, press the <strong>space bar</strong> or an arrow key to begin.</div>'
-  ],
-  show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
-};
-
-var inst6 = {
-  type: 'instructions',
-  pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:25px;">Memory task</strong><br><br>' +
-      'After each environment, you will complete a short memory task about the items that appeared.</div>',
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      'You may be asked:<br><br>' +
-      '<strong>1.</strong> Which item appeared first<br>' +
-      '<strong>2.</strong> How many items appeared between two items<br>' +
-      '<strong>3.</strong> Where a middle item appeared between two items</div>',
-
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      'For the slider question, you will see <strong>two endpoint items</strong> and the <strong>middle item above</strong>.<br>' +
-      'Move the slider to show when the middle item appeared relative to the two endpoint items.</div>' +
-      '<div style="display:flex;justify-content:center;align-items:flex-end;gap:16px;margin:18px auto 12px auto;width:82%;max-width:700px;">' +
-        '<div style="width:84px;height:84px;border-radius:12px;background:rgba(255,255,255,.12);border:2px solid rgba(180,180,180,.35);display:flex;align-items:center;justify-content:center;font-size:42px;">🌲</div>' +
-        '<div style="flex:1;text-align:center;">' +
-          '<div style="margin-bottom:10px;font-size:42px;">🎤</div>' +
-          '<input type="range" min="0" max="100" value="50" style="width:100%;">' +
-        '</div>' +
-        '<div style="width:84px;height:84px;border-radius:12px;background:rgba(255,255,255,.12);border:2px solid rgba(180,180,180,.35);display:flex;align-items:center;justify-content:center;font-size:42px;">🍤</div>' +
+          // label above-right, arrow points to rail line
+          callout(70, 63, 58, 78, 'Rail'),
+        ]
+      ) +
+      '<div style="font-size:13px;color:#888;text-align:center;margin-top:-6px;">' +
+        'Labels are tutorial-only' +
       '</div>',
 
-    '<div style="font-size:20px; line-height:1.8; text-align:center;">' +
-      '<strong style="font-size:24px;">Main priority</strong><br><br>' +
-      'You should notice the items, but you do <strong>not</strong> need to memorize them perfectly.<br><br>' +
-      '<strong>Your main goal is still to maximize your score by placing the plate accurately.</strong></div>'
+    pageBody('How to move',
+      'Press <strong>⬅️ Left</strong> and <strong>➡️ Right</strong> on keyboard to move the collector.<br>'),
+
   ],
   show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
 };
 
-var inst7 = {
+// ── Block-intro: practice 1 ────────────────────────────────────────
+var block_intro_practice1 = {
   type: 'instructions',
   pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:24px;">Reminder</strong><br><br>' +
-      'The memory task will appear <strong>after each environment</strong>.<br><br>' +
-      'During the game, focus on placing the plate accurately while also noticing the items.</div>'
+    blockIntroHTML([
+      'Let us warm up!',
+      'Try sliding ↔️ the collector along the rail.'
+    ], '#3b6db8')
   ],
   show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ── inst2: Locking · bag · bag colour · items ──────────────────────
+var inst2_locking_and_bag = {
+  type: 'instructions',
+  pages: [
+
+    // P1: locking
+    pageBody('The collector <strong>is locked ⏹️</strong> just before each bag drops',
+      'It turns grey, you cannot move it until the next turn.') +
+      '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
+        'margin-top:16px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
+        '<div style="flex:1;min-width:280px;">' +
+          '<div style="text-align:center;font-size:14px;font-weight:700;color:#0a7f2e;margin-bottom:4px;">' +
+            '✅ movable (white)</div>' +
+          mockGame({ droneX: 50, collectorX: 50, collectorLocked: false },
+            [callout(78, 75, 56, 78, 'movable', '#fff3a3')], 0.45) +
+        '</div>' +
+        '<div style="flex:1;min-width:280px;">' +
+          '<div style="text-align:center;font-size:14px;font-weight:700;color:#444;margin-bottom:4px;">' +
+            '⏹️ locked (grey)</div>' +
+          mockGame({ droneX: 50, collectorX: 50, collectorLocked: true },
+            [callout(78, 75, 56, 78, 'locked', '#cccccc')], 0.45) +
+        '</div>' +
+      '</div>',
+
+    // P2: bag drops + score
+    pageBody('Supply bags disintegrate 💥 just before hitting the rail',
+      'Your score is based on how many bag fragments you catch.<br>' +
+      '<strong> Catch more ➡ Better score</strong>') +
+      '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
+        'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
+        '<div style="flex:1;min-width:280px;">' +
+          '<div style="text-align:center;font-size:14px;font-weight:700;color:#0a7f2e;margin-bottom:4px;">' +
+            'Catch all fragments</div>' +
+          mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
+            bagX: 50, valence: 'reward', showFragments: true, scoreText: '+10' }, null, 0.45) +
+        '</div>' +
+        '<div style="flex:1;min-width:280px;">' +
+          '<div style="text-align:center;font-size:14px;font-weight:700;color:#666;margin-bottom:4px;">' +
+            'Catch fewer fragments</div>' +
+          mockGame({ droneX: 60, collectorX: 35, collectorLocked: true,
+            bagX: 60, valence: 'reward', showFragments: true, scoreText: '+3' }, null, 0.45) +
+        '</div>' +
+      '</div>',
+
+    // P3: bag colour rule
+    pageBody('🟢🔴 Two kinds of supply',
+      'Your mission is <strong>always the same</strong>: ' +
+      'Catch as <strong>many</strong> fragments as possible!') +
+      '<div style="display:flex;gap:18px;justify-content:center;flex-wrap:wrap;' +
+        'margin-top:16px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
+
+        '<div style="flex:1;min-width:250px;padding:18px 22px;' +
+          'border-radius:14px;background:#f6fff7;border:2px solid #d8efdc;">' +
+          '<div style="font-size:20px;font-weight:800;color:#0a7f2e;margin-bottom:8px;">' +
+            pill('Green supply', '#0a7f2e', '#fff') + '</div>' +
+          '<div style="font-size:17px;line-height:1.6;color:#1f2937;">' +
+            'Catch more = ' + green('earn more points') + '<br>' +
+            '<span style="font-size:14px;color:#555;">Perfect: ' + green('+10') + ' &nbsp;·&nbsp; Worst: ' + gold('0') + '</span>' +
+          '</div>' +
+          mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
+            bagX: 50, valence: 'reward', showFragments: true, scoreText: '+10' }, null, 0.45) +
+        '</div>' +
+
+        '<div style="flex:1;min-width:250px;padding:18px 22px;' +
+          'border-radius:14px;background:#fff7f7;border:2px solid #f0d7d7;">' +
+          '<div style="font-size:20px;font-weight:800;color:#b00020;margin-bottom:8px;">' +
+            pill('Red supply', '#b00020', '#fff') + '</div>' +
+          '<div style="font-size:17px;line-height:1.6;color:#1f2937;">' +
+            'Catch more = ' + red('lose fewer points') + '<br>' +
+            '<span style="font-size:14px;color:#555;">Perfect: ' + gold('0') + ' &nbsp;·&nbsp; Worst: ' + red('−10') + '</span>' +
+          '</div>' +
+          mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
+            bagX: 50, valence: 'loss', showFragments: true, scoreText: '0' }, null, 0.45) +
+        '</div>' +
+
+      '</div>' +
+      '<div style="font-size:17px;text-align:center;margin-top:16px;color:#333;">' +
+        '<strong> Final score ➡ bonus pay 💰</strong>' +
+      '</div>',
+
+    // P4: items + keep responding
+    pageBody('You also receive an object with each bag dropped',
+      'We may ask about objects you received, ' +
+      'but <em>no need</em> to remember them.<br><br>' +
+      '⚠️ <strong style="color:#b00020;">Keep moving your collector.</strong><br>' +
+      'If you do not move the collector for a long time, the mission will be <em>aborted early</em>.') +
+      mockGame({
+        droneX: 50,
+        collectorX: 50,
+        collectorLocked: true,
+        bagX: 50,
+        valence: 'reward',
+        showFragments: true,
+        scoreText: '+10',
+        scoreTop: 47,
+        itemEmoji: '🧩',
+        itemTop: 31,
+        itemSize: 100,
+        itemFontSize: 56
+      },
+      [callout(80, 24, 53, 31, 'object received')],0.6),
+
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ── Block-intros: green bag, drone visible ─────────────────────────
+var block_intro_green_seen = {
+  type: 'instructions',
+  pages: [
+    blockIntroHTML([
+      ' <strong>3 practice turns.</strong>',
+      '🟢 Catch more = ' + green('earn more') + ' (+0 to +10 per turn).',
+    ], '#0a7f2e', 'Practice · green supply')
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ── Block-intros: red bag, drone visible ───────────────────────────
+var block_intro_red_seen = {
+  type: 'instructions',
+  pages: [
+    blockIntroHTML([
+      ' <strong> Now a different kind of supply!</strong> 3 practice turns.',
+      '🔴 Catch more = ' + red('lose less') + ' (−10 to 0 per turn).'
+    ], '#b00020', 'Practice · red supply')
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ── inst3: Wind + drone behaviour + drone-disappears ───────────────
+var inst3_drone_disappears = {
+  type: 'instructions',
+  pages: [
+
+    // P1a: air currents / bag shift
+    pageBody('🤔 Noticed something?',
+      'The bag lands <strong>near</strong> the drone, but unpredictable air currents 💨 can <strong>shift</strong> it slightly.<br>' +
+      'So the bag may land a little left or right of the drone.') +
+      '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;' +
+        'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
+        (function () {
+          var bags = [44, 50, 56];
+          var labels = ['shifted left', 'near the drone', 'shifted right'];
+          return labels.map(function (label, i) {
+            return (
+              '<div style="flex:1;min-width:200px;">' +
+                mockGame({
+                  droneX: 50,
+                  collectorX: 50,
+                  collectorLocked: true,
+                  bagX: bags[i],
+                  valence: 'reward'
+                }, null, 0.28) +
+                '<div style="text-align:center;font-size:14px;color:#555;margin-top:-6px;">' + label + '</div>' +
+              '</div>'
+            );
+          }).join('');
+        })() +
+      '</div>',
+
+    // P1b: drone hovers, then moves farther
+    pageBody('🤔 Noticed something?',
+      'The drone usually <strong>hovers around one area</strong> for a few supply-drops.<br>' +
+      'Then it may <strong>move to a new place</strong> and hover there for another few drops.') +
+      '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;' +
+        'margin-top:10px;width:86vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
+        (function () {
+          var drones = [44, 47, 45, 62, 64];
+          var bags   = [46, 45, 48, 60, 66];
+          var labels = ['drop 1', 'drop 2', 'drop 3', 'moves farther', 'hovers nearby'];
+          return labels.map(function (label, i) {
+            return (
+              '<div style="flex:1;min-width:150px;">' +
+                mockGame({
+                  droneX: drones[i],
+                  collectorX: drones[i],
+                  collectorLocked: true,
+                  bagX: bags[i],
+                  valence: 'reward'
+                }, null, 0.22) +
+                '<div style="text-align:center;font-size:13px;color:#555;margin-top:-6px;">' + label + '</div>' +
+              '</div>'
+            );
+          }).join('');
+        })() +
+      '</div>',
+
+    // P1c: strategy tip
+    pageBody('🤫 Want to catch more?',
+      'Place your collector <strong>under where you think the drone is</strong>.<br><br>' +
+      '👉 This gives you the <em>best chance</em> to catch fragments, even when air currents shift the bag.') +
+      mockGame({
+        droneX: 50,
+        collectorX: 50,
+        collectorLocked: true,
+        bagX: 55,
+        valence: 'reward',
+        showFragments: true,
+        scoreText: '+8'
+      },
+      [callout(74, 24, 50, 10, 'estimate drone location'),
+      callout(72, 70, 50, 60, 'place collector nearby')],
+      0.65),
+
+    // P2: drone disappears
+    pageBody('🚨 In the real mission, you cannot see the drone',
+      'You can only see the supply being dropped, <br>' + 
+      '🧐 So you must <strong>infer</strong> where the drone is from where the bag lands.',
+      { headColor: '#b00020' }) +
+      '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
+        'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
+        '<div style="flex:1;min-width:280px;">' +
+          '<div style="text-align:center;font-size:14px;font-weight:700;color:#0a7f2e;margin-bottom:4px;">' +
+            '💡 drone visible</div>' +
+          mockGame({ droneX: 55, collectorX: 50, collectorLocked: true,
+            bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
+        '</div>' +
+        '<div style="flex:1;min-width:280px;">' +
+          '<div style="text-align:center;font-size:14px;font-weight:700;color:#b00020;margin-bottom:4px;">' +
+            '🚨 drone hidden</div>' +
+          mockGame({ collectorX: 50, collectorLocked: true,
+            bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
+        '</div>' +
+      '</div>',
+
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ── Block-intros: green bag, drone hidden ──────────────────────────
+var block_intro_green_hidden = {
+  type: 'instructions',
+  pages: [
+    blockIntroHTML([
+      ' <strong>3 turns.</strong> Drone <strong>invisible</strong>.',
+      '🟢 Catch more = ' + green('earn more') + ' (+0 to +10).'
+    ], '#0a7f2e', 'Practice · green supply · no drone')
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ── Block-intros: red bag, drone hidden ────────────────────────────
+var block_intro_red_hidden = {
+  type: 'instructions',
+  pages: [
+    blockIntroHTML([
+      ' <strong>3 practice turns.</strong> Drone <strong>invisible</strong>.',
+      '🔴 Catch more = ' + red('lose fewer points') + ' (−10 to 0).'
+    ], '#b00020', 'Practice · red supply · no drone')
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ── inst4: Full game + memory ──────────────────────────────────────
+var inst4_full_game = {
+  type: 'instructions',
+  pages: [
+
+    // P1: 4 drones
+    pageBody('🧑‍🚀 Your mission, in brief.',
+      'You will be sent to <strong>4 different planets</strong>, each with a <strong>different drone</strong>.<br>' + 
+      'Each drone <strong>moves differently</strong>.<br>' +
+      'On each planet, the supplies will be <strong>either</strong> ' + green('green') + ' or ' + red('red') + '.<br><br>' +
+      '<strong>Always try to catch as many fragments as possible.</strong>') +
+      '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
+        'margin-top:16px;max-width:780px;margin-left:auto;margin-right:auto;">' +
+
+        '<div style="flex:1;min-width:240px;padding:14px 18px;border-radius:14px;' +
+          'background:#f6fff7;border:2px solid #d8efdc;">' +
+          '<div style="font-size:20px;font-weight:800;color:#0a7f2e;margin-bottom:6px;">' +
+            pill('Green bag', '#0a7f2e', '#fff') + '</div>' +
+          '<div style="font-size:16px;color:#1f2937;line-height:1.5;">' +
+            'Catch more = ' + green('earn more points') + '<br>' +
+            '<span style="font-size:14px;color:#555;">Perfect: ' + green('+10') +
+            ' &nbsp;·&nbsp; Worst: ' + gold('0') + '</span>' +
+          '</div>' +
+        '</div>' +
+
+        '<div style="flex:1;min-width:240px;padding:14px 18px;border-radius:14px;' +
+          'background:#fff7f7;border:2px solid #f0d7d7;">' +
+          '<div style="font-size:20px;font-weight:800;color:#b00020;margin-bottom:6px;">' +
+            pill('Red bag', '#b00020', '#fff') + '</div>' +
+          '<div style="font-size:16px;color:#1f2937;line-height:1.5;">' +
+            'Catch more = ' + red('lose fewer points') + '<br>' +
+            '<span style="font-size:14px;color:#555;">Perfect: ' + gold('0') +
+            ' &nbsp;·&nbsp; Worst: ' + red('−10') + '</span>' +
+          '</div>' +
+        '</div>' ,
+
+    // P2: memory test
+    pageBody('👽 With every supply drop, you also receive an <strong>object</strong> 🤲.<br>' +
+      'After the collection mission on each planet, we will ask about the objects you received.') +
+      '<ol style="font-size:18px;line-height:1.8;text-align:left;' +
+        'max-width:620px;margin:14px auto;">' +
+        '<li><strong>Which</strong> of two objects did you receive <strong>first</strong>?</li>' +
+        '<li><strong>How many</strong> objects were received <strong>between</strong> two objects?</li>' +
+        '<li><strong>When</strong> did you receive one object <strong>between</strong> two other objects?</li>' +
+      '</ol>' +
+      '<div style="font-size:17px;text-align:center;margin-top:8px;color:#555;">' +
+        'These questions do not affect your score — just answer as best you can 😎' +
+      '</div>',
+
+    // P3: slider example
+    pageBody('Question example',
+      'Move the slider to indicate <strong>when</strong> you received the top object in between the other two.') +
+      '<div style="display:flex;justify-content:center;align-items:flex-end;' +
+        'gap:18px;margin:20px auto 8px auto;width:82%;max-width:660px;">' +
+
+        '<div style="width:84px;height:84px;border-radius:12px;background:#f0f3f7;' +
+          'border:2px solid #c2c8d0;display:flex;align-items:center;' +
+          'justify-content:center;font-size:40px;">🌲</div>' +
+
+        '<div style="flex:1;text-align:center;">' +
+          '<div style="margin-bottom:12px;font-size:40px;">🎤</div>' +
+          '<input type="range" min="0" max="100" value="50" style="width:100%;">' +
+        '</div>' +
+
+        '<div style="width:84px;height:84px;border-radius:12px;background:#f0f3f7;' +
+          'border:2px solid #c2c8d0;display:flex;align-items:center;' +
+          'justify-content:center;font-size:40px;">🍤</div>' +
+
+      '</div>',
+
+    // P4: priority
+    pageBody('🧑‍🚀 Remember',
+      '<strong> Collect more ➡ Better score 💯 </strong><br><br>' +
+      'For ' + green('green bags') + ': catch more = earn more points<br>' +
+      'For ' + red('red bags') + ': catch more = lose fewer points<br><br>' +
+      '🧑‍🔬 Examine the objects carefully, but your <em>main mission</em> is <strong>supply collection</strong>.'),
+
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// D — Quiz, ready, recovery screens
+// ═══════════════════════════════════════════════════════════════════
+
+var quiz = {
+  type: 'instructions',
+  pages: [
+    pageBody('To ensure your mission is clear, <br><br>' +
+      '<strong>answer the following questions correctly.</strong>')
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
 };
 
 var ready = {
   type: 'instructions',
   pages: [
-    '<div style="font-size:21px; line-height:1.8; text-align:center;">' +
-      '<strong style="font-size:28px;">The game is starting now.</strong><br><br>' +
-      '<strong>Good luck!</strong></div>'
+    HIDE_PREV +
+    '<div style="font-size:21px;line-height:1.8;text-align:center;">' +
+      '<strong style="font-size:28px;"> You are being teleported now...</strong>' +
+      '<br><br> <strong> 🌠 Good luck! 🌌</strong>' +
+    '</div>'
   ],
   show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
 };
 
-var quiz = {
+var inst1_incorrect = {
   type: 'instructions',
   pages: [
-    '<div style="font-size:20px; line-height:1.7; text-align:center;">' +
-      '<strong style="font-size:25px;">Instruction check</strong><br><br>' +
-      'You will now answer questions about the game.<br><br>' +
-      '<strong>You must answer all of them correctly to continue.</strong><br><br>' +
-      'Good luck!</div>'
+    HIDE_PREV +
+    pageBody('🫣 Some answers were incorrect.',
+      'The instructions will be repeated. Please read carefully.',
+      { headColor: '#b00020' })
   ],
   show_clickable_nav: true,
-  button_label_previous: "Prev",
-  button_label_next: "Next"
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
 };
+
+var inst3_incorrect = {
+  type: 'instructions',
+  pages: [
+    pageBody('😶‍🌫️ You did not respond.',
+      'Your mission must be aborted now.', { headColor: '#b00020' })
+  ],
+  show_clickable_nav: false
+};
+
+var inst_summary = {
+  type: 'instructions',
+  pages: [].concat(
+    [
+      pageBody('🫣 You did not answer all questions correctly.',
+        'The instructions will be repeated.<br><strong>Focus on the rules below.</strong>',
+        { headColor: '#b00020' })
+    ],
+    inst1.pages,
+    inst2_locking_and_bag.pages,
+    inst3_drone_disappears.pages,
+    inst4_full_game.pages,
+    [
+      pageBody('🫡 Now',
+        'Try answer the questions again.<br>' +
+        '<strong>Answer them correctly to start your journey!</strong>')
+    ]
+  ),
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// E — Comprehension hooks (unchanged)
+// ═══════════════════════════════════════════════════════════════════
 
 var num_loops = 0;
-
-var comprehension1 = {
-  type: 'comprehension1'
-};
-
-var comprehension2 = {
-  type: 'comprehension2'
-};
+var comprehension1 = { type: 'comprehension1' };
+var comprehension2 = { type: 'comprehension2' };
