@@ -163,6 +163,49 @@ function mockGame(opts, callouts, scale) {
   return mockFrame(inner, null, scale);
 }
 
+// Planet mini-card: shows only sky + ground + rail + collector + drone.
+// Each planet has a unique sky hue so the 4-planet grid is visually distinct at a glance.
+function mockPlanet(hue, sat, planetNum, droneX, collectorX, scale) {
+  scale  = scale       || 0.22;
+  droneX = droneX      || 50;
+  collectorX = collectorX || droneX;
+  var w   = (80 * scale) + 'vw';
+  var h   = (80 * scale) + 'vh';
+  var sky = 'linear-gradient(to bottom,' +
+    'hsl(' + hue + ',' + sat + '%,12%) 0%,' +
+    'hsl(' + hue + ',' + sat + '%,22%) 35%,' +
+    'hsl(' + hue + ',' + sat + '%,36%) 60%,' +
+    'hsl(' + hue + ',' + (sat + 8) + '%,52%) 78%,' +
+    'hsl(' + hue + ',' + (sat + 12) + '%,65%) 100%)';
+  var gnd = 'linear-gradient(to bottom,' +
+    'hsl(' + hue + ',' + (sat + 5) + '%,62%) 0%,' +
+    'hsl(' + hue + ',' + sat + '%,52%) 100%)';
+  return (
+    '<div style="position:relative;width:' + w + ';height:' + h + ';' +
+      'border-radius:12px;overflow:hidden;flex-shrink:0;' +
+      'box-shadow:0 6px 20px rgba(0,0,0,.4);' +
+      'border:2px solid rgba(255,255,255,.12);' +
+      'background:' + sky + ';margin:0 auto;">' +
+      '<div style="position:absolute;left:0;right:0;bottom:0;height:22%;' +
+        'background:' + gnd + ';border-top:1px solid rgba(255,255,255,.18);"></div>' +
+      '<div style="position:absolute;left:' + droneX + '%;top:8%;' +
+        'transform:translateX(-50%);font-size:22px;opacity:.85;">🛸</div>' +
+      '<div style="position:absolute;left:8%;width:84%;top:78%;height:3px;' +
+        'transform:translateY(-50%);border-radius:999px;' +
+        'background:rgba(255,255,255,.55);box-shadow:0 0 8px rgba(255,255,255,.15);"></div>' +
+      '<div style="position:absolute;left:' + collectorX + '%;top:78%;' +
+        'transform:translate(-50%,-50%);width:14%;min-width:32px;height:14px;">' +
+        '<div style="position:absolute;inset:0;border-radius:999px;' +
+          'background:rgba(255,255,255,.88);border:2px solid rgba(255,255,255,.65);' +
+          'box-shadow:0 0 0 1px rgba(255,255,255,.15),0 2px 8px rgba(0,0,0,.25);"></div>' +
+      '</div>' +
+      '<div style="position:absolute;bottom:24%;left:50%;transform:translateX(-50%);' +
+        'font-size:9px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.6px;' +
+        'text-transform:uppercase;white-space:nowrap;">Planet ' + planetNum + '</div>' +
+    '</div>'
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // B — Text helpers
 // ═══════════════════════════════════════════════════════════════════
@@ -184,6 +227,7 @@ function blockIntroHTML(lines, accentColor, turnLabel) {
     return '<li style="margin:8px 0;">' + l + '</li>';
   }).join('');
   return (
+    HIDE_PREV +
     '<div style="font-size:20px;line-height:1.6;text-align:center;' +
       'max-width:540px;margin:36px auto;padding:22px 28px;' +
       'border-radius:16px;background:#fafbfc;border:2px solid ' + c + '33;' +
@@ -227,6 +271,7 @@ var HIDE_PREV = '<style>#jspsych-instructions-back{display:none!important}</styl
 var inst1 = {
   type: 'instructions',
   pages: [
+    HIDE_PREV +
     pageBody('🧑‍🚀 Your mission',
       'A drone drops <strong>supplies</strong> to a rail. Use a <strong>collector</strong> to catch them.<br><br>'),
 
@@ -276,6 +321,7 @@ var inst2_locking_and_bag = {
   pages: [
 
     // P1: locking
+    HIDE_PREV +
     pageBody('The collector <strong>is locked ⏹️</strong> just before each bag drops',
       'It turns grey, you cannot move it until the next turn.') +
       '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
@@ -412,6 +458,7 @@ var inst3_drone_disappears = {
   pages: [
 
     // P1a: air currents / bag shift
+    HIDE_PREV +
     pageBody('🤔 Noticed something?',
       'The bag lands <strong>near</strong> the drone, but unpredictable air currents 💨 can <strong>shift</strong> it slightly.<br>' +
       'So the bag may land a little left or right of the drone.') +
@@ -439,34 +486,66 @@ var inst3_drone_disappears = {
 
     // P1b: drone hovers, then moves farther
     pageBody('🤔 Noticed something?',
-      'The drone usually <strong>hovers around one area</strong> for a few supply-drops.<br>' +
-      'Then it may <strong>move to a new place</strong> and hover there for another few drops.') +
-      '<div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;' +
-        'margin-top:10px;width:86vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
-        (function () {
-          var drones = [44, 47, 45, 62, 64];
-          var bags   = [46, 45, 48, 60, 66];
-          var labels = ['drop 1', 'drop 2', 'drop 3', 'moves farther', 'hovers nearby'];
-          return labels.map(function (label, i) {
-            return (
-              '<div style="flex:1;min-width:150px;">' +
-                mockGame({
-                  droneX: drones[i],
-                  collectorX: drones[i],
-                  collectorLocked: true,
-                  bagX: bags[i],
-                  valence: 'reward'
-                }, null, 0.22) +
-                '<div style="text-align:center;font-size:13px;color:#555;margin-top:-6px;">' + label + '</div>' +
-              '</div>'
-            );
-          }).join('');
-        })() +
+      'The drone <strong>hovers in one area</strong> for several drops, then <strong>jumps</strong> to a new area.') +
+      '<div style="display:flex;align-items:flex-start;gap:12px;justify-content:center;' +
+        'margin-top:14px;width:86vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
+
+        '<!-- Group 1: hovering phase -->' +
+        '<div style="flex:3;min-width:0;background:rgba(255,255,255,.07);' +
+          'border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px 8px 6px;">' +
+          '<div style="text-align:center;font-size:16px;font-weight:700;color:hsl(224, 58%, 48%);' +
+            'letter-spacing:.3px;margin-bottom:6px;">🔁 Hovering nearby</div>' +
+          '<div style="display:flex;gap:6px;justify-content:center;">' +
+            (function () {
+              return [
+                { droneX: 44, bagX: 46, label: 'drop 1' },
+                { droneX: 47, bagX: 45, label: 'drop 2' },
+                { droneX: 45, bagX: 48, label: 'drop 3' }
+              ].map(function (d) {
+                return (
+                  '<div style="flex:1;min-width:0;text-align:center;">' +
+                    mockGame({ droneX: d.droneX, collectorX: d.droneX,
+                      collectorLocked: true, bagX: d.bagX, valence: 'reward' }, null, 0.24) +
+                    '<div style="font-size:11px;color:#888;margin-top:2px;">' + d.label + '</div>' +
+                  '</div>'
+                );
+              }).join('');
+            })() +
+          '</div>' +
+        '</div>' +
+
+        '<!-- Arrow divider -->' +
+        '<div style="display:flex;align-items:center;padding-top:38px;' +
+          'font-size:26px;color:#ccc;flex-shrink:0;">➜</div>' +
+
+        '<!-- Group 2: jump phase -->' +
+        '<div style="flex:2;min-width:0;background:rgba(255,220,100,.08);' +
+          'border:1px solid rgba(255,220,100,.25);border-radius:12px;padding:10px 8px 6px;">' +
+          '<div style="text-align:center;font-size:16px;font-weight:700;color:hsl(38, 100%, 45%);' +
+            'letter-spacing:.3px;margin-bottom:6px;">⏩ Jumps to new area</div>' +
+          '<div style="display:flex;gap:6px;justify-content:center;">' +
+            (function () {
+              return [
+                { droneX: 66, bagX: 64, label: 'drop 4' },
+                { droneX: 63, bagX: 66, label: 'drop 5' }
+              ].map(function (d) {
+                return (
+                  '<div style="flex:1;min-width:0;text-align:center;">' +
+                    mockGame({ droneX: d.droneX, collectorX: d.droneX,
+                      collectorLocked: true, bagX: d.bagX, valence: 'reward' }, null, 0.24) +
+                    '<div style="font-size:11px;color:#888;margin-top:2px;">' + d.label + '</div>' +
+                  '</div>'
+                );
+              }).join('');
+            })() +
+          '</div>' +
+        '</div>' +
+
       '</div>',
 
     // P1c: strategy tip
     pageBody('🤫 Want to catch more?',
-      'Place your collector <strong>under where you think the drone is</strong>.<br><br>' +
+      'Place your collector <strong>right under where the drone is</strong>.<br><br>' +
       '👉 This gives you the <em>best chance</em> to catch fragments, even when air currents shift the bag.') +
       mockGame({
         droneX: 50,
@@ -541,78 +620,107 @@ var inst4_full_game = {
   type: 'instructions',
   pages: [
 
-    // P1: 4 drones
-    pageBody('🧑‍🚀 Your mission, in brief.',
-      'You will be sent to <strong>4 different planets</strong>, each with a <strong>different drone</strong>.<br>' + 
-      'Each drone <strong>moves differently</strong>.<br>' +
-      'On each planet, the supplies will be <strong>either</strong> ' + green('green') + ' or ' + red('red') + '.<br><br>' +
-      '<strong>Always try to catch as many fragments as possible.</strong>') +
-      '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
-        'margin-top:16px;max-width:780px;margin-left:auto;margin-right:auto;">' +
+    // P1: 4 planets, each with a unique drone
+    HIDE_PREV +
+    pageBody('🧑‍🚀 You will visit <strong>4 planets</strong>.',
+      'Each has a <strong>unique drone</strong> that moves differently.<br>' +
+      'On each planet, the supply will be <em>all</em> ' + green('green') +
+      ', or <em>all</em> ' + red('red') + '.<br>' +
+      '<strong>Always catch as many fragments as possible.</strong>') +
 
-        '<div style="flex:1;min-width:240px;padding:14px 18px;border-radius:14px;' +
-          'background:#f6fff7;border:2px solid #d8efdc;">' +
-          '<div style="font-size:20px;font-weight:800;color:#0a7f2e;margin-bottom:6px;">' +
-            pill('Green bag', '#0a7f2e', '#fff') + '</div>' +
-          '<div style="font-size:16px;color:#1f2937;line-height:1.5;">' +
-            'Catch more = ' + green('earn more points') + '<br>' +
-            '<span style="font-size:14px;color:#555;">Perfect: ' + green('+10') +
-            ' &nbsp;·&nbsp; Worst: ' + gold('0') + '</span>' +
-          '</div>' +
+      '<div style="display:flex;gap:14px;justify-content:center;align-items:flex-start;' +
+        'margin-top:20px;width:90vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
+        (function () {
+          var planets = [
+            { hue: 210, sat: 42, droneX: 35, collectorX: 35 },
+            { hue: 265, sat: 32, droneX: 62, collectorX: 62 },
+            { hue:  22, sat: 48, droneX: 50, collectorX: 50 },
+            { hue: 158, sat: 38, droneX: 72, collectorX: 72 }
+          ];
+          return planets.map(function (p, i) {
+            return (
+              '<div style="flex:1;min-width:0;text-align:center;">' +
+                mockPlanet(p.hue, p.sat, i + 1, p.droneX, p.collectorX, 0.22) +
+                '<div style="font-size:12px;color:#666;margin-top:6px;font-style:italic;">' +
+                  'unique movement' +
+                '</div>' +
+              '</div>'
+            );
+          }).join('');
+        })() +
+      '</div>' +
+
+      '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;' +
+        'margin-top:20px;max-width:680px;margin-left:auto;margin-right:auto;">' +
+        '<div style="flex:1;min-width:200px;padding:10px 16px;border-radius:10px;' +
+          'background:#f6fff7;border:1.5px solid #c6e8cc;font-size:15px;">' +
+          pill('Green supply', '#0a7f2e', '#fff') +
+          ' Catch more = ' + green('earn more') + '<br>' +
+          '<span style="font-size:13px;color:#555;">Best: ' + green('+10') + '&nbsp;·&nbsp;Worst: ' + gold('0') + '</span>' +
         '</div>' +
-
-        '<div style="flex:1;min-width:240px;padding:14px 18px;border-radius:14px;' +
-          'background:#fff7f7;border:2px solid #f0d7d7;">' +
-          '<div style="font-size:20px;font-weight:800;color:#b00020;margin-bottom:6px;">' +
-            pill('Red bag', '#b00020', '#fff') + '</div>' +
-          '<div style="font-size:16px;color:#1f2937;line-height:1.5;">' +
-            'Catch more = ' + red('lose fewer points') + '<br>' +
-            '<span style="font-size:14px;color:#555;">Perfect: ' + gold('0') +
-            ' &nbsp;·&nbsp; Worst: ' + red('−10') + '</span>' +
-          '</div>' +
-        '</div>' ,
-
-    // P2: memory test
-    pageBody('👽 With every supply drop, you also receive an <strong>object</strong> 🤲.<br>' +
-      'After the collection mission on each planet, we will ask about the objects you received.') +
-      '<ol style="font-size:18px;line-height:1.8;text-align:left;' +
-        'max-width:620px;margin:14px auto;">' +
-        '<li><strong>Which</strong> of two objects did you receive <strong>first</strong>?</li>' +
-        '<li><strong>How many</strong> objects were received <strong>between</strong> two objects?</li>' +
-        '<li><strong>When</strong> did you receive one object <strong>between</strong> two other objects?</li>' +
-      '</ol>' +
-      '<div style="font-size:17px;text-align:center;margin-top:8px;color:#555;">' +
-        'These questions do not affect your score — just answer as best you can 😎' +
-      '</div>',
-
-    // P3: slider example
-    pageBody('Question example',
-      'Move the slider to indicate <strong>when</strong> you received the top object in between the other two.') +
-      '<div style="display:flex;justify-content:center;align-items:flex-end;' +
-        'gap:18px;margin:20px auto 8px auto;width:82%;max-width:660px;">' +
-
-        '<div style="width:84px;height:84px;border-radius:12px;background:#f0f3f7;' +
-          'border:2px solid #c2c8d0;display:flex;align-items:center;' +
-          'justify-content:center;font-size:40px;">🌲</div>' +
-
-        '<div style="flex:1;text-align:center;">' +
-          '<div style="margin-bottom:12px;font-size:40px;">🎤</div>' +
-          '<input type="range" min="0" max="100" value="50" style="width:100%;">' +
+        '<div style="flex:1;min-width:200px;padding:10px 16px;border-radius:10px;' +
+          'background:#fff7f7;border:1.5px solid #f0c8c8;font-size:15px;">' +
+          pill('Red supply', '#b00020', '#fff') +
+          ' Catch more = ' + red('lose less') + '<br>' +
+          '<span style="font-size:13px;color:#555;">Best: ' + gold('0') + '&nbsp;·&nbsp;Worst: ' + red('−10') + '</span>' +
         '</div>' +
+      '</div>' ,
 
-        '<div style="width:84px;height:84px;border-radius:12px;background:#f0f3f7;' +
-          'border:2px solid #c2c8d0;display:flex;align-items:center;' +
-          'justify-content:center;font-size:40px;">🍤</div>' +
+// P2: object questions overview
+pageBody('👽 Examine each object carefully',
+  'After each planet mission, we will ask about the objects from that planet.<br><br>' +
+  '🧑‍🚀 <em>No need</em> to remember them, your main mission is supply collection') +
+  '<div style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:14px;' +
+    'width:86vw;max-width:980px;margin:18px auto 8px auto;">' +
 
-      '</div>',
+    '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
+      'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
+      '<div style="font-size:34px;margin-bottom:8px;">🍤 ⇄ 🧩</div>' +
+      '<div style="font-size:15px;line-height:1.45;color:#4b5563;">Which object came <strong>first</strong>?</div>' +
+    '</div>' +
 
-    // P4: priority
-    pageBody('🧑‍🚀 Remember',
-      '<strong> Collect more ➡ Better score 💯 </strong><br><br>' +
-      'For ' + green('green bags') + ': catch more = earn more points<br>' +
-      'For ' + red('red bags') + ': catch more = lose fewer points<br><br>' +
-      '🧑‍🔬 Examine the objects carefully, but your <em>main mission</em> is <strong>supply collection</strong>.'),
+    '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
+      'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
+      '<div style="font-size:34px;margin-bottom:8px;">🌲 ··· 🎤</div>' +
+      '<div style="font-size:15px;line-height:1.45;color:#4b5563;"><strong>How many</strong> objects came between them?</div>' +
+    '</div>' +
 
+    '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
+      'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
+      '<div style="font-size:34px;margin-bottom:8px;">🌲 ⇠ 🎤 ⇢ 🍤</div>' +
+      '<div style="font-size:15px;line-height:1.45;color:#4b5563;"><strong>When</strong> did one object came between other two?</div>' +
+    '</div>' ,
+
+// P3: slider example + priority
+pageBody('Example question',
+  'Move the slider to show <strong>when this object appeared</strong> between the other two.') +
+  '<div style="max-width:760px;margin:20px auto 10px auto;padding:20px 24px;' +
+    'border-radius:18px;background:#f8fafc;border:1px solid #d6dee8;' +
+    'box-shadow:0 8px 24px rgba(15,23,42,.08);">' +
+
+    '<div style="display:flex;align-items:flex-end;gap:18px;width:100%;">' +
+
+      '<div style="width:92px;text-align:center;flex-shrink:0;">' +
+        '<div style="width:84px;height:84px;margin:0 auto;border-radius:14px;background:white;' +
+          'border:2px solid #c2c8d0;display:flex;align-items:center;justify-content:center;' +
+          'font-size:42px;box-shadow:0 4px 12px rgba(0,0,0,.08);">🌲</div>' +
+      '</div>' +
+
+      '<div style="flex:1;text-align:center;min-width:220px;">' +
+        '<div style="font-size:44px;margin-bottom:12px;">🎤</div>' +
+        '<input type="range" min="0" max="100" value="50" style="width:100%;">' +
+        '<div style="display:flex;justify-content:space-between;font-size:13px;color:#64748b;margin-top:6px;">' +
+          '<span>Closer to 🌲?</span><span>Closer to 🍤?</span>' +
+        '</div>' +
+      '</div>' +
+
+      '<div style="width:92px;text-align:center;flex-shrink:0;">' +
+        '<div style="width:84px;height:84px;margin:0 auto;border-radius:14px;background:white;' +
+          'border:2px solid #c2c8d0;display:flex;align-items:center;justify-content:center;' +
+          'font-size:42px;box-shadow:0 4px 12px rgba(0,0,0,.08);">🍤</div>' +
+      '</div>' +
+
+    '</div>' 
   ],
   show_clickable_nav: true,
   button_label_previous: 'Prev',
@@ -626,6 +734,7 @@ var inst4_full_game = {
 var quiz = {
   type: 'instructions',
   pages: [
+    HIDE_PREV +
     pageBody('To ensure your mission is clear, <br><br>' +
       '<strong>answer the following questions correctly.</strong>')
   ],
@@ -674,6 +783,7 @@ var inst_summary = {
   type: 'instructions',
   pages: [].concat(
     [
+      HIDE_PREV +
       pageBody('🫣 You did not answer all questions correctly.',
         'The instructions will be repeated.<br><strong>Focus on the rules below.</strong>',
         { headColor: '#b00020' })

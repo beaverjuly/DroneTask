@@ -321,24 +321,11 @@
     return min + Math.random() * (max - min);
   }
 
-function clampPracticeX(x) {
-  return Math.max(12, Math.min(88, x));
-}
-
-function randBetween(min, max) {
-  return min + Math.random() * (max - min);
-}
-
-function randSign() {
-  return Math.random() < 0.5 ? -1 : 1;
-}
+  function randSign() {
+    return Math.random() < 0.5 ? -1 : 1;
+  }
 
   function makePracticeDronePath(numTrials) {
-    // Practice teaching logic:
-    // - trial 1: start at a random anchor
-    // - trial 2: hover near the same place
-    // - trial 3: move a moderate distance to a new place
-    // If there are more than 3 trials, continue hovering around the new place.
     var path = [];
     var anchor1 = randBetween(32, 68);
 
@@ -353,7 +340,6 @@ function randSign() {
       var move = randSign() * randBetween(10, 16);
       anchor2 = clampPracticeX(anchor1 + move);
 
-      // If clipping made the movement too small, move the other way.
       if (Math.abs(anchor2 - anchor1) < 9) {
         anchor2 = clampPracticeX(anchor1 - move);
       }
@@ -369,8 +355,6 @@ function randSign() {
   }
 
   function makeRandomPracticeBag(droneX) {
-    // Slight stochastic shift around the drone.
-    // Smaller than before so practice is learnable rather than discouraging.
     var wind = randBetween(-6, 6);
     return clampPracticeX(droneX + wind);
   }
@@ -463,7 +447,7 @@ function randSign() {
 
     // Tracks previous practice drone position so practice drone locations
     // move a meaningful distance from one supply-drop to another.
-    var prevPracticeDroneX = null;
+    var practiceDronePath = null;
     if (practice_no >= 1 && practice_no <= 5) {
       practiceDronePath = makePracticeDronePath(num_trials);
     }
@@ -522,13 +506,25 @@ function randSign() {
         // - Practices 4–5 still keep the drone hidden through show_bird = false.
         // Main-task positions remain the designed latent trajectories.
         var thisBirdPosition;
+        var thisBirdStartPosition;
         var thisBagPosition;
 
         if (practice_no >= 1 && practice_no <= 5) {
           thisBirdPosition = practiceDronePath[i % practiceDronePath.length];
+
+          // For visible practice trials, animate from previous drone location
+          // to the current one. On the first trial, start slightly nearby so
+          // participants see motion without a huge jump.
+          if (i === 0) {
+            thisBirdStartPosition = clampPracticeX(thisBirdPosition + randBetween(-8, 8));
+          } else {
+            thisBirdStartPosition = practiceDronePath[(i - 1) % practiceDronePath.length];
+          }
+
           thisBagPosition = makeRandomPracticeBag(thisBirdPosition);
         } else {
           thisBirdPosition = bird_position[randomized[j]][i];
+          thisBirdStartPosition = thisBirdPosition;
           thisBagPosition = bag_position[randomized[j]][i];
         }
 
@@ -554,6 +550,9 @@ function randSign() {
           coins_distribution: cdist,
           bag_position: thisBagPosition,
           bird_position: thisBirdPosition,
+          bird_start_position: thisBirdStartPosition,
+          animate_bird: (practice_no >= 1 && practice_no <= 3),
+          bird_animation_duration: 900,
           show_bird: show_bird,
           is_moving_practice: is_moving_practice,
           missing_msg_warning_number: warning_threshold,
@@ -731,14 +730,67 @@ function randSign() {
 
   var low_quality = false;
 
-  var comprehension1_loop_timeline = [inst_summary];
-  comprehension1_loop_timeline = comprehension1_loop_timeline.concat(comprehension1);
+  // ──────────────────────────────────────────────────────────────────
+  // Comprehension review loops — topic-aware redirect.
+  //
+  // Each loop is structured as:
+  //   1. Show comprehension plugin.
+  //   2. After it finishes, run conditional review trials — each is the
+  //      relevant instruction block, gated on whether the participant
+  //      clicked a question that maps to that topic.
+  //   3. The loop_function checks the latest comprehension data; it
+  //      keeps looping until that comprehension trial reports done:true.
+  //
+  // The participant cannot revise an incorrect answer without first
+  // clicking the locked question to review the relevant instructions.
+  // ──────────────────────────────────────────────────────────────────
 
+  // Helper: find the most recent trial of a given plugin type in data.
+  function lastTrialOfType(typeName) {
+    var arr = jsPsych.data.get().filter({ trial_type: typeName }).values();
+    return arr.length > 0 ? arr[arr.length - 1] : null;
+  }
+
+  // Build a conditional review block: runs `instructionNode` only if the
+  // most recent run of `compType` has `review_topic === topicKey`.
+  function buildReviewConditional(compType, topicKey, instructionNode) {
+    return {
+      timeline: [addSmoothTransitions(instructionNode)],
+      conditional_function: function() {
+        var d = lastTrialOfType(compType);
+        return !!(d && d.review_topic === topicKey);
+      }
+    };
+  }
+
+  // ── Comprehension 1 review loop (mechanics) ────────────────────────
   var comprehension1_loop = {
-    timeline: comprehension1_loop_timeline,
-    conditional_function: function() {
-      var data = jsPsych.data.get().last(1).values()[0];
-      return data.num_errors !== 0;
+    timeline: [
+      comprehension1,
+      buildReviewConditional('comprehension1', 'inst1', inst1),
+      buildReviewConditional('comprehension1', 'inst2', inst2_locking_and_bag),
+      buildReviewConditional('comprehension1', 'inst3', inst3_drone_disappears),
+      buildReviewConditional('comprehension1', 'inst4', inst4_full_game)
+    ],
+    loop_function: function() {
+      var d = lastTrialOfType('comprehension1');
+      // Loop until the latest comprehension1 reports done:true.
+      return !(d && d.done === true);
+    }
+  };
+
+  // ── Comprehension 2 review loop (full mission rules) ───────────────
+  var comprehension2_loop = {
+    timeline: [
+      comprehension2,
+      buildReviewConditional('comprehension2', 'inst1', inst1),
+      buildReviewConditional('comprehension2', 'inst2', inst2_locking_and_bag),
+      buildReviewConditional('comprehension2', 'inst3', inst3_drone_disappears),
+      buildReviewConditional('comprehension2', 'inst4', inst4_full_game)
+    ],
+    loop_function: function() {
+      var d = lastTrialOfType('comprehension2');
+      return !(d && d.done === true);
     }
   };
 
@@ -765,11 +817,14 @@ function randSign() {
     }
   };
 
+  // The new loops force the participant to revise until correct via the
+  // review-redirect mechanism, so this hard-stop should never fire in
+  // practice — kept as a safety net for the worst case.
   var comprehension_check = {
     timeline: [terminate, comprehension_check_core],
     conditional_function: function() {
       var data = jsPsych.data.get().last(1).values()[0];
-      return data.num_errors !== 0;
+      return data && data.num_errors !== 0 && data.done !== true;
     }
   };
 
@@ -839,8 +894,11 @@ function randSign() {
   instructions_loop = instructions_loop.concat(practice5);
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_full_game));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(quiz));
-  instructions_loop = instructions_loop.concat(comprehension1);
+
   instructions_loop = instructions_loop.concat(comprehension1_loop);
+
+  instructions_loop = instructions_loop.concat(comprehension2_loop);
+
   instructions_loop = instructions_loop.concat(comprehension_check);
   instructions_loop = instructions_loop.concat(ready);
 

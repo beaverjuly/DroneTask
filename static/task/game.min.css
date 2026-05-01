@@ -151,7 +151,6 @@
   );
 }
 
-/* ── Bag dot (outcome position) ── */
 /* ── Bag dot (drops from top of game area to landing point above rail) ── */
 .bag-dot {
   position: absolute;

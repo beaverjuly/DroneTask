@@ -99,6 +99,24 @@ jsPsych.plugins["trial"] = (function () {
         default: null,
         description: "x of the drone (legacy name kept for data compatibility)"
       },
+      bird_start_position: {
+        type: jsPsych.plugins.parameterType.INT,
+        array: false,
+        default: null,
+        description: "starting x position of the drone animation"
+      },
+      animate_bird: {
+        type: jsPsych.plugins.parameterType.BOOL,
+        array: false,
+        default: false,
+        description: "whether the visible drone should animate from start to target"
+      },
+      bird_animation_duration: {
+        type: jsPsych.plugins.parameterType.INT,
+        array: false,
+        default: 900,
+        description: "duration of visible drone travel animation in ms"
+      },
       no_response_duration: {
         type: jsPsych.plugins.parameterType.INT,
         array: false,
@@ -248,8 +266,23 @@ jsPsych.plugins["trial"] = (function () {
       '<div class="collector-box" id="collector-box"></div>' +
       "</div>";
 
-    // Drone indicator (practice only — emoji, not an image)
-    html += '<div class="drone-el" id="drone">&#128760;</div>';
+    // Drone indicator (practice only)
+    var showDroneNow = trial.show_drone || trial.show_bird;
+    var droneStart = (
+      typeof trial.bird_start_position === "number"
+        ? trial.bird_start_position
+        : trial.bird_position
+    );
+
+    var droneClass = "drone-el";
+    if (showDroneNow) {
+      droneClass += " visible outcome-phase";
+    }
+
+    html +=
+      '<div class="' + droneClass + '" id="drone" style="left:' +
+      droneStart +
+      '%;">&#128760;</div>';
 
     // PE line is kept in the DOM but never displayed (legacy element).
     html += '<div class="pe-line" id="pe-line" style="display:none;"></div>';
@@ -391,11 +424,14 @@ jsPsych.plugins["trial"] = (function () {
 
     // — Step 1: bag dot appears at the top and drops to the landing point.
     setTimeout(function () {
-      // Show drone in practice
+      // Keep the drone visible during visible practice trials.
+      // Do not reset left here if it has already traveled during the response phase.
       if (trial.show_drone || trial.show_bird) {
         var drone = document.getElementById("drone");
         if (drone) {
-          drone.style.left = trial.bird_position + "%";
+          if (!trial.animate_bird) {
+            drone.style.left = trial.bird_position + "%";
+          }
           drone.classList.add("visible", "outcome-phase");
         }
       }
@@ -482,7 +518,9 @@ jsPsych.plugins["trial"] = (function () {
         bagDot.classList.remove("dropping", "landed");
       }
       if (peLine) peLine.style.display = "none";
-      if (drone) drone.classList.remove("visible", "outcome-phase");
+      if (drone && !trial.animate_bird) {
+        drone.classList.remove("visible", "outcome-phase");
+      }
       if (fragLayer) fragLayer.innerHTML = "";
     }, itemDelay + 2800);
   }
@@ -529,6 +567,30 @@ plugin.trial = function (display_element, trial) {
 
     display_element.innerHTML = make_html(trial);
     setCollectorUnlocked();
+
+    if ((trial.show_bird || trial.show_drone) && trial.animate_bird) {
+      jsPsych.pluginAPI.setTimeout(function () {
+        var drone = display_element.querySelector('#drone');
+        if (drone) {
+          var startX = (
+            typeof trial.bird_start_position === 'number'
+              ? trial.bird_start_position
+              : trial.bird_position
+          );
+
+          drone.style.left = startX + '%';
+          drone.classList.add('visible', 'outcome-phase');
+
+          // Force reflow so the transition reliably starts from startX.
+          void drone.offsetWidth;
+
+          drone.style.transition =
+            'left ' + (trial.bird_animation_duration || 900) +
+            'ms cubic-bezier(.22,.61,.36,1), opacity 0.3s';
+          drone.style.left = trial.bird_position + '%';
+        }
+      }, 80);
+    }
 
     var collector = document.getElementById("collector");
     if (collector) collector.style.left = trial.bucket_position + "%";
