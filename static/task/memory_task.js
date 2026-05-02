@@ -57,24 +57,59 @@ jsPsych.plugins['memory-task'] = (function() {
   var pairOrderByBlock = {};
   var pairProgressByBlock = {};
 
-  function getOrderLayoutMode() {
+  var ORDER_LAYOUT_MODE = 'horizontal';
+
+  // FNV-1a 32-bit hash — avalanche-quality bit mixing, verified ~50/50 balance
+  // for both Prolific hex IDs (24 hex chars) and MTurk alphanumeric IDs.
+  function fnv1a32(str) {
+    var hash = 0x811c9dc5 >>> 0;
+    for (var i = 0; i < str.length; i++) {
+      hash = (hash ^ str.charCodeAt(i)) >>> 0;
+      hash = Math.imul(hash, 0x01000193) >>> 0;
+    }
+    return hash;
+  }
+
+  function getOrderKeyMapMode() {
+    // ── Priority 1: explicit experimenter-assigned counterbalance index.
+    // Set ?cb=0 or ?cb=1 in the study URL at launch time.
+    // Prolific: create two study links, one with cb=0, one with cb=1,
+    //   each allocated half the participant slots.
+    // Any non-negative integer works; even → 'normal', odd → 'swapped'.
     try {
       var params = new URLSearchParams(window.location.search);
-      var workerId = params.get('workerId') || params.get('subId') || '';
+      var cbRaw = params.get('cb');
+      if (cbRaw !== null && /^\d+$/.test(cbRaw.trim())) {
+        return (parseInt(cbRaw, 10) % 2 === 0) ? 'normal' : 'swapped';
+      }
 
-      if (workerId) {
-        var hash = 0;
-        for (var i = 0; i < workerId.length; i++) {
-          hash += workerId.charCodeAt(i);
-        }
-        return (hash % 2 === 0) ? 'horizontal' : 'vertical';
+      // ── Priority 2: FNV-1a hash of participant ID.
+      // Supports Prolific (PROLIFIC_PID), jsPsych (workerId, subId),
+      // and common alternative conventions.
+      var pid = params.get('PROLIFIC_PID') ||
+                params.get('workerId')     ||
+                params.get('subId')        || '';
+      if (pid.length > 0) {
+        return (fnv1a32(pid) % 2 === 0) ? 'normal' : 'swapped';
       }
     } catch (e) {}
 
-    return jsPsych.randomization.sampleWithoutReplacement(['horizontal', 'vertical'], 1)[0];
+    // ── Priority 3: stable within-session fallback (lab / pilot use).
+    // Stored in sessionStorage so page refreshes are self-consistent.
+    // A new session (e.g. new browser tab) draws a fresh assignment.
+    try {
+      var _SK = '__order_keymap_mode_v1';
+      var stored = sessionStorage.getItem(_SK);
+      if (stored === 'normal' || stored === 'swapped') return stored;
+      var mode = (Math.random() < 0.5) ? 'normal' : 'swapped';
+      sessionStorage.setItem(_SK, mode);
+      return mode;
+    } catch (e) {}
+
+    return 'normal'; // absolute last resort — deterministic, never random
   }
 
-var ORDER_LAYOUT_MODE = getOrderLayoutMode();
+  var ORDER_KEYMAP_MODE = getOrderKeyMapMode();
 
   function nextPairForBlock(block) {
     if (!pairOrderByBlock.hasOwnProperty(block)) {
@@ -274,6 +309,7 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
         skipped_pair: true,
         pair_index: trial.pair_index,
         order_layout_mode: ORDER_LAYOUT_MODE,
+        order_keymap_mode: ORDER_KEYMAP_MODE,
         trial1_index: null,
         trial2_index: null,
         stim_left_img: null,
@@ -342,18 +378,21 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
       wrap.appendChild(createStepLabel('Which came first?'));
 
       var pairWrap = document.createElement('div');
-      var isHorizontal = ORDER_LAYOUT_MODE === 'horizontal';
+      // Always horizontal
+      pairWrap.className = 'b3-pair-horizontal';
+      pairWrap.style.cssText =
+        'display:flex;flex-direction:row;justify-content:center;align-items:flex-start;' +
+        'gap:56px;margin-bottom:20px;flex-wrap:wrap;';
 
-      pairWrap.className = isHorizontal ? 'b3-pair-horizontal' : 'b3-pair-vertical';
-      pairWrap.style.cssText = isHorizontal
-        ? 'display:flex;flex-direction:row;justify-content:center;align-items:flex-start;gap:56px;margin-bottom:20px;flex-wrap:wrap;'
-        : 'display:flex;flex-direction:column;align-items:center;gap:20px;margin-bottom:20px;';
+      // Counterbalanced labels: which side is "1" and which is "2"
+      var leftLabel  = (ORDER_KEYMAP_MODE === 'swapped') ? '2' : '1';
+      var rightLabel = (ORDER_KEYMAP_MODE === 'swapped') ? '1' : '2';
 
-      var firstChoice = makeChoiceColumn(left_img, '1');
-      var secondChoice = makeChoiceColumn(right_img, '2');
+      var leftChoice  = makeChoiceColumn(left_img, leftLabel);
+      var rightChoice = makeChoiceColumn(right_img, rightLabel);
 
-      pairWrap.appendChild(firstChoice.col);
-      pairWrap.appendChild(secondChoice.col);
+      pairWrap.appendChild(leftChoice.col);
+      pairWrap.appendChild(rightChoice.col);
       wrap.appendChild(pairWrap);
 
       var instrWrap = document.createElement('div');
@@ -367,9 +406,9 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
 
       var start_time = performance.now();
 
-      waitForCardAssets([firstChoice.cardObj, secondChoice.cardObj], function() {
-        wrap.style.visibility = 'visible';
-      });
+    waitForCardAssets([leftChoice.cardObj, rightChoice.cardObj], function() {
+      wrap.style.visibility = 'visible';
+    });
 
       function keyHandler(e) {
         if (e.repeat) return;
@@ -384,8 +423,15 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
           responded = true;
           clearTimeout(orderTimeoutID);
           order_rt = Math.round(performance.now() - start_time);
-          order_choice_side = e.key === '1' ? 'left' : 'right';
-          order_choice_img = e.key === '1' ? left_img : right_img;
+          var keySide;
+          if (ORDER_KEYMAP_MODE === 'swapped') {
+            keySide = (e.key === '1') ? 'right' : 'left';
+          } else {
+            keySide = (e.key === '1') ? 'left' : 'right';
+          }
+
+          order_choice_side = keySide;
+          order_choice_img  = (keySide === 'left') ? left_img : right_img;
           order_correct = (order_choice_img === true_first_img);
           document.removeEventListener('keydown', keyHandler);
           renderDistancePrompt();
@@ -570,6 +616,27 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
     }
 
     function renderSliderScreen(dist_est_value, true_distance) {
+      // ── Inject slider-unset styles once per page load ───────────────
+      if (!document.getElementById('b3-slider-unset-style')) {
+        var st = document.createElement('style');
+        st.id = 'b3-slider-unset-style';
+        st.textContent = [
+          // While unset: hide thumb, thicken track to be an obvious click target
+          '.b3-slider.unset-thumb{cursor:crosshair;height:14px;}',
+          '.b3-slider.unset-thumb::-webkit-slider-runnable-track{',
+            'height:14px;background:rgba(80,80,80,.22);border-radius:7px;}',
+          '.b3-slider.unset-thumb::-webkit-slider-thumb{',
+            'opacity:0;width:1px;height:1px;pointer-events:none;}',
+          '.b3-slider.unset-thumb::-moz-range-track{',
+            'height:14px;background:rgba(80,80,80,.22);border-radius:7px;}',
+          '.b3-slider.unset-thumb::-moz-range-thumb{',
+            'opacity:0;width:1px;height:1px;}',
+          // After placement: normal thumb
+          '.b3-slider{cursor:pointer;height:6px;transition:height .12s;}',
+        ].join('');
+        document.head.appendChild(st);
+      }
+
       var wrap = createBlock3Wrapper();
       wrap.id = 'slider-container';
 
@@ -584,13 +651,14 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
 
       var lineShell = document.createElement('div');
       lineShell.className = 'b3-line-shell slider-shell';
-      lineShell.style.cssText = 'position:relative;width:80%;margin:0 auto 20px;';
+      lineShell.style.cssText = 'position:relative;width:80%;margin:0 auto 12px;';
 
       var line = document.createElement('div');
       line.className = 'b3-line slider-line';
-      line.style.cssText = 'position:relative;display:flex;align-items:center;justify-content:space-between;';
+      line.style.cssText =
+        'position:relative;display:flex;align-items:center;justify-content:space-between;';
 
-      var firstImg = (true_first_idx === idx1) ? stim1 : stim2;
+      var firstImg  = (true_first_idx === idx1) ? stim1 : stim2;
       var secondImg = (true_first_idx === idx1) ? stim2 : stim1;
 
       var leftAnchor = createStimCard(firstImg, 'small');
@@ -598,17 +666,20 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
       leftAnchor.card.style.cssText += 'flex-shrink:0;';
       line.appendChild(leftAnchor.card);
 
+      // ── Slider wrapper ──────────────────────────────────────────────
       var sliderWrap = document.createElement('div');
       sliderWrap.className = 'b3-slider-wrap';
-      sliderWrap.style.cssText = 'flex:1;margin:0 16px;';
+      sliderWrap.style.cssText = 'flex:1;margin:0 16px;position:relative;';
+
       var slider = document.createElement('input');
-      slider.className = 'b3-slider';
-      slider.type = 'range';
-      slider.min = '0';
-      slider.max = '100';
-      slider.step = '1';
-      slider.value = '50';
-      slider.style.cssText = 'width:100%;';
+      slider.className = 'b3-slider unset-thumb';
+      slider.type  = 'range';
+      slider.min   = '0';
+      slider.max   = '100';
+      slider.step  = '1';
+      slider.value = '50';          // internal value; hidden until first touch
+      slider.style.cssText = 'width:100%;display:block;';
+
       sliderWrap.appendChild(slider);
       line.appendChild(sliderWrap);
 
@@ -620,40 +691,74 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
       lineShell.appendChild(line);
       wrap.appendChild(lineShell);
 
+      // ── Placement instruction (changes after first touch) ───────────
       var instrText = document.createElement('div');
       instrText.className = 'instruction-text padded-text prominent-subtext';
-      instrText.style.cssText = 'font-size:16px;text-align:center;color:#555;margin-bottom:20px;';
-      instrText.textContent = 'This image appeared sometime between these two images. Move the slider to show where you think it occurred.';
+      instrText.style.cssText =
+        'font-size:16px;text-align:center;margin-bottom:16px;font-weight:600;' +
+        'color:#c0392b;';
+      instrText.textContent =
+        '↑ Click on the bar to place your estimate, then drag to adjust.';
       wrap.appendChild(instrText);
 
+      // ── Submit button (disabled until participant places the slider) ─
       var submitBtn = document.createElement('button');
       submitBtn.style.cssText =
-        'font-size:18px;padding:10px 32px;cursor:pointer;border:2px solid #333;border-radius:8px;background:#fff;';
+        'font-size:18px;padding:10px 32px;border:2px solid #333;border-radius:8px;' +
+        'background:#fff;opacity:.4;cursor:not-allowed;';
       submitBtn.textContent = 'Submit';
+      submitBtn.disabled = true;
       wrap.appendChild(submitBtn);
 
       display_element.innerHTML = '';
       display_element.appendChild(wrap);
 
       var start_time = performance.now();
+      var hasPlaced  = false;
 
-      function updateThumb() {
-        var v = parseInt(slider.value, 10);
-        slider.style.setProperty('--slider-value', v + '%');
+      // ── First-placement handler ─────────────────────────────────────
+      // Uses mousedown/touchstart so the thumb snaps to the exact click
+      // position before the browser fires any input event, and works even
+      // if the participant clicks at the current internal value (50).
+      function handleFirstPlacement(clientX) {
+        if (hasPlaced) return;
+        var rect  = slider.getBoundingClientRect();
+        var frac  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        var val   = Math.round(frac * 100);
+        slider.value = val;
+        hasPlaced = true;
+        slider.classList.remove('unset-thumb');
+        instrText.textContent  = 'Drag to adjust, then click Submit.';
+        instrText.style.color  = '#555';
+        instrText.style.fontWeight = '400';
+        submitBtn.disabled     = false;
+        submitBtn.style.opacity   = '1';
+        submitBtn.style.cursor    = 'pointer';
       }
 
-      slider.addEventListener('input', updateThumb);
-      updateThumb();
+      slider.addEventListener('mousedown', function(e) {
+        handleFirstPlacement(e.clientX);
+      });
+      slider.addEventListener('touchstart', function(e) {
+        if (e.touches.length > 0) handleFirstPlacement(e.touches[0].clientX);
+      }, { passive: true });
+
+      // Track value changes after placement (for the CSS fill trick)
+      slider.addEventListener('input', function() {
+        slider.style.setProperty('--slider-value', slider.value + '%');
+      });
 
       submitBtn.addEventListener('click', function() {
+        if (!hasPlaced) return;
         placement_slider_value = parseInt(slider.value, 10);
         placement_rt = Math.round(performance.now() - start_time);
         finishTrial(dist_est_value, true_distance, false);
       });
 
+      // Timeout: record whatever is on the slider (or null if never placed)
       setTimeout(function() {
         if (placement_slider_value === null) {
-          placement_slider_value = parseInt(slider.value, 10);
+          placement_slider_value = hasPlaced ? parseInt(slider.value, 10) : null;
           placement_rt = Math.round(performance.now() - start_time);
           timed_out = true;
           finishTrial(dist_est_value, true_distance, false);
@@ -662,10 +767,14 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
     }
 
     function finishTrial(dist_est, true_distance, skipped) {
-      var placement_error = null;
+      var placement_error    = null;
+      var true_midpoint_pct  = null;
       if (placement_slider_value !== null && middleItemIndex !== null) {
-        var true_midpoint = 50;
-        placement_error = placement_slider_value - true_midpoint;
+        // Dynamic formula — correct for any pair gap, not just gap=2.
+        // For the current SLIDER_PAIRS (all gap=2) this always equals 50,
+        // but this is now future-proof if pair definitions change.
+        true_midpoint_pct  = 100 * (middleItemIndex - idx1) / (idx2 - idx1);
+        placement_error    = placement_slider_value - true_midpoint_pct;
       }
 
       var placement_type = 'none';
@@ -688,6 +797,8 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
         vol_level: _volLevel,
         stc_level: _stcLevel,
         condition: _condition,
+        order_layout_mode: ORDER_LAYOUT_MODE,
+        order_keymap_mode: ORDER_KEYMAP_MODE,
         pair_index: trial.pair_index,
         trial1_index: idx1,
         trial2_index: idx2,
@@ -710,6 +821,7 @@ var ORDER_LAYOUT_MODE = getOrderLayoutMode();
         placement_rt: placement_rt,
         middle_item_index: middleItemIndex,
         middle_item_img: middleStim,
+        placement_true_midpoint_pct: true_midpoint_pct,
         middle_item_is_boundary:
           (placement_type === 'boundary-middle' ? 1 :
           placement_type === 'nonboundary-middle' ? 0 : null),
