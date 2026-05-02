@@ -305,7 +305,9 @@ var COMPAT_GATE = (function () {
       '<button class="jspsych-btn" style="' + _EMOJI_BTN + '" ' +
       _EMOJI_HOVER + '>%choice%</button>',
     on_finish: function (data) {
-      var bp = parseInt(data.button_pressed, 10);
+      // jsPsych 6.3+ stores the index in data.response, not data.button_pressed
+      var raw = (data.response !== undefined) ? data.response : data.button_pressed;
+      var bp = parseInt(raw, 10);
 
       data.compat_q1_correct = (bp === 1);
       data.compat_q1_choice = bp;
@@ -313,7 +315,7 @@ var COMPAT_GATE = (function () {
       window._compat_q1_correct = data.compat_q1_correct;
 
       console.log('[COMPAT Q1]', {
-        button_pressed: data.button_pressed,
+        raw_value: raw,
         parsed: bp,
         correct: data.compat_q1_correct
       });
@@ -342,7 +344,9 @@ var COMPAT_GATE = (function () {
       '<button class="jspsych-btn" style="' + _EMOJI_BTN + '" ' +
       _EMOJI_HOVER + '>%choice%</button>',
     on_finish: function (data) {
-      var bp = parseInt(data.button_pressed, 10);
+      // jsPsych 6.3+ stores the index in data.response, not data.button_pressed
+      var raw = (data.response !== undefined) ? data.response : data.button_pressed;
+      var bp = parseInt(raw, 10);
 
       data.compat_q2_correct = (bp === 3);
       data.compat_q2_choice = bp;
@@ -350,7 +354,7 @@ var COMPAT_GATE = (function () {
       window._compat_q2_correct = data.compat_q2_correct;
 
       console.log('[COMPAT Q2]', {
-        button_pressed: data.button_pressed,
+        raw_value: raw,
         parsed: bp,
         correct: data.compat_q2_correct
       });

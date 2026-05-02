@@ -263,7 +263,7 @@
       if (window._bot_detected) {
         low_quality = true;
         jsPsych.endExperiment();
-      } else if (data.button_pressed === 1) {
+      } else if ((data.response !== undefined ? data.response : data.button_pressed) === 1) {
         consent_declined = true;
         jsPsych.endExperiment();
       }
@@ -734,14 +734,34 @@
 
   var low_quality = false;
 
+  // ──────────────────────────────────────────────────────────────
+  // Robust comprehension-loop helpers.
+  // Instead of checking jsPsych.data.get().last(1), which can point to
+  // an instruction page or another trial type, explicitly query the
+  // latest completed trial of the intended comprehension plugin.
+  // ──────────────────────────────────────────────────────────────
+  function getLastTrialOfType(trialType) {
+    var rows = jsPsych.data.get().filter({ trial_type: trialType }).values();
+    return rows.length ? rows[rows.length - 1] : null;
+  }
+
+  function hasComprehensionErrors(trialType) {
+    var data = getLastTrialOfType(trialType);
+
+    return (
+      data &&
+      typeof data.num_errors === 'number' &&
+      data.num_errors > 0
+    );
+  }
+
   var comprehension1_loop_timeline = [inst_summary];
   comprehension1_loop_timeline = comprehension1_loop_timeline.concat(comprehension1);
 
   var comprehension1_loop = {
     timeline: comprehension1_loop_timeline,
     conditional_function: function() {
-      var data = jsPsych.data.get().last(1).values()[0];
-      return data.num_errors !== 0;
+      return hasComprehensionErrors('comprehension1');
     }
   };
 
@@ -751,8 +771,7 @@
   var comprehension2_loop = {
     timeline: comprehension2_loop_timeline,
     conditional_function: function() {
-      var data = jsPsych.data.get().last(1).values()[0];
-      return data.num_errors !== 0;
+      return hasComprehensionErrors('comprehension2');
     }
   };
 
@@ -771,8 +790,29 @@
     button_label_previous: "Prev",
     button_label_next: "Next",
     on_start: function(trial) {
-      var data = jsPsych.data.getLastTrialData().values()[0];
-      var correctness = data.correctness_responses;
+      var c1 = getLastTrialOfType('comprehension1');
+      var c2 = getLastTrialOfType('comprehension2');
+
+      var failed = null;
+
+      if (
+        c2 &&
+        typeof c2.num_errors === 'number' &&
+        c2.num_errors > 0
+      ) {
+        failed = c2;
+      } else if (
+        c1 &&
+        typeof c1.num_errors === 'number' &&
+        c1.num_errors > 0
+      ) {
+        failed = c1;
+      }
+
+      var correctness = failed && Array.isArray(failed.correctness_responses)
+        ? failed.correctness_responses
+        : [];
+
       trial.incorrect = correctness.findIndex(function(element) {
         return element == 0;
       }) + 1;
@@ -782,8 +822,10 @@
   var comprehension_check = {
     timeline: [terminate, comprehension_check_core],
     conditional_function: function() {
-      var data = jsPsych.data.get().last(1).values()[0];
-      return data.num_errors !== 0;
+      return (
+        hasComprehensionErrors('comprehension1') ||
+        hasComprehensionErrors('comprehension2')
+      );
     }
   };
 
