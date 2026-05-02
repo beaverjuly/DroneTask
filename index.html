@@ -40,6 +40,7 @@
   <script src="static/task/comprehension2.js" type="text/javascript"></script>
   <script src="static/task/termination.js" type="text/javascript"></script>
   <script src="static/task/instructions.js" type="text/javascript"></script>
+  <script src="static/task/compat-gate.js" type="text/javascript"></script>
 
   <meta charset="UTF-8">
   <style>
@@ -84,6 +85,9 @@
 
   // ?version=simple | version=rich — task variant switch.
   var DEV_VERSION = _urlParams.get('version') || 'full';
+  // Set ?gate=0 to skip the compatibility gate during local debugging.
+  // By default, the gate is shown even in dev links.
+  var SHOW_COMPAT_GATE = _urlParams.get('gate') !== '0';
 
   // ──────────────────────────────────────────────────────────────
   // Pilot mode flag.
@@ -730,67 +734,25 @@
 
   var low_quality = false;
 
-  // ──────────────────────────────────────────────────────────────────
-  // Comprehension review loops — topic-aware redirect.
-  //
-  // Each loop is structured as:
-  //   1. Show comprehension plugin.
-  //   2. After it finishes, run conditional review trials — each is the
-  //      relevant instruction block, gated on whether the participant
-  //      clicked a question that maps to that topic.
-  //   3. The loop_function checks the latest comprehension data; it
-  //      keeps looping until that comprehension trial reports done:true.
-  //
-  // The participant cannot revise an incorrect answer without first
-  // clicking the locked question to review the relevant instructions.
-  // ──────────────────────────────────────────────────────────────────
+  var comprehension1_loop_timeline = [inst_summary];
+  comprehension1_loop_timeline = comprehension1_loop_timeline.concat(comprehension1);
 
-  // Helper: find the most recent trial of a given plugin type in data.
-  function lastTrialOfType(typeName) {
-    var arr = jsPsych.data.get().filter({ trial_type: typeName }).values();
-    return arr.length > 0 ? arr[arr.length - 1] : null;
-  }
-
-  // Build a conditional review block: runs `instructionNode` only if the
-  // most recent run of `compType` has `review_topic === topicKey`.
-  function buildReviewConditional(compType, topicKey, instructionNode) {
-    return {
-      timeline: [addSmoothTransitions(instructionNode)],
-      conditional_function: function() {
-        var d = lastTrialOfType(compType);
-        return !!(d && d.review_topic === topicKey);
-      }
-    };
-  }
-
-  // ── Comprehension 1 review loop (mechanics) ────────────────────────
   var comprehension1_loop = {
-    timeline: [
-      comprehension1,
-      buildReviewConditional('comprehension1', 'inst1', inst1),
-      buildReviewConditional('comprehension1', 'inst2', inst2_locking_and_bag),
-      buildReviewConditional('comprehension1', 'inst3', inst3_drone_disappears),
-      buildReviewConditional('comprehension1', 'inst4', inst4_full_game)
-    ],
-    loop_function: function() {
-      var d = lastTrialOfType('comprehension1');
-      // Loop until the latest comprehension1 reports done:true.
-      return !(d && d.done === true);
+    timeline: comprehension1_loop_timeline,
+    conditional_function: function() {
+      var data = jsPsych.data.get().last(1).values()[0];
+      return data.num_errors !== 0;
     }
   };
 
-  // ── Comprehension 2 review loop (full mission rules) ───────────────
+  var comprehension2_loop_timeline = [inst_summary];
+  comprehension2_loop_timeline = comprehension2_loop_timeline.concat(comprehension2);
+
   var comprehension2_loop = {
-    timeline: [
-      comprehension2,
-      buildReviewConditional('comprehension2', 'inst1', inst1),
-      buildReviewConditional('comprehension2', 'inst2', inst2_locking_and_bag),
-      buildReviewConditional('comprehension2', 'inst3', inst3_drone_disappears),
-      buildReviewConditional('comprehension2', 'inst4', inst4_full_game)
-    ],
-    loop_function: function() {
-      var d = lastTrialOfType('comprehension2');
-      return !(d && d.done === true);
+    timeline: comprehension2_loop_timeline,
+    conditional_function: function() {
+      var data = jsPsych.data.get().last(1).values()[0];
+      return data.num_errors !== 0;
     }
   };
 
@@ -817,14 +779,11 @@
     }
   };
 
-  // The new loops force the participant to revise until correct via the
-  // review-redirect mechanism, so this hard-stop should never fire in
-  // practice — kept as a safety net for the worst case.
   var comprehension_check = {
     timeline: [terminate, comprehension_check_core],
     conditional_function: function() {
       var data = jsPsych.data.get().last(1).values()[0];
-      return data && data.num_errors !== 0 && data.done !== true;
+      return data.num_errors !== 0;
     }
   };
 
@@ -895,8 +854,10 @@
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_full_game));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(quiz));
 
+  instructions_loop = instructions_loop.concat(comprehension1);
   instructions_loop = instructions_loop.concat(comprehension1_loop);
 
+  instructions_loop = instructions_loop.concat(comprehension2);
   instructions_loop = instructions_loop.concat(comprehension2_loop);
 
   instructions_loop = instructions_loop.concat(comprehension_check);
@@ -1022,6 +983,17 @@
     }
 
     var timeline = [];
+    function maybeAddCompatGate() {
+      if (
+        SHOW_COMPAT_GATE &&
+        typeof COMPAT_GATE !== 'undefined' &&
+        COMPAT_GATE.timeline
+      ) {
+        timeline = timeline.concat(COMPAT_GATE.timeline);
+      } else {
+        console.log('[COMPAT] Compatibility gate skipped.');
+      }
+    }
 
     // ── Normalise stage aliases ───────────────────────────────────
     var _stageMap = {
@@ -1036,6 +1008,7 @@
     // ── DEV: instructions only ────────────────────────────────────
     if (DEV_MODE && _stage === 'instructions') {
       console.log('[DEV] stage: instructions only');
+      maybeAddCompatGate();
       timeline = timeline.concat(welcome, feedback0, instructions_loop);
       timeline.push({
         type: 'html-keyboard-response',
@@ -1046,6 +1019,7 @@
     // ── DEV: encoding (trial) block only ─────────────────────────
     } else if (DEV_MODE && _stage === 'encoding') {
       console.log('[DEV] stage: encoding, block=' + DEV_BLOCK);
+      maybeAddCompatGate();
       timeline.push({
         type: 'html-keyboard-response',
         stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Encoding — block <em>' +
@@ -1064,6 +1038,7 @@
     // ── DEV: memory / test block only ────────────────────────────
     } else if (DEV_MODE && (_stage === 'test' || _stage === 'recognition')) {
       console.log('[DEV] stage: ' + _stage + ', block=' + DEV_BLOCK);
+      maybeAddCompatGate();
       timeline.push({
         type: 'html-keyboard-response',
         stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Memory test — block <em>' +
@@ -1084,6 +1059,7 @@
     // ── DEV: single full block (encoding + memory) ────────────────
     } else if (DEV_MODE && _stage === 'block') {
       console.log('[DEV] stage: full block ' + DEV_BLOCK_NUM);
+      maybeAddCompatGate();
       timeline.push({
         type: 'html-keyboard-response',
         stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Full block ' +
@@ -1118,6 +1094,9 @@
                     ', version=' + DEV_VERSION);
       }
       var combinedTrials = buildBirdMemoryTrials();
+
+      // ── Compatibility gate (before consent, so incompatible participants can return immediately) ───────────────────────
+      maybeAddCompatGate();
 
       if (SHOW_CONSENT) {
         timeline = timeline.concat(consent_trial);
@@ -1181,8 +1160,18 @@
           workerId:      workerId,
           subId:         subId,
           pilot_mode:    PILOT_MODE,
-          consent_shown: SHOW_CONSENT
+          consent_shown: SHOW_CONSENT,
+          device_compatible: !window._device_incompatible
         });
+
+        // 0. Device incompatible: screened out at the compat gate.
+        //    Do not reject — Prolific policy requires compensation for
+        //    screen-outs. Data is saved so the researcher can identify
+        //    and compensate these participants.
+        if (window._device_incompatible) {
+          console.log('[COMPAT] Participant screened out — device incompatible.');
+          return;
+        }
 
         // 1. Declined consent: no save, no Prolific completion.
         if (consent_declined) {
