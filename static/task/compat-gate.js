@@ -1,79 +1,174 @@
 // ═══════════════════════════════════════════════════════════════════════
-// compat-gate.js — Emoji & device compatibility screener
+// compat-gate.js v2 — Emoji & device compatibility screener
 //
-// Drop-in jsPsych 6 plugin for Pavlovia + Prolific experiments that use
-// newer emoji (Unicode 14.0+). Place BEFORE the consent form so
-// incompatible participants can return the study immediately, before
-// completing any substantive content.
-//
-// ── What it checks ─────────────────────────────────────────────────────
-//   1.  Platform / OS: macOS 14.4+ required (via navigator.userAgent).
-//       Windows, Linux, ChromeOS, and older macOS are flagged.
-//   2.  Emoji rendering: two forced-choice identification questions
-//       using face/body emoji from Unicode 14.0–15.1 that do NOT
-//       overlap with the object emoji used in the memory task.
-//       Chance of passing both by guessing: 1/4 × 1/4 = 6.25%.
-//   3.  Physical keyboard: a "press spacebar" interstitial confirms
-//       the participant has a keyboard (catches tablets with external
-//       displays that bypassed the mobile UA check).
-//
-// ── Prolific compliance ────────────────────────────────────────────────
-//   • The screener is short (<30 s). Incompatible participants are
-//     told to return the study via "Stop without completing".
-//   • The study description should state the macOS requirement.
-//   • Data is tagged `trial_category: 'compat_gate'` so screened-out
-//     participants can be identified and compensated per Prolific policy.
-//   • `window._device_incompatible` is set to true on failure, which
-//     downstream code (e.g. on_finish in jsPsych.init) can check to
-//     avoid flagging screen-outs as low-quality or rejected.
-//
-// ── Usage ──────────────────────────────────────────────────────────────
+// Usage:
 //   <script src="static/task/compat-gate.js"></script>
-//
-//   // In timeline assembly (index.html):
 //   timeline = timeline.concat(COMPAT_GATE.timeline);
-//   // … then consent_trial, welcome, etc.
-//
-//   // The exported timeline is a flat array of jsPsych trial objects.
-//   // If all checks pass, execution continues normally.
-//   // If any check fails, jsPsych.endExperiment() is called with a
-//   // return-study message.
 // ═══════════════════════════════════════════════════════════════════════
 
 var COMPAT_GATE = (function () {
 
-  // ── Shared styles ────────────────────────────────────────────────────
-  var _SHELL =
-    'max-width:760px;margin:6vh auto;font-family:-apple-system,' +
-    'BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;' +
-    'line-height:1.6;text-align:left;padding:0 20px;';
+  // ── Reset global compatibility flags ────────────────────────────────
+  window._compat_os = null;
+  window._compat_os_ready = false;
+  window._device_incompatible = false;
+  window._compat_emoji_passed = false;
+  window._compat_all_passed = false;
+  window._compat_q1_correct = false;
+  window._compat_q2_correct = false;
 
-  var _HEADER =
-    'font-size:22px;font-weight:800;margin-bottom:16px;';
+  // ── Async OS detection ──────────────────────────────────────────────
+  (function _detectOS() {
+    var ua = navigator.userAgent || '';
+    var platform = navigator.platform || '';
 
-  var _EMOJI_ROW =
-    'display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:20px 0;';
+    var isMac =
+      /Macintosh|MacIntel|MacPPC|Mac68K/i.test(platform) ||
+      /Mac OS X/i.test(ua);
+
+    if (!isMac) {
+      window._compat_os = {
+        isMac: false,
+        version: null,
+        versionOK: false,
+        source: 'not-mac',
+        userAgent: ua.substring(0, 200)
+      };
+      window._compat_os_ready = true;
+      return;
+    }
+
+    // Chromium Client Hints, when available.
+    if (
+      navigator.userAgentData &&
+      typeof navigator.userAgentData.getHighEntropyValues === 'function'
+    ) {
+      navigator.userAgentData.getHighEntropyValues(['platformVersion'])
+        .then(function (hints) {
+          var raw = hints.platformVersion || '';
+          var parts = raw.split('.').map(function (x) {
+            return parseInt(x, 10);
+          });
+
+          var major = parts[0] || 0;
+          var minor = parts[1] || 0;
+
+          window._compat_os = {
+            isMac: true,
+            version: parts,
+            versionOK: (major > 14 || (major === 14 && minor >= 4)),
+            source: 'client-hints',
+            userAgent: ua.substring(0, 200)
+          };
+          window._compat_os_ready = true;
+        })
+        .catch(function () {
+          _parseUA(ua);
+        });
+      return;
+    }
+
+    _parseUA(ua);
+  })();
+
+  function _parseUA(ua) {
+    var m = ua.match(/Mac OS X\s+([\d_]+)/i);
+
+    if (m) {
+      var parts = m[1].split('_').map(function (x) {
+        return parseInt(x, 10);
+      });
+
+      var major = parts[0] || 0;
+      var minor = parts[1] || 0;
+      var isChromium = /Chrome\/|Chromium\//i.test(ua);
+
+      // Chrome may freeze macOS UA at 10_15_7.
+      if (major === 10 && isChromium) {
+        window._compat_os = {
+          isMac: true,
+          version: null,
+          versionOK: null,
+          source: 'ua-frozen-chromium',
+          userAgent: ua.substring(0, 200)
+        };
+      } else {
+        window._compat_os = {
+          isMac: true,
+          version: parts,
+          versionOK: (major > 14 || (major === 14 && minor >= 4)),
+          source: 'ua-string',
+          userAgent: ua.substring(0, 200)
+        };
+      }
+    } else {
+      window._compat_os = {
+        isMac: true,
+        version: null,
+        versionOK: null,
+        source: 'ua-no-version',
+        userAgent: ua.substring(0, 200)
+      };
+    }
+
+    window._compat_os_ready = true;
+  }
+
+  // ── Design tokens ───────────────────────────────────────────────────
+  var _CARD =
+    'max-width:640px;margin:6vh auto;padding:36px 40px;' +
+    'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;' +
+    'line-height:1.6;background:#fff;border-radius:20px;' +
+    'box-shadow:0 8px 40px rgba(15,23,42,.10),0 1px 3px rgba(0,0,0,.06);' +
+    'border:1px solid rgba(148,163,184,.22);';
+
+  var _KICKER =
+    'display:inline-block;padding:4px 12px;border-radius:999px;' +
+    'font-size:12px;font-weight:800;letter-spacing:.05em;' +
+    'text-transform:uppercase;margin-bottom:14px;';
+
+  var _TITLE =
+    'margin:0 0 10px 0;font-size:24px;font-weight:800;line-height:1.3;color:#0f172a;';
+
+  var _BODY = 'font-size:16px;color:#475569;margin:0 0 8px 0;';
+
+  var _EMOJI_GRID =
+    'display:grid;grid-template-columns:repeat(4,1fr);gap:12px;' +
+    'margin:24px auto;max-width:400px;';
 
   var _EMOJI_BTN =
-    'font-size:48px;padding:14px 20px;border-radius:14px;' +
-    'border:2px solid #d1d5db;background:#fff;cursor:pointer;' +
-    'transition:border-color .12s,background .12s,transform .1s;' +
-    'min-width:76px;text-align:center;line-height:1;';
+    'font-size:46px;padding:16px 0;border-radius:16px;' +
+    'border:2px solid #e2e8f0;background:#f8fafc;cursor:pointer;' +
+    'transition:border-color .15s,background .15s,transform .1s,box-shadow .15s;' +
+    'text-align:center;line-height:1;' +
+    'display:flex;align-items:center;justify-content:center;min-height:80px;';
 
-  // ── Screen-out message (shown by jsPsych.endExperiment) ──────────────
+  var _EMOJI_HOVER =
+    'onmouseover="this.style.borderColor=\'#3b82f6\';this.style.background=\'#eff6ff\';' +
+    'this.style.transform=\'translateY(-2px)\';this.style.boxShadow=\'0 4px 12px rgba(59,130,246,.18)\'" ' +
+    'onmouseout="this.style.borderColor=\'#e2e8f0\';this.style.background=\'#f8fafc\';' +
+    'this.style.transform=\'none\';this.style.boxShadow=\'none\'"';
+
+  var _CONTINUE_BTN =
+    'font-size:16px;font-weight:700;padding:12px 28px;' +
+    'border-radius:12px;border:none;cursor:pointer;' +
+    'background:#2563eb;color:#fff;' +
+    'box-shadow:0 4px 14px rgba(37,99,235,.25);' +
+    'transition:background .15s;';
+
   var FAIL_HTML =
-    '<div style="' + _SHELL + '">' +
-      '<h2 style="color:#b00020;">Device not compatible</h2>' +
-      '<p style="font-size:17px;">Your device or browser does not appear ' +
-        'compatible with the emoji used in this study.</p>' +
-      '<p style="font-size:16px;">Please return the study on Prolific ' +
-        'using <strong>Stop without completing</strong>.</p>' +
-      '<p style="font-size:15px;color:#555;">If eligible, you may retake ' +
-        'the study using a <strong>Mac laptop or desktop running macOS 14.4 ' +
-        'or later</strong> with a recent version of Chrome, Firefox, or Safari.</p>' +
+    '<div style="' + _CARD + 'text-align:center;">' +
+      '<div style="font-size:48px;margin-bottom:12px;">🚫</div>' +
+      '<h2 style="' + _TITLE + 'color:#dc2626;">Device not compatible</h2>' +
+      '<p style="' + _BODY + '">Your device or browser does not support the emoji used in this study.</p>' +
+      '<p style="' + _BODY + '">Please return the study on Prolific using <strong>Stop without completing</strong>.</p>' +
+      '<div style="margin-top:20px;padding:14px 18px;border-radius:12px;' +
+        'background:#fef2f2;border:1px solid #fecaca;text-align:left;' +
+        'font-size:14px;color:#991b1b;">' +
+        'If eligible, you may retake the study using a <strong>Mac laptop or desktop running macOS 14.4+</strong> with Chrome, Firefox, or Safari.' +
+      '</div>' +
     '</div>';
 
-  // ── Helper: end the experiment on failure ────────────────────────────
   function _failOut(data, reason) {
     data.compat_passed = false;
     data.compat_fail_reason = reason;
@@ -81,144 +176,184 @@ var COMPAT_GATE = (function () {
     jsPsych.endExperiment(FAIL_HTML);
   }
 
-  // ────────────────────────────────────────────────────────────────────
-  // Trial 1: Platform / OS check (automatic, no user interaction)
-  // ────────────────────────────────────────────────────────────────────
-  var os_check = {
-    type: 'call-function',
-    func: function () {
-      var ua = navigator.userAgent || '';
-      var platform = navigator.platform || '';
+  // ── OS result screen ────────────────────────────────────────────────
+  function _osResultHTML() {
+    var os = window._compat_os || {};
 
-      // Detect macOS
-      var isMac = /Macintosh|MacIntel|MacPPC|Mac68K/i.test(platform) ||
-                  /Mac OS X/i.test(ua);
+    if (os.isMac === false) {
+      return '<div style="' + _CARD + '">' +
+        '<div style="' + _KICKER + 'background:#fee2e2;color:#991b1b;">Compatibility check</div>' +
+        '<h2 style="' + _TITLE + 'color:#dc2626;">macOS required</h2>' +
+        '<p style="' + _BODY + '">This study requires a <strong>Mac laptop or desktop</strong> running <strong>macOS 14.4 or later</strong> because some emoji stimuli are not available on other platforms.</p>' +
+        '<p style="' + _BODY + '">Please return the study on Prolific using <strong>Stop without completing</strong>.</p>' +
+      '</div>';
+    }
 
-      var macVersion = null;
-      if (isMac) {
-        // e.g. "Mac OS X 10_15_7" or "Mac OS X 14_4_1"
-        var m = ua.match(/Mac OS X\s+([\d_]+)/i);
-        if (m) {
-          var parts = m[1].split('_').map(Number);
-          macVersion = parts;
-        }
-      }
+    if (os.versionOK === false) {
+      var vStr = os.version ? os.version.join('.') : 'unknown';
+      return '<div style="' + _CARD + '">' +
+        '<div style="' + _KICKER + 'background:#fee2e2;color:#991b1b;">Compatibility check</div>' +
+        '<h2 style="' + _TITLE + 'color:#dc2626;">macOS 14.4 or later required</h2>' +
+        '<p style="' + _BODY + '">Your macOS version appears to be <strong>' + vStr + '</strong>, which does not support some emoji used in this study.</p>' +
+        '<p style="' + _BODY + '">Please return the study on Prolific using <strong>Stop without completing</strong>.</p>' +
+      '</div>';
+    }
 
-      // Check macOS 14.4+
-      var versionOK = false;
-      if (macVersion) {
-        var major = macVersion[0] || 0;
-        var minor = macVersion[1] || 0;
-        if (major > 14 || (major === 14 && minor >= 4)) {
-          versionOK = true;
-        }
-      }
+    var badge;
+    if (os.versionOK === true) {
+      badge =
+        '<div style="display:inline-flex;align-items:center;gap:8px;' +
+          'padding:8px 14px;border-radius:10px;background:#f0fdf4;' +
+          'border:1px solid #bbf7d0;margin-bottom:16px;">' +
+          '<span style="font-size:18px;">✅</span>' +
+          '<span style="font-size:14px;color:#166534;font-weight:600;">macOS ' +
+            (os.version ? os.version.join('.') : '') +
+          ' detected</span>' +
+        '</div>';
+    } else {
+      badge =
+        '<div style="display:inline-flex;align-items:center;gap:8px;' +
+          'padding:8px 14px;border-radius:10px;background:#f0f9ff;' +
+          'border:1px solid #bae6fd;margin-bottom:16px;">' +
+          '<span style="font-size:18px;">🍎</span>' +
+          '<span style="font-size:14px;color:#0c4a6e;font-weight:600;">Mac detected — verifying emoji support next</span>' +
+        '</div>';
+    }
 
-      window._compat_os = {
-        isMac: isMac,
-        macVersion: macVersion,
-        versionOK: versionOK,
-        userAgent: ua.substring(0, 200)
-      };
-    },
-    data: { trial_category: 'compat_gate', compat_step: 'os_detect' }
-  };
+    return '<div style="' + _CARD + '">' +
+      '<div style="' + _KICKER + 'background:#dbeafe;color:#1e40af;">Compatibility check</div>' +
+      '<h2 style="' + _TITLE + '">Quick device check</h2>' +
+      badge +
+      '<p style="' + _BODY + '">This study uses newer emoji. On the next screens you will answer two quick questions to confirm they display correctly on your device.</p>' +
+      '<p style="font-size:14px;color:#94a3b8;margin:0;">This takes about 15 seconds.</p>' +
+    '</div>';
+  }
 
-  // ────────────────────────────────────────────────────────────────────
-  // Trial 2: OS gate — if not macOS 14.4+, screen out immediately.
-  // Shown only if the OS check failed.
-  // ────────────────────────────────────────────────────────────────────
-  var os_gate_fail = {
+  var os_check_screen = {
     type: 'html-button-response',
     stimulus:
-      '<div style="' + _SHELL + '">' +
-        '<h2 style="color:#b00020;">macOS 14.4+ required</h2>' +
-        '<p style="font-size:17px;">This study requires a <strong>Mac laptop ' +
-          'or desktop running macOS 14.4 or later</strong> because some emoji ' +
-          'stimuli are not available on other platforms.</p>' +
-        '<p style="font-size:16px;">Please return the study on Prolific using ' +
-          '<strong>Stop without completing</strong>.</p>' +
-        '<p style="font-size:15px;color:#555;">We apologize for the ' +
-          'inconvenience. This restriction is needed for a pilot version ' +
-          'of the study and may be relaxed in a future version.</p>' +
+      '<div id="compat-os-content">' +
+        '<div style="' + _CARD + 'text-align:center;">' +
+          '<div style="font-size:28px;margin-bottom:6px;">⏳</div>' +
+          '<p style="' + _BODY + '">Checking device compatibility…</p>' +
+        '</div>' +
       '</div>',
-    choices: ['I understand — I will return the study'],
-    on_finish: function (data) {
-      _failOut(data, 'os_not_macos_14_4_plus');
+    choices: ['Continue'],
+    button_html:
+      '<button class="jspsych-btn" style="' + _CONTINUE_BTN +
+      '" disabled id="compat-os-btn">%choice%</button>',
+    on_load: function () {
+      function _applyResult() {
+        var os = window._compat_os || {};
+        var container = document.getElementById('compat-os-content');
+        if (container) container.innerHTML = _osResultHTML();
+
+        var btn = document.getElementById('compat-os-btn');
+        if (btn) {
+          btn.disabled = false;
+
+          if (os.isMac === false || os.versionOK === false) {
+            btn.textContent = 'I understand — I will return the study';
+            btn.style.background = '#fee2e2';
+            btn.style.color = '#991b1b';
+            btn.style.boxShadow = 'none';
+          } else {
+            btn.textContent = 'Continue to emoji check →';
+          }
+        }
+      }
+
+      if (window._compat_os_ready) {
+        _applyResult();
+        return;
+      }
+
+      var poll = setInterval(function () {
+        if (!window._compat_os_ready) return;
+        clearInterval(poll);
+        _applyResult();
+      }, 60);
     },
-    data: { trial_category: 'compat_gate', compat_step: 'os_gate_fail' }
-  };
-
-  var os_gate_fail_conditional = {
-    timeline: [os_gate_fail],
-    conditional_function: function () {
+    on_finish: function (data) {
       var os = window._compat_os || {};
-      // Show the fail screen if NOT macOS 14.4+
-      return !os.versionOK;
-    }
+
+      data.compat_os_is_mac = os.isMac || false;
+      data.compat_os_version = os.version ? os.version.join('.') : null;
+      data.compat_os_version_ok = os.versionOK;
+      data.compat_os_source = os.source || 'unknown';
+
+      if (os.isMac === false) {
+        _failOut(data, 'not_a_mac');
+      } else if (os.versionOK === false) {
+        _failOut(data, 'macos_version_too_old');
+      }
+    },
+    data: { trial_category: 'compat_gate', compat_step: 'os_check' }
   };
 
-  // ────────────────────────────────────────────────────────────────────
-  // Trial 3: Emoji forced-choice Q1
-  //   "Which emoji is the saluting face?"
-  //   Options: 🫠 🫡 🥹 🫨    Correct: 🫡 (index 1)
-  // ────────────────────────────────────────────────────────────────────
+  // ── Emoji Q1 ────────────────────────────────────────────────────────
   var emoji_q1 = {
     type: 'html-button-response',
     stimulus:
-      '<div style="' + _SHELL + '">' +
-        '<div style="' + _HEADER + '">Compatibility check (1 of 2)</div>' +
-        '<p style="font-size:17px;">This study uses newer emoji. ' +
-          'Please answer to confirm they display correctly on your device.</p>' +
-        '<p style="font-size:18px;font-weight:700;">' +
-          'Which emoji below is the <u>saluting face</u>?</p>' +
-        '<div style="' + _EMOJI_ROW + '" id="compat-q1-row"></div>' +
-        '<p style="font-size:14px;color:#888;">Click the emoji to select.</p>' +
+      '<div style="' + _CARD + '">' +
+        '<div style="' + _KICKER + 'background:#dbeafe;color:#1e40af;">Question 1 of 2</div>' +
+        '<h2 style="' + _TITLE + '">Which emoji is the <u>saluting face</u>?</h2>' +
+        '<p style="' + _BODY + '">Click the correct emoji below.</p>' +
       '</div>',
     choices: ['🫠', '🫡', '🥹', '🫨'],
     button_html:
-      '<button class="jspsych-btn" style="' + _EMOJI_BTN + '">%choice%</button>',
+      '<button class="jspsych-btn" style="' + _EMOJI_BTN + '" ' +
+      _EMOJI_HOVER + '>%choice%</button>',
     on_finish: function (data) {
-      // button_pressed is 0-indexed; correct = index 1 (🫡)
       var bp = parseInt(data.button_pressed, 10);
+
       data.compat_q1_correct = (bp === 1);
       data.compat_q1_choice = bp;
+
+      window._compat_q1_correct = data.compat_q1_correct;
+
+      console.log('[COMPAT Q1]', {
+        button_pressed: data.button_pressed,
+        parsed: bp,
+        correct: data.compat_q1_correct
+      });
     },
     data: { trial_category: 'compat_gate', compat_step: 'emoji_q1' }
   };
 
-  // Show Q1 only if OS check passed
   var emoji_q1_conditional = {
     timeline: [emoji_q1],
     conditional_function: function () {
-      var os = window._compat_os || {};
-      return os.versionOK === true;
+      return !window._device_incompatible;
     }
   };
 
-  // ────────────────────────────────────────────────────────────────────
-  // Trial 4: Emoji forced-choice Q2
-  //   "Which emoji is shaking its head side-to-side?"
-  //   Options: 🙂‍↕️ 🫡 🫠 🙂‍↔️    Correct: 🙂‍↔️ (index 3)
-  // ────────────────────────────────────────────────────────────────────
+  // ── Emoji Q2 ────────────────────────────────────────────────────────
   var emoji_q2 = {
     type: 'html-button-response',
     stimulus:
-      '<div style="' + _SHELL + '">' +
-        '<div style="' + _HEADER + '">Compatibility check (2 of 2)</div>' +
-        '<p style="font-size:18px;font-weight:700;">' +
-          'Which emoji below is <u>shaking its head side-to-side</u>?</p>' +
-        '<div style="' + _EMOJI_ROW + '" id="compat-q2-row"></div>' +
-        '<p style="font-size:14px;color:#888;">Click the emoji to select.</p>' +
+      '<div style="' + _CARD + '">' +
+        '<div style="' + _KICKER + 'background:#dbeafe;color:#1e40af;">Question 2 of 2</div>' +
+        '<h2 style="' + _TITLE + '">Which emoji is <u>shaking its head side-to-side</u>?</h2>' +
+        '<p style="' + _BODY + '">Click the correct emoji below.</p>' +
       '</div>',
     choices: ['🙂‍↕️', '🫡', '🫠', '🙂‍↔️'],
     button_html:
-      '<button class="jspsych-btn" style="' + _EMOJI_BTN + '">%choice%</button>',
+      '<button class="jspsych-btn" style="' + _EMOJI_BTN + '" ' +
+      _EMOJI_HOVER + '>%choice%</button>',
     on_finish: function (data) {
-      // Correct = index 3 (🙂‍↔️)
       var bp = parseInt(data.button_pressed, 10);
+
       data.compat_q2_correct = (bp === 3);
       data.compat_q2_choice = bp;
+
+      window._compat_q2_correct = data.compat_q2_correct;
+
+      console.log('[COMPAT Q2]', {
+        button_pressed: data.button_pressed,
+        parsed: bp,
+        correct: data.compat_q2_correct
+      });
     },
     data: { trial_category: 'compat_gate', compat_step: 'emoji_q2' }
   };
@@ -226,28 +361,25 @@ var COMPAT_GATE = (function () {
   var emoji_q2_conditional = {
     timeline: [emoji_q2],
     conditional_function: function () {
-      var os = window._compat_os || {};
-      return os.versionOK === true;
+      return !window._device_incompatible;
     }
   };
 
-  // ────────────────────────────────────────────────────────────────────
-  // Trial 5: Evaluate emoji answers — screen out if either wrong
-  // ────────────────────────────────────────────────────────────────────
+  // ── Evaluate emoji answers ──────────────────────────────────────────
   var emoji_evaluate = {
     type: 'call-function',
     func: function () {
-      var trials = jsPsych.data.get()
-        .filter({ trial_category: 'compat_gate' }).values();
+      var passed =
+        window._compat_q1_correct === true &&
+        window._compat_q2_correct === true;
 
-      var q1 = null, q2 = null;
-      for (var i = 0; i < trials.length; i++) {
-        if (trials[i].compat_step === 'emoji_q1') q1 = trials[i];
-        if (trials[i].compat_step === 'emoji_q2') q2 = trials[i];
-      }
-
-      var passed = !!(q1 && q1.compat_q1_correct && q2 && q2.compat_q2_correct);
       window._compat_emoji_passed = passed;
+
+      console.log('[COMPAT EVALUATE]', {
+        q1: window._compat_q1_correct,
+        q2: window._compat_q2_correct,
+        passed: passed
+      });
 
       if (!passed) {
         window._device_incompatible = true;
@@ -260,30 +392,37 @@ var COMPAT_GATE = (function () {
   var emoji_evaluate_conditional = {
     timeline: [emoji_evaluate],
     conditional_function: function () {
-      var os = window._compat_os || {};
-      return os.versionOK === true;
+      return !window._device_incompatible;
     }
   };
 
-  // ────────────────────────────────────────────────────────────────────
-  // Trial 6: Keyboard check — press spacebar to confirm physical keyboard
-  // ────────────────────────────────────────────────────────────────────
+  // ── Keyboard check ──────────────────────────────────────────────────
   var keyboard_check = {
     type: 'html-keyboard-response',
     stimulus:
-      '<div style="' + _SHELL + 'text-align:center;">' +
-        '<div style="font-size:20px;font-weight:700;margin-bottom:14px;">' +
-          '✅ Emoji check passed</div>' +
-        '<p style="font-size:17px;">This study requires a <strong>physical ' +
-          'keyboard</strong> (arrow keys).</p>' +
-        '<p style="font-size:22px;font-weight:700;margin:28px 0;">' +
-          'Press <kbd style="padding:6px 14px;border:2px solid #333;' +
-          'border-radius:6px;background:#f5f5f5;font-size:18px;">' +
-          'Space</kbd> to continue</p>' +
+      '<div style="' + _CARD + 'text-align:center;">' +
+        '<div style="display:inline-flex;align-items:center;gap:8px;' +
+          'padding:8px 14px;border-radius:10px;background:#f0fdf4;' +
+          'border:1px solid #bbf7d0;margin-bottom:18px;">' +
+          '<span style="font-size:18px;">✅</span>' +
+          '<span style="font-size:14px;color:#166534;font-weight:700;">Emoji check passed</span>' +
+        '</div>' +
+        '<h2 style="' + _TITLE + '">Keyboard check</h2>' +
+        '<p style="' + _BODY + 'margin-bottom:24px;">This study uses <strong>arrow keys</strong>. Please confirm you have a physical keyboard.</p>' +
+        '<div style="display:inline-block;padding:14px 28px;border-radius:12px;' +
+          'background:#f1f5f9;border:2px solid #cbd5e1;">' +
+          '<span style="font-size:15px;color:#334155;font-weight:700;">Press </span>' +
+          '<kbd style="display:inline-block;padding:6px 18px;border-radius:8px;' +
+            'background:#fff;border:2px solid #94a3b8;font-size:16px;font-weight:800;' +
+            'color:#1e293b;box-shadow:0 2px 0 #94a3b8;font-family:inherit;">Space</kbd>' +
+          '<span style="font-size:15px;color:#334155;font-weight:700;"> to continue</span>' +
+        '</div>' +
       '</div>',
     choices: [' '],
     on_finish: function (data) {
       data.compat_keyboard_ok = true;
+      window._device_incompatible = false;
+      window._compat_all_passed = true;
     },
     data: { trial_category: 'compat_gate', compat_step: 'keyboard_check' }
   };
@@ -291,63 +430,50 @@ var COMPAT_GATE = (function () {
   var keyboard_check_conditional = {
     timeline: [keyboard_check],
     conditional_function: function () {
-      var os = window._compat_os || {};
-      return os.versionOK === true && window._compat_emoji_passed === true;
+      return !window._device_incompatible;
     }
   };
 
-  // ────────────────────────────────────────────────────────────────────
-  // Trial 7: Record final compat result (always runs)
-  // ────────────────────────────────────────────────────────────────────
+  // ── Summary ─────────────────────────────────────────────────────────
   var compat_summary = {
     type: 'call-function',
     func: function () {
       var os = window._compat_os || {};
       console.log(
-        '[COMPAT] OS: isMac=' + os.isMac +
-        ', version=' + (os.macVersion ? os.macVersion.join('.') : 'unknown') +
-        ', versionOK=' + os.versionOK +
-        ', emoji_passed=' + window._compat_emoji_passed +
-        ', device_incompatible=' + !!window._device_incompatible
+        '[COMPAT] isMac=' + os.isMac +
+        ' version=' + (os.version ? os.version.join('.') : 'null') +
+        ' versionOK=' + os.versionOK +
+        ' source=' + os.source +
+        ' emoji=' + !!window._compat_emoji_passed +
+        ' incompatible=' + !!window._device_incompatible
       );
     },
     on_finish: function (data) {
       var os = window._compat_os || {};
+
       data.compat_os_is_mac = os.isMac || false;
-      data.compat_os_version = os.macVersion ? os.macVersion.join('.') : null;
-      data.compat_os_version_ok = os.versionOK || false;
-      data.compat_emoji_passed = window._compat_emoji_passed || false;
-      data.compat_all_passed = !window._device_incompatible;
+      data.compat_os_version = os.version ? os.version.join('.') : null;
+      data.compat_os_version_ok = os.versionOK;
+      data.compat_os_source = os.source || 'unknown';
+      data.compat_emoji_passed = !!window._compat_emoji_passed;
+      data.compat_all_passed =
+        window._compat_all_passed === true &&
+        window._compat_emoji_passed === true &&
+        !window._device_incompatible;
       data.compat_user_agent = (os.userAgent || '').substring(0, 200);
     },
     data: { trial_category: 'compat_gate', compat_step: 'summary' }
   };
 
-  // ────────────────────────────────────────────────────────────────────
-  // Public API
-  // ────────────────────────────────────────────────────────────────────
   return {
-    // The full timeline to concat into your experiment.
-    // Insert BEFORE consent_trial in your timeline.
     timeline: [
-      os_check,
-      os_gate_fail_conditional,
+      os_check_screen,
       emoji_q1_conditional,
       emoji_q2_conditional,
       emoji_evaluate_conditional,
       keyboard_check_conditional,
       compat_summary
-    ],
-
-    // Expose individual trials for custom arrangements.
-    trials: {
-      os_check:             os_check,
-      os_gate_fail:         os_gate_fail_conditional,
-      emoji_q1:             emoji_q1_conditional,
-      emoji_q2:             emoji_q2_conditional,
-      emoji_evaluate:       emoji_evaluate_conditional,
-      keyboard_check:       keyboard_check_conditional,
-      compat_summary:       compat_summary
-    }
+    ]
   };
+
 })();
