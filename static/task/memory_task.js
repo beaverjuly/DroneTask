@@ -56,60 +56,8 @@ jsPsych.plugins['memory-task'] = (function() {
 
   var pairOrderByBlock = {};
   var pairProgressByBlock = {};
-
   var ORDER_LAYOUT_MODE = 'horizontal';
-
-  // FNV-1a 32-bit hash — avalanche-quality bit mixing, verified ~50/50 balance
-  // for both Prolific hex IDs (24 hex chars) and MTurk alphanumeric IDs.
-  function fnv1a32(str) {
-    var hash = 0x811c9dc5 >>> 0;
-    for (var i = 0; i < str.length; i++) {
-      hash = (hash ^ str.charCodeAt(i)) >>> 0;
-      hash = Math.imul(hash, 0x01000193) >>> 0;
-    }
-    return hash;
-  }
-
-  function getOrderKeyMapMode() {
-    // ── Priority 1: explicit experimenter-assigned counterbalance index.
-    // Set ?cb=0 or ?cb=1 in the study URL at launch time.
-    // Prolific: create two study links, one with cb=0, one with cb=1,
-    //   each allocated half the participant slots.
-    // Any non-negative integer works; even → 'normal', odd → 'swapped'.
-    try {
-      var params = new URLSearchParams(window.location.search);
-      var cbRaw = params.get('cb');
-      if (cbRaw !== null && /^\d+$/.test(cbRaw.trim())) {
-        return (parseInt(cbRaw, 10) % 2 === 0) ? 'normal' : 'swapped';
-      }
-
-      // ── Priority 2: FNV-1a hash of participant ID.
-      // Supports Prolific (PROLIFIC_PID), jsPsych (workerId, subId),
-      // and common alternative conventions.
-      var pid = params.get('PROLIFIC_PID') ||
-                params.get('workerId')     ||
-                params.get('subId')        || '';
-      if (pid.length > 0) {
-        return (fnv1a32(pid) % 2 === 0) ? 'normal' : 'swapped';
-      }
-    } catch (e) {}
-
-    // ── Priority 3: stable within-session fallback (lab / pilot use).
-    // Stored in sessionStorage so page refreshes are self-consistent.
-    // A new session (e.g. new browser tab) draws a fresh assignment.
-    try {
-      var _SK = '__order_keymap_mode_v1';
-      var stored = sessionStorage.getItem(_SK);
-      if (stored === 'normal' || stored === 'swapped') return stored;
-      var mode = (Math.random() < 0.5) ? 'normal' : 'swapped';
-      sessionStorage.setItem(_SK, mode);
-      return mode;
-    } catch (e) {}
-
-    return 'normal'; // absolute last resort — deterministic, never random
-  }
-
-  var ORDER_KEYMAP_MODE = getOrderKeyMapMode();
+  var ORDER_KEYMAP_MODE = 'visual_fixed_1_left_2_right';
 
   function nextPairForBlock(block) {
     if (!pairOrderByBlock.hasOwnProperty(block)) {
@@ -148,8 +96,8 @@ jsPsych.plugins['memory-task'] = (function() {
     wrap.className = 'preview-screen block3-screen';
     wrap.style.cssText =
       'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
-      'height:80vh;width:100%;max-width:900px;margin:0 auto;padding:20px;' +
-      'border-radius:16px;' +
+      'min-height:78vh;width:min(96vw,980px);max-width:980px;margin:0 auto;padding:20px;' +
+      'box-sizing:border-box;border-radius:16px;' +
       'background:rgba(255,255,255,.85);' +
       'backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);' +
       'box-shadow:0 8px 32px rgba(0,0,0,.12);';
@@ -165,9 +113,29 @@ jsPsych.plugins['memory-task'] = (function() {
     return label;
   }
 
+  function getStimBoxSize(size) {
+    var vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+
+    if (size === 'small') {
+      return Math.max(58, Math.min(88, Math.floor(vw * 0.10)));
+    }
+
+    // Medium cards for temporal-order and distance questions.
+    // Keep them large enough to read, but small enough to stay horizontal.
+    return Math.max(82, Math.min(132, Math.floor(vw * 0.16)));
+  }
+
+  function getStimFontSize(size, boxSize) {
+    if (size === 'small') {
+      return Math.max(34, Math.min(46, Math.floor(boxSize * 0.52)));
+    }
+
+    return Math.max(46, Math.min(72, Math.floor(boxSize * 0.52)));
+  }
+
   function createStimCard(src, size) {
     var card = document.createElement('div');
-    var boxSize = size === 'medium' ? 140 : (size === 'small' ? 88 : 140);
+    var boxSize = getStimBoxSize(size);
 
     card.style.cssText =
       'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
@@ -179,7 +147,7 @@ jsPsych.plugins['memory-task'] = (function() {
       var span = document.createElement('span');
       span.textContent = src;
       span.style.cssText =
-        'font-size:' + (size === 'medium' ? '72px' : '46px') + ';' +
+        'font-size:' + getStimFontSize(size, boxSize) + 'px;' +
         'line-height:1;display:flex;align-items:center;justify-content:center;' +
         'width:100%;height:100%;user-select:none;';
       card.appendChild(span);
@@ -206,7 +174,7 @@ jsPsych.plugins['memory-task'] = (function() {
   function makeChoiceColumn(stim, labelText) {
     var col = document.createElement('div');
     col.style.cssText =
-      'display:flex;flex-direction:column;align-items:center;gap:10px;';
+      'display:flex;flex-direction:column;align-items:center;gap:10px;flex-shrink:0;';
 
     var stimCard = createStimCard(stim, 'medium');
 
@@ -309,7 +277,7 @@ jsPsych.plugins['memory-task'] = (function() {
         skipped_pair: true,
         pair_index: trial.pair_index,
         order_layout_mode: ORDER_LAYOUT_MODE,
-        order_keymap_mode: ORDER_KEYMAP_MODE,
+        order_keymap_mode: 'visual_fixed_1_left_2_right',
         trial1_index: null,
         trial2_index: null,
         stim_left_img: null,
@@ -380,13 +348,16 @@ jsPsych.plugins['memory-task'] = (function() {
       var pairWrap = document.createElement('div');
       // Always horizontal
       pairWrap.className = 'b3-pair-horizontal';
+      var orderGap = Math.max(18, Math.min(48, Math.floor(window.innerWidth * 0.045)));
       pairWrap.style.cssText =
         'display:flex;flex-direction:row;justify-content:center;align-items:flex-start;' +
-        'gap:56px;margin-bottom:20px;flex-wrap:wrap;';
+        'gap:' + orderGap + 'px;margin-bottom:20px;flex-wrap:nowrap;width:100%;' +
+        'max-width:720px;';
 
-      // Counterbalanced labels: which side is "1" and which is "2"
-      var leftLabel  = (ORDER_KEYMAP_MODE === 'swapped') ? '2' : '1';
-      var rightLabel = (ORDER_KEYMAP_MODE === 'swapped') ? '1' : '2';
+      // Keep response labels visually intuitive.
+      // Object positions are already randomized, so 1 can always mean left and 2 can always mean right.
+      var leftLabel  = '1';
+      var rightLabel = '2';
 
       var leftChoice  = makeChoiceColumn(left_img, leftLabel);
       var rightChoice = makeChoiceColumn(right_img, rightLabel);
@@ -423,12 +394,7 @@ jsPsych.plugins['memory-task'] = (function() {
           responded = true;
           clearTimeout(orderTimeoutID);
           order_rt = Math.round(performance.now() - start_time);
-          var keySide;
-          if (ORDER_KEYMAP_MODE === 'swapped') {
-            keySide = (e.key === '1') ? 'right' : 'left';
-          } else {
-            keySide = (e.key === '1') ? 'left' : 'right';
-          }
+          var keySide = (e.key === '1') ? 'left' : 'right';
 
           order_choice_side = keySide;
           order_choice_img  = (keySide === 'left') ? left_img : right_img;
@@ -477,8 +443,11 @@ jsPsych.plugins['memory-task'] = (function() {
       wrap.appendChild(createStepLabel('How many items were shown between these two?'));
 
       var pairWrap = document.createElement('div');
+      var distanceGap = Math.max(22, Math.min(64, Math.floor(window.innerWidth * 0.055)));
+
       pairWrap.style.cssText =
-        'display:flex;flex-direction:row;justify-content:center;align-items:center;gap:80px;margin-bottom:20px;';
+        'display:flex;flex-direction:row;justify-content:center;align-items:center;' +
+        'gap:' + distanceGap + 'px;margin-bottom:20px;flex-wrap:nowrap;width:100%;max-width:760px;';
 
       var l = createStimCard(left_img, 'medium');
       var r = createStimCard(right_img, 'medium');
@@ -797,8 +766,8 @@ jsPsych.plugins['memory-task'] = (function() {
         vol_level: _volLevel,
         stc_level: _stcLevel,
         condition: _condition,
+        order_keymap_mode: 'visual_fixed_1_left_2_right',
         order_layout_mode: ORDER_LAYOUT_MODE,
-        order_keymap_mode: ORDER_KEYMAP_MODE,
         pair_index: trial.pair_index,
         trial1_index: idx1,
         trial2_index: idx2,
