@@ -470,11 +470,57 @@
       var practice_valence = (practice_no === 3 || practice_no === 5) ? 'loss' : 'reward';
 
       if (bird_trial) {
+        var planetNum = j + 1;
+        var blockValence = factors_valence[design_idx];
+        var supplyColor = (blockValence === 'loss') ? 'red' : 'green';
+        var supplyEmoji = (blockValence === 'loss') ? '🔴' : '🟢';
+        var scoreRule = (blockValence === 'loss')
+          ? 'Catch more fragments to lose fewer points.'
+          : 'Catch more fragments to earn more points.';
+
+        var transitionHTML =
+          '<div style="' +
+            'max-width:680px;margin:0 auto;text-align:center;' +
+            'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+            'line-height:1.6;color:#1f2937;">' +
+
+            '<div style="' +
+              'display:inline-block;padding:5px 14px;border-radius:999px;' +
+              'background:rgba(255,255,255,.86);color:#475569;' +
+              'font-size:13px;font-weight:800;letter-spacing:.04em;' +
+              'text-transform:uppercase;margin-bottom:14px;">' +
+              'Planet ' + planetNum + ' of 4' +
+            '</div>' +
+
+            '<div style="font-size:30px;font-weight:850;margin-bottom:10px;">' +
+              'New planet mission' +
+            '</div>' +
+
+            '<div style="font-size:18px;margin-bottom:18px;">' +
+              'This planet has a <strong>new drone route</strong><br>' +
+              'and a <strong>new air-current pattern</strong>.' +
+            '</div>' +
+
+            '<div style="' +
+              'display:inline-block;padding:12px 18px;border-radius:14px;' +
+              'background:' + (blockValence === 'loss' ? '#fff1f2' : '#f0fdf4') + ';' +
+              'border:1px solid ' + (blockValence === 'loss' ? '#fecdd3' : '#bbf7d0') + ';' +
+              'font-size:17px;margin-bottom:18px;">' +
+              '<strong>' + supplyEmoji + ' ' + supplyColor.toUpperCase() + ' supply</strong><br>' +
+              '<span style="font-size:15px;color:#475569;">' + scoreRule + '</span>' +
+            '</div>' +
+
+            '<div style="font-size:15px;color:#64748b;">' +
+              'Press <strong>space</strong> or an <strong>arrow key</strong> to begin.<br>' +
+              '<span style="font-size:13px;">Auto-starts in 20 seconds.</span>' +
+            '</div>' +
+          '</div>';
+
         trials.push({
           type: 'image-keyboard-response',
-          stimulus_width: 200,
+          stimulus_width: 180,
           maintain_aspect_ratio: true,
-          prompt: '<p>A new drone and wind condition! Press the arrow keys or the space bar to begin (auto in 20s)</p>',
+          prompt: transitionHTML,
           choices: [32, 37, 39],
           trial_duration: 20000,
           timeline: [{ stimulus: birds[randomized[j]] }]
@@ -482,11 +528,17 @@
 
         trials.push({
           type: 'image-keyboard-response',
-          prompt: '<p>Beginning...</p>',
-          stimulus_width: 200,
+          stimulus_width: 180,
           maintain_aspect_ratio: true,
+          prompt:
+            '<div style="' +
+              'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+              'text-align:center;font-size:22px;font-weight:800;color:#1f2937;' +
+              'margin-top:12px;">' +
+              'Starting mission...' +
+            '</div>',
           choices: jsPsych.NO_KEYS,
-          trial_duration: 3000,
+          trial_duration: 1600,
           timeline: [{ stimulus: birds[randomized[j]] }]
         });
       }
