@@ -7,8 +7,8 @@
  * Stage 2: Intervening-item count ("How many items between these two?")
  * Stage 3: Slider placement (only for selected middle-item pairs)
  *
- * Revised to support emoji stimuli directly, while still remaining
- * compatible with image-path stimuli if needed.
+ * Supports main-task PNG image-path stimuli while keeping
+ * practice text-emoji stimuli compatible.
  */
 
 jsPsych.plugins['memory-task'] = (function() {

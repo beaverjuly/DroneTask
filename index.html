@@ -87,7 +87,7 @@
   var DEV_VERSION = _urlParams.get('version') || 'full';
   // Set ?gate=0 to skip the compatibility gate during local debugging.
   // By default, the gate is shown even in dev links.
-  var SHOW_COMPAT_GATE = _urlParams.get('gate') !== '0';
+  var SHOW_COMPAT_GATE = false;
 
   // ──────────────────────────────────────────────────────────────
   // Pilot mode flag.
@@ -285,7 +285,7 @@
     button_label_previous: "Prev",
     button_label_next: "Next",
     data: {
-      task_version: 'v3.0-emoji',
+      task_version: 'v3.1-png-main-practice-emoji',
       stimuli_version: stimuli_version,
       true_vol: factors_vol,
       true_stc: factors_stc,
@@ -300,8 +300,8 @@
     }
   };
 
-  // ── Emoji stimulus sets (replaces JPG stimulus_set_images) ──
-  var stimulus_set_images = jsPsych.randomization.shuffle(EMOJI_STIMULUS_POOL.slice());
+  // ── Stimulus sets: main task uses PNGs; practice uses text emojis ──
+  var stimulus_set_images = jsPsych.randomization.shuffle(STIMULUS_IMAGE_POOL.slice());
   var practice_stimulus_images = PRACTICE_EMOJI.slice();
 
   if (DEV_MODE && DEV_NTRIALS > 0) {
@@ -548,7 +548,7 @@
         var cdur = Array.isArray(coins_duration[idx]) ? coins_duration[idx].slice() : coins_duration.slice();
         var cdist = Array.isArray(coins_distribution[idx]) ? coins_distribution[idx].slice() : coins_distribution.slice();
 
-        // Emoji stimulus instead of image path
+        // Main task uses PNG paths; practice uses text emojis
         var stim_img;
         if (practice_no >= 1 && practice_no <= 5) {
           stim_img = practice_stimulus_images[k % practice_stimulus_images.length];
@@ -843,26 +843,132 @@
     );
   }
 
-  var comprehension1_loop_timeline = [inst_summary];
-  comprehension1_loop_timeline = comprehension1_loop_timeline.concat(comprehension1);
+  // ──────────────────────────────────────────────────────────────
+  // Topic-aware comprehension review.
+  // The comprehension plugins return:
+  //   done: true/false
+  //   review_topic: 'inst1' | 'inst2' | 'inst3' | 'inst4' | null
+  //   num_errors: number
+  //
+  // If a participant clicks a wrong locked question, review_topic is set.
+  // We route them only to the corresponding instruction deck, then return
+  // to the same comprehension check.
+  // ──────────────────────────────────────────────────────────────
 
-  var comprehension1_loop = {
-    timeline: comprehension1_loop_timeline,
+  function getLastTrialOfType(trialType) {
+    var rows = jsPsych.data.get().filter({ trial_type: trialType }).values();
+    return rows.length ? rows[rows.length - 1] : null;
+  }
+
+  function needsReview(trialType) {
+    var data = getLastTrialOfType(trialType);
+    return !!(
+      data &&
+      data.done === false &&
+      data.review_topic
+    );
+  }
+
+  function failedWithoutReview(trialType) {
+    var data = getLastTrialOfType(trialType);
+    return !!(
+      data &&
+      data.done === false &&
+      !data.review_topic &&
+      typeof data.num_errors === 'number' &&
+      data.num_errors > 0
+    );
+  }
+
+  function passedComprehension(trialType) {
+    var data = getLastTrialOfType(trialType);
+    return !!(data && data.done === true);
+  }
+
+  function reviewDeckForTopic(topic) {
+    if (topic === 'inst1') return [addSmoothTransitions(inst1)];
+    if (topic === 'inst2') return [addSmoothTransitions(inst2_locking_and_bag)];
+    if (topic === 'inst3') return [addSmoothTransitions(inst3_drone_disappears)];
+    if (topic === 'inst4') return [addSmoothTransitions(inst4_full_game)];
+    return [];
+  }
+
+  function makeReviewLoop(trialType, compTrial) {
+    return {
+      timeline: [
+        {
+          timeline: [addSmoothTransitions(inst1)],
+          conditional_function: function() {
+            var d = getLastTrialOfType(trialType);
+            return !!(d && d.review_topic === 'inst1');
+          }
+        },
+        {
+          timeline: [addSmoothTransitions(inst2_locking_and_bag)],
+          conditional_function: function() {
+            var d = getLastTrialOfType(trialType);
+            return !!(d && d.review_topic === 'inst2');
+          }
+        },
+        {
+          timeline: [addSmoothTransitions(inst3_drone_disappears)],
+          conditional_function: function() {
+            var d = getLastTrialOfType(trialType);
+            return !!(d && d.review_topic === 'inst3');
+          }
+        },
+        {
+          timeline: [addSmoothTransitions(inst4_full_game)],
+          conditional_function: function() {
+            var d = getLastTrialOfType(trialType);
+            return !!(d && d.review_topic === 'inst4');
+          }
+        },
+        compTrial
+      ],
+      conditional_function: function() {
+        return needsReview(trialType);
+      }
+    };
+  }
+
+  var comprehension1_review_loop = makeReviewLoop('comprehension1', comprehension1);
+  var comprehension2_review_loop = makeReviewLoop('comprehension2', comprehension2);
+
+  // This catches the case where they submit with wrong answers but do not
+  // click a wrong card for review. It should not immediately terminate.
+  var force_review_message = {
+    type: 'html-keyboard-response',
+    stimulus:
+      '<div style="max-width:680px;margin:12vh auto;padding:28px 34px;' +
+        'border-radius:18px;background:#fff7ed;border:1px solid #fed7aa;' +
+        'box-shadow:0 10px 30px rgba(15,23,42,.10);text-align:center;' +
+        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;">' +
+        '<div style="font-size:28px;font-weight:850;color:#9a3412;margin-bottom:10px;">Review needed</div>' +
+        '<p style="font-size:18px;line-height:1.6;color:#374151;margin:0;">' +
+          'Some answers are still incorrect. Please click each red locked question to review its related instruction page, then answer it again.' +
+        '</p>' +
+        '<p style="font-size:15px;color:#64748b;margin-top:18px;">Press any key to return to the questions.</p>' +
+      '</div>',
+    choices: jsPsych.ALL_KEYS
+  };
+
+  var comprehension1_force_review = {
+    timeline: [force_review_message, comprehension1],
     conditional_function: function() {
-      return hasComprehensionErrors('comprehension1');
+      return failedWithoutReview('comprehension1');
     }
   };
 
-  var comprehension2_loop_timeline = [inst_summary];
-  comprehension2_loop_timeline = comprehension2_loop_timeline.concat(comprehension2);
-
-  var comprehension2_loop = {
-    timeline: comprehension2_loop_timeline,
+  var comprehension2_force_review = {
+    timeline: [force_review_message, comprehension2],
     conditional_function: function() {
-      return hasComprehensionErrors('comprehension2');
+      return failedWithoutReview('comprehension2');
     }
   };
 
+  // Keep this as a final safety net only. Under the topic-aware flow,
+  // participants should not reach this unless something unexpected happens.
   var comprehension_check_core = {
     type: 'call-function',
     func: function() {},
@@ -878,22 +984,13 @@
     button_label_previous: "Prev",
     button_label_next: "Next",
     on_start: function(trial) {
-      var c1 = getLastTrialOfType('comprehension1');
       var c2 = getLastTrialOfType('comprehension2');
+      var c1 = getLastTrialOfType('comprehension1');
 
       var failed = null;
-
-      if (
-        c2 &&
-        typeof c2.num_errors === 'number' &&
-        c2.num_errors > 0
-      ) {
+      if (c2 && c2.done === false && typeof c2.num_errors === 'number' && c2.num_errors > 0) {
         failed = c2;
-      } else if (
-        c1 &&
-        typeof c1.num_errors === 'number' &&
-        c1.num_errors > 0
-      ) {
+      } else if (c1 && c1.done === false && typeof c1.num_errors === 'number' && c1.num_errors > 0) {
         failed = c1;
       }
 
@@ -902,7 +999,7 @@
         : [];
 
       trial.incorrect = correctness.findIndex(function(element) {
-        return element == 0;
+        return element === 0;
       }) + 1;
     }
   };
@@ -910,9 +1007,11 @@
   var comprehension_check = {
     timeline: [terminate, comprehension_check_core],
     conditional_function: function() {
+      // Final fallback: only terminate if a comprehension is failed and there
+      // is no review topic currently pending.
       return (
-        hasComprehensionErrors('comprehension1') ||
-        hasComprehensionErrors('comprehension2')
+        failedWithoutReview('comprehension1') ||
+        failedWithoutReview('comprehension2')
       );
     }
   };
@@ -984,12 +1083,17 @@
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_full_game));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(quiz));
 
+  // Mechanics check
   instructions_loop = instructions_loop.concat(comprehension1);
-  instructions_loop = instructions_loop.concat(comprehension1_loop);
+  instructions_loop = instructions_loop.concat(comprehension1_review_loop);
+  instructions_loop = instructions_loop.concat(comprehension1_force_review);
 
+  // Full mission check
   instructions_loop = instructions_loop.concat(comprehension2);
-  instructions_loop = instructions_loop.concat(comprehension2_loop);
+  instructions_loop = instructions_loop.concat(comprehension2_review_loop);
+  instructions_loop = instructions_loop.concat(comprehension2_force_review);
 
+  // Final safety net only
   instructions_loop = instructions_loop.concat(comprehension_check);
   instructions_loop = instructions_loop.concat(ready);
 
@@ -1050,7 +1154,7 @@
     'static/img/task_assets/reward/drone2.png',
     'static/img/task_assets/reward/drone3.png',
     'static/img/task_assets/reward/drone4.png',
-  ];
+  ].concat(stimulus_set_images);
 
   var feedback_p1 = {
     type: 'instructions',

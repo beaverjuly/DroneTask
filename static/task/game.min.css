@@ -443,3 +443,17 @@
     opacity: 1;
   }
 }
+/* ── Main-task PNG stimulus support; practice emoji support kept ── */
+.stimulus-card .stimulus-img {
+  max-width: 82%;
+  max-height: 82%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+  pointer-events: none;
+  image-rendering: auto;
+}
+
+.stimulus-card .emoji-stim {
+  display: block;
+}

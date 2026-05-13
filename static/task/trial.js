@@ -297,9 +297,12 @@ jsPsych.plugins["trial"] = (function () {
     html += '<div class="fb-value" id="fb" style="display:none;"></div>';
 
     // Stimulus card (hidden initially)
+    // Supports both practice text emojis and main-task PNG image paths.
     html +=
       '<div class="stimulus-card" id="stimulus-card" style="display:none;">' +
-      '<span class="emoji-stim" id="emoji-stim"></span></div>';
+      '<span class="emoji-stim" id="emoji-stim"></span>' +
+      '<img class="stimulus-img" id="stimulus-img" alt="memory item" style="display:none;">' +
+      '</div>';
 
     html += "</div>";
     html += "</div>";
@@ -308,6 +311,10 @@ jsPsych.plugins["trial"] = (function () {
 
   function clampPercent(x, minVal, maxVal) {
     return Math.max(minVal, Math.min(maxVal, x));
+  }
+
+  function isImageStim(src) {
+    return typeof src === "string" && (src.indexOf("/") !== -1 || /\.png$/i.test(src));
   }
 
   function move_collector(trial, info) {
@@ -491,12 +498,34 @@ jsPsych.plugins["trial"] = (function () {
       }
     }, valueDelay);
 
-    // — Step 4: item stimulus card appears (unchanged behaviour).
+    // — Step 4: item stimulus card appears.
+    // Practice stimuli are text emojis; main-task stimuli are PNG paths.
     setTimeout(function () {
       var card = document.getElementById("stimulus-card");
       var emojiEl = document.getElementById("emoji-stim");
+      var imgEl = document.getElementById("stimulus-img");
+
       if (card && trial.stim_img && !trial.hide_stimulus) {
-        emojiEl.textContent = trial.stim_img;
+        if (isImageStim(trial.stim_img)) {
+          if (emojiEl) {
+            emojiEl.textContent = "";
+            emojiEl.style.display = "none";
+          }
+          if (imgEl) {
+            imgEl.src = trial.stim_img;
+            imgEl.style.display = "block";
+          }
+        } else {
+          if (imgEl) {
+            imgEl.removeAttribute("src");
+            imgEl.style.display = "none";
+          }
+          if (emojiEl) {
+            emojiEl.textContent = trial.stim_img;
+            emojiEl.style.display = "block";
+          }
+        }
+
         card.style.left = clampPercent(trial.bag_position, 18, 82) + "%";
         card.style.display = "flex";
       }
