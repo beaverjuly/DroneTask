@@ -1147,14 +1147,28 @@
     button_label_next: "Finish"
   };
 
-  // Minimal preload — only the drone images used in block-intro and instruction screens
   var preload_images = [
     'static/img/task_assets/reward/drone0.png',
     'static/img/task_assets/reward/drone1.png',
     'static/img/task_assets/reward/drone2.png',
     'static/img/task_assets/reward/drone3.png',
-    'static/img/task_assets/reward/drone4.png',
-  ].concat(stimulus_set_images);
+    'static/img/task_assets/reward/drone4.png'
+  ];
+
+  // Preload main object PNG stimuli.
+  if (Array.isArray(stimulus_set_images)) {
+    preload_images = preload_images.concat(stimulus_set_images);
+  }
+
+  // Preload practice stimuli too, if any are image paths.
+  // Emoji practice stimuli will be ignored safely.
+  if (Array.isArray(practice_stimulus_images)) {
+    preload_images = preload_images.concat(
+      practice_stimulus_images.filter(function(x) {
+        return typeof x === 'string' && (x.indexOf('/') !== -1 || x.indexOf('.png') !== -1);
+      })
+    );
+  }
 
   var feedback_p1 = {
     type: 'instructions',
