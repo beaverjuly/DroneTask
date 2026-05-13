@@ -200,9 +200,6 @@ jsPsych.plugins['comprehension2'] = (function() {
     html += '<div class="comp-shell"><div class="comp-card">';
 
     html += '<div class="comp-header">';
-    html += '<div class="comp-kicker">Final rule check</div>';
-    html += '<h2 class="comp-title">Full mission rules</h2>';
-    html += '<div class="comp-subtitle">' +
               'Answer all questions correctly to start the full mission. ' +
               'If you get any wrong, you must <strong>click the locked question</strong> ' +
               'to review the relevant instructions before you can revise your answer.' +
@@ -210,7 +207,7 @@ jsPsych.plugins['comprehension2'] = (function() {
 
     if (justReviewedTopic) {
       html += '<div class="comp-banner">' +
-                '✏️  You just reviewed <strong>' +
+                'You just reviewed <strong>' +
                   (TOPIC_LABEL[justReviewedTopic] || justReviewedTopic) + '</strong>. ' +
                 'Please update your highlighted answer below, then submit again.' +
               '</div>';
