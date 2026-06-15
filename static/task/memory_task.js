@@ -5,7 +5,9 @@
  *
  * Stage 1: Temporal order judgement ("Which came first?")
  * Stage 2: Intervening-item count ("How many items between these two?")
- * Stage 3: Slider placement (only for selected middle-item pairs)
+ * Stage 3: Slider placement after every temporal-distance question.
+  For one-intervening-item pairs, the only intervening item is probed.
+  For two-intervening-item pairs, the earlier/later intervening probe is balanced within block.
  *
  * Supports main-task PNG image-path stimuli while keeping
  * practice text-emoji stimuli compatible.
@@ -56,6 +58,11 @@ jsPsych.plugins['memory-task'] = (function() {
 
   var pairOrderByBlock = {};
   var pairProgressByBlock = {};
+
+  // For two-intervening-item pairs, balance whether the earlier or later
+  // intervening item is used as the slider probe within each block.
+  var placementProbeByBlock = {};
+
   var ORDER_LAYOUT_MODE = 'horizontal';
   var ORDER_KEYMAP_MODE = 'visual_fixed_1_left_2_right';
 
@@ -81,6 +88,98 @@ jsPsych.plugins['memory-task'] = (function() {
       if (pairEquals(pair, list[i])) return true;
     }
     return false;
+  }
+  function pairKey(pair) {
+    return pair[0] + '_' + pair[1];
+  }
+
+  function getInterveningIndices(pair) {
+    var out = [];
+    for (var i = pair[0] + 1; i < pair[1]; i++) {
+      out.push(i);
+    }
+    return out;
+  }
+
+  function getDistance2Pairs() {
+    return PREDEFINED_PAIRS.filter(function(pair) {
+      return getInterveningIndices(pair).length === 2;
+    });
+  }
+
+  function initPlacementProbeAssignments(block) {
+    if (placementProbeByBlock.hasOwnProperty(block)) return;
+
+    placementProbeByBlock[block] = {};
+
+    var distance2Pairs = getDistance2Pairs();
+    var shuffledPairs = jsPsych.randomization.shuffle(distance2Pairs.slice());
+
+    shuffledPairs.forEach(function(pair, i) {
+      var candidates = getInterveningIndices(pair);
+
+      // For distance-2 pairs, candidates[0] is the earlier intervening item,
+      // candidates[1] is the later intervening item.
+      var chooseEarlier = (i % 2 === 0);
+      placementProbeByBlock[block][pairKey(pair)] = chooseEarlier
+        ? candidates[0]
+        : candidates[1];
+    });
+  }
+
+  function choosePlacementProbeIndex(block, pair, pairIndex, candidates) {
+    if (!candidates || candidates.length === 0) return null;
+
+    // One-intervening-item pairs are deterministic.
+    if (candidates.length === 1) return candidates[0];
+
+    // Two-intervening-item pairs are balanced within block.
+    if (candidates.length === 2) {
+      initPlacementProbeAssignments(block);
+
+      var key = pairKey(pair);
+      if (
+        placementProbeByBlock[block] &&
+        placementProbeByBlock[block].hasOwnProperty(key)
+      ) {
+        return placementProbeByBlock[block][key];
+      }
+    }
+
+    // Fallback for future pair designs with more than two intervening items.
+    return candidates[pairIndex % candidates.length];
+  }
+
+  function getPlacementTrialType(pair, placementProbeIndex, probeCandidates) {
+    var base;
+
+    if (pairInList(pair, BOUNDARY_MIDDLE_PAIRS_LOCAL)) {
+      base = 'legacy_boundary_middle_pair';
+    } else if (pairInList(pair, NONBOUNDARY_MIDDLE_PAIRS_LOCAL)) {
+      base = 'legacy_nonboundary_middle_pair';
+    } else if (isSliderPair(pair)) {
+      base = 'legacy_slider_pair_other';
+    } else {
+      base = 'new_all_pair_slider';
+    }
+
+    var nCandidates = probeCandidates ? probeCandidates.length : 0;
+
+    if (nCandidates === 1) {
+      return base + '_distance1';
+    }
+
+    if (nCandidates === 2) {
+      if (placementProbeIndex === probeCandidates[0]) {
+        return base + '_distance2_earlier_probe';
+      }
+      if (placementProbeIndex === probeCandidates[1]) {
+        return base + '_distance2_later_probe';
+      }
+      return base + '_distance2_unknown_probe';
+    }
+
+    return base + '_distance' + nCandidates;
   }
 
   function isSliderPair(pair) {
@@ -295,10 +394,23 @@ jsPsych.plugins['memory-task'] = (function() {
         timed_out: null,
         placement_slider_value: null,
         placement_rt: null,
+
+        // New clearer probe fields
+        was_legacy_slider_pair: null,
+        placement_probe_index: null,
+        placement_probe_img: null,
+        placement_probe_position: null,
+        placement_candidate_indices: null,
+        placement_num_candidate_items: null,
+        placement_trial_type: 'none',
+        placement_true_position_pct: null,
+        placement_error_from_true_position: null,
+
+        // Legacy compatibility fields
         middle_item_index: null,
         middle_item_img: null,
         middle_item_is_boundary: null,
-        placement_trial_type: 'none',
+        placement_true_midpoint_pct: null,
         placement_error_from_true_midpoint: null
       });
       return;
@@ -306,8 +418,35 @@ jsPsych.plugins['memory-task'] = (function() {
 
     var idx1 = pair[0];
     var idx2 = pair[1];
-    var hasSlider = isSliderPair(pair);
-    var middleItemIndex = hasSlider ? Math.floor((idx1 + idx2) / 2) : null;
+
+    // Pragmatic revision:
+    // Every temporal-distance pair now receives a slider placement question.
+    // isSliderPair(pair) is retained only as a legacy/special-pair label.
+    var hasSlider = true;
+    var wasLegacySliderPair = isSliderPair(pair);
+    var probeCandidates = getInterveningIndices(pair);
+
+    var placementProbeIndex = choosePlacementProbeIndex(
+      block,
+      pair,
+      trial.pair_index,
+      probeCandidates
+    );
+
+    var placementProbePosition =
+      placementProbeIndex === null
+        ? null
+        : probeCandidates.indexOf(placementProbeIndex) + 1;
+
+    // Keep older variable name for compatibility with existing rendering,
+    // scoring, and analysis code.
+    var middleItemIndex = placementProbeIndex;
+
+    var placementTrialType = getPlacementTrialType(
+      pair,
+      placementProbeIndex,
+      probeCandidates
+    );
 
     var block_trials = jsPsych.data.get()
       .filter({ trial_type: 'trial', block: block })
@@ -320,7 +459,18 @@ jsPsych.plugins['memory-task'] = (function() {
 
     var stim1 = block_trials[idx1 - 1] ? block_trials[idx1 - 1].stim_img : undefined;
     var stim2 = block_trials[idx2 - 1] ? block_trials[idx2 - 1].stim_img : undefined;
-    var middleStim = (middleItemIndex && block_trials[middleItemIndex - 1]) ? block_trials[middleItemIndex - 1].stim_img : null;
+    var middleStim =
+        (middleItemIndex && block_trials[middleItemIndex - 1])
+          ? block_trials[middleItemIndex - 1].stim_img
+          : null;
+          if (middleItemIndex !== null && middleStim === null) {
+            console.warn('[memory-task] Missing placement probe stimulus', {
+              block: block,
+              pair: pair,
+              middleItemIndex: middleItemIndex,
+              block_trials_length: block_trials.length
+            });
+          }
 
     var true_first_idx = Math.min(idx1, idx2);
     var true_first_img = (true_first_idx === idx1) ? stim1 : stim2;
@@ -519,11 +669,7 @@ jsPsych.plugins['memory-task'] = (function() {
         window.__memorySuppressKeysUntil = performance.now() + 350;
         distance_rt = Math.round(performance.now() - start_time);
 
-        if (hasSlider) {
-          renderSliderScreen(v, true_distance);
-        } else {
-          finishTrial(v, true_distance, false);
-        }
+        renderSliderScreen(v, true_distance);
       }
 
       input.addEventListener('keydown', function(e) {
@@ -576,8 +722,7 @@ jsPsych.plugins['memory-task'] = (function() {
               distancePromptShown = false;
               renderDistancePrompt(true);
             } else {
-              if (hasSlider) renderSliderScreen(null, true_distance);
-              else finishTrial(null, true_distance, false);
+              renderSliderScreen(null, true_distance);
             }
           }, 5000);
         }
@@ -585,6 +730,18 @@ jsPsych.plugins['memory-task'] = (function() {
     }
 
     function renderSliderScreen(dist_est_value, true_distance) {
+      if (!middleStim) {
+        console.warn('[memory-task] Skipping slider because placement probe stimulus is missing', {
+          block: block,
+          pair: pair,
+          middleItemIndex: middleItemIndex,
+          block_trials_length: block_trials.length
+        });
+
+        finishTrial(dist_est_value, true_distance, true);
+        return;
+      }
+
       // ── Inject slider-unset styles once per page load ───────────────
       if (!document.getElementById('b3-slider-unset-style')) {
         var st = document.createElement('style');
@@ -609,11 +766,12 @@ jsPsych.plugins['memory-task'] = (function() {
       var wrap = createBlock3Wrapper();
       wrap.id = 'slider-container';
 
-      wrap.appendChild(createStepLabel('Where did the middle image occur?'));
+      wrap.appendChild(createStepLabel('Where was this object shown between the two objects?'));
 
       var boundaryWrap = document.createElement('div');
       boundaryWrap.className = 'b3-boundary-card-wrap';
       boundaryWrap.style.cssText = 'margin-bottom:20px;';
+
       var middleCard = createStimCard(middleStim, 'small');
       boundaryWrap.appendChild(middleCard.card);
       wrap.appendChild(boundaryWrap);
@@ -736,74 +894,96 @@ jsPsych.plugins['memory-task'] = (function() {
     }
 
     function finishTrial(dist_est, true_distance, skipped) {
-      var placement_error    = null;
-      var true_midpoint_pct  = null;
+      var placement_error_from_true_position = null;
+      var true_position_pct = null;
+
       if (placement_slider_value !== null && middleItemIndex !== null) {
-        // Dynamic formula — correct for any pair gap, not just gap=2.
-        // For the current SLIDER_PAIRS (all gap=2) this always equals 50,
-        // but this is now future-proof if pair definitions change.
-        true_midpoint_pct  = 100 * (middleItemIndex - idx1) / (idx2 - idx1);
-        placement_error    = placement_slider_value - true_midpoint_pct;
+        // General formula:
+        // [2,4], probe 3 → 50%
+        // [6,9], probe 7 → 33.33%
+        // [6,9], probe 8 → 66.67%
+        true_position_pct = 100 * (middleItemIndex - idx1) / (idx2 - idx1);
+        placement_error_from_true_position = placement_slider_value - true_position_pct;
       }
 
-      var placement_type = 'none';
-      if (hasSlider) {
-        if (pairInList(pair, BOUNDARY_MIDDLE_PAIRS_LOCAL)) {
-          placement_type = 'boundary-middle';
-        } else if (pairInList(pair, NONBOUNDARY_MIDDLE_PAIRS_LOCAL)) {
-          placement_type = 'nonboundary-middle';
-        } else {
-          placement_type = 'slider-uncategorized';
-        }
+      // Use the new placementTrialType computed earlier:
+      // e.g., legacy_boundary_middle_pair_distance1,
+      // new_all_pair_slider_distance2_earlier_probe, etc.
+      var placement_type = placementTrialType || 'none';
+
+      var middle_item_is_boundary_value = null;
+      if (pairInList(pair, BOUNDARY_MIDDLE_PAIRS_LOCAL)) {
+        middle_item_is_boundary_value = 1;
+      } else if (pairInList(pair, NONBOUNDARY_MIDDLE_PAIRS_LOCAL)) {
+        middle_item_is_boundary_value = 0;
       }
 
       var trial_data = {
-        task_phase: 'memory',
-        block: block,
-        true_vol_param: _trueVolParam,
-        true_stc_param: _trueStcParam,
-        valence: _valence,
-        vol_level: _volLevel,
-        stc_level: _stcLevel,
-        condition: _condition,
-        order_keymap_mode: 'visual_fixed_1_left_2_right',
-        order_layout_mode: ORDER_LAYOUT_MODE,
-        pair_index: trial.pair_index,
-        trial1_index: idx1,
-        trial2_index: idx2,
-        stim_left_img: left_img,
-        stim_right_img: right_img,
-        stim_first_actual: true_first_img,
-        order_choice_side: order_choice_side,
-        order_choice_img: order_choice_img,
-        order_correct: order_correct,
-        order_correct_bin: (order_correct === null ? null : (order_correct ? 1 : 0)),
-        order_rt: order_rt,
-        distance_estimate: dist_est,
-        distance_rt: distance_rt,
-        pair_true_distance: true_distance,
-        attempt_number: attempt_number,
-        timed_out: timed_out,
-        skipped_pair: skipped || false,
+            task_phase: 'memory',
+            block: block,
+            true_vol_param: _trueVolParam,
+            true_stc_param: _trueStcParam,
+            valence: _valence,
+            vol_level: _volLevel,
+            stc_level: _stcLevel,
+            condition: _condition,
 
-        placement_slider_value: placement_slider_value,
-        placement_rt: placement_rt,
-        middle_item_index: middleItemIndex,
-        middle_item_img: middleStim,
-        placement_true_midpoint_pct: true_midpoint_pct,
-        middle_item_is_boundary:
-          (placement_type === 'boundary-middle' ? 1 :
-          placement_type === 'nonboundary-middle' ? 0 : null),
-        placement_trial_type: placement_type,
-        placement_error_from_true_midpoint: placement_error
-      };
+            order_keymap_mode: 'visual_fixed_1_left_2_right',
+            order_layout_mode: ORDER_LAYOUT_MODE,
 
-      display_element.innerHTML = '';
-      // Clear block gradient so it doesn't leak into non-memory screens
-      document.body.style.background = '';
-      document.body.style.backgroundAttachment = '';
-      jsPsych.finishTrial(trial_data);
-    }
+            pair_index: trial.pair_index,
+            trial1_index: idx1,
+            trial2_index: idx2,
+
+            stim_left_img: left_img,
+            stim_right_img: right_img,
+            stim_first_actual: true_first_img,
+
+            order_choice_side: order_choice_side,
+            order_choice_img: order_choice_img,
+            order_correct: order_correct,
+            order_correct_bin: (order_correct === null ? null : (order_correct ? 1 : 0)),
+            order_rt: order_rt,
+
+            distance_estimate: dist_est,
+            distance_rt: distance_rt,
+            pair_true_distance: true_distance,
+
+            attempt_number: attempt_number,
+            timed_out: timed_out,
+            skipped_pair: skipped || false,
+
+            // Slider response
+            placement_slider_value: placement_slider_value,
+            placement_rt: placement_rt,
+
+            // New clearer probe fields
+            was_legacy_slider_pair: wasLegacySliderPair,
+            placement_probe_index: placementProbeIndex,
+            placement_probe_img: middleStim,
+            placement_probe_position: placementProbePosition,
+            placement_candidate_indices: probeCandidates.join(','),
+            placement_num_candidate_items: probeCandidates.length,
+            placement_trial_type: placement_type,
+            placement_true_position_pct: true_position_pct,
+            placement_error_from_true_position: placement_error_from_true_position,
+
+            // Legacy compatibility fields
+            middle_item_index: middleItemIndex,
+            middle_item_img: middleStim,
+            middle_item_is_boundary: middle_item_is_boundary_value,
+            placement_true_midpoint_pct: true_position_pct,
+            placement_error_from_true_midpoint: placement_error_from_true_position
+          };
+
+          display_element.innerHTML = '';
+
+          // Clear block gradient so it doesn't leak into non-memory screens.
+          document.body.style.background = '';
+          document.body.style.backgroundAttachment = '';
+
+          jsPsych.finishTrial(trial_data);
+        }
 
     renderOrderScreen();
   };

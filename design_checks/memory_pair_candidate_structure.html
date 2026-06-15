@@ -1,0 +1,177 @@
+<h2>Memory Pair Candidate and Probe Structure</h2><p>Every predefined memory pair receives a slider probe. For one-intervening-item pairs, the only intervening item is probed. For two-intervening-item pairs, the earlier/later probe assignment is pseudo-randomized and balanced within block.</p><h3>Example participant/block probe assignment</h3><table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>memory_order_position</th>
+      <th>pair_id</th>
+      <th>pair</th>
+      <th>candidate_indices</th>
+      <th>selected_probe_index</th>
+      <th>selected_probe_position</th>
+      <th>true_position_pct</th>
+      <th>design_role</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>P06</td>
+      <td>(17, 20)</td>
+      <td>[18, 19]</td>
+      <td>19</td>
+      <td>later</td>
+      <td>66.666667</td>
+      <td>earlier or later probe (counterbalanced)</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>P08</td>
+      <td>(23, 26)</td>
+      <td>[24, 25]</td>
+      <td>25</td>
+      <td>later</td>
+      <td>66.666667</td>
+      <td>earlier or later probe (counterbalanced)</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>P03</td>
+      <td>(7, 10)</td>
+      <td>[8, 9]</td>
+      <td>9</td>
+      <td>later</td>
+      <td>66.666667</td>
+      <td>earlier or later probe (counterbalanced)</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>P11</td>
+      <td>(34, 36)</td>
+      <td>[35]</td>
+      <td>35</td>
+      <td>center</td>
+      <td>50.000000</td>
+      <td>middle probe</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>P10</td>
+      <td>(30, 33)</td>
+      <td>[31, 32]</td>
+      <td>31</td>
+      <td>earlier</td>
+      <td>33.333333</td>
+      <td>earlier or later probe (counterbalanced)</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>P01</td>
+      <td>(2, 4)</td>
+      <td>[3]</td>
+      <td>3</td>
+      <td>center</td>
+      <td>50.000000</td>
+      <td>middle probe</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>P04</td>
+      <td>(11, 13)</td>
+      <td>[12]</td>
+      <td>12</td>
+      <td>center</td>
+      <td>50.000000</td>
+      <td>middle probe</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>P05</td>
+      <td>(16, 18)</td>
+      <td>[17]</td>
+      <td>17</td>
+      <td>center</td>
+      <td>50.000000</td>
+      <td>middle probe</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>P02</td>
+      <td>(6, 9)</td>
+      <td>[7, 8]</td>
+      <td>8</td>
+      <td>later</td>
+      <td>66.666667</td>
+      <td>earlier or later probe (counterbalanced)</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>P09</td>
+      <td>(28, 31)</td>
+      <td>[29, 30]</td>
+      <td>29</td>
+      <td>earlier</td>
+      <td>33.333333</td>
+      <td>earlier or later probe (counterbalanced)</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>P14</td>
+      <td>(42, 45)</td>
+      <td>[43, 44]</td>
+      <td>43</td>
+      <td>earlier</td>
+      <td>33.333333</td>
+      <td>earlier or later probe (counterbalanced)</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>P07</td>
+      <td>(22, 24)</td>
+      <td>[23]</td>
+      <td>23</td>
+      <td>center</td>
+      <td>50.000000</td>
+      <td>middle probe</td>
+    </tr>
+    <tr>
+      <td>13</td>
+      <td>P12</td>
+      <td>(35, 38)</td>
+      <td>[36, 37]</td>
+      <td>36</td>
+      <td>earlier</td>
+      <td>33.333333</td>
+      <td>earlier or later probe (counterbalanced)</td>
+    </tr>
+    <tr>
+      <td>14</td>
+      <td>P13</td>
+      <td>(39, 41)</td>
+      <td>[40]</td>
+      <td>40</td>
+      <td>center</td>
+      <td>50.000000</td>
+      <td>middle probe</td>
+    </tr>
+  </tbody>
+</table><h3>Probe balance for this example block</h3><table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>selected_probe_position</th>
+      <th>count</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>center</td>
+      <td>6</td>
+    </tr>
+    <tr>
+      <td>earlier</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>later</td>
+      <td>4</td>
+    </tr>
+  </tbody>
+</table>

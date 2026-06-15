@@ -1,0 +1,496 @@
+<style>
+#slider_probe_counterbalance th { background:#f3f3f3; color:#222; font-weight:650;
+  border:1px solid #d6d6d6; padding:5px 10px; text-align:left; }
+#slider_probe_counterbalance td { border:1px solid #e1e1e1; padding:4px 10px;
+  font-variant-numeric:tabular-nums; }
+#slider_probe_counterbalance tr:nth-child(even) td { background:#fafafa; }
+#slider_probe_counterbalance table { border-collapse:collapse; font-size:12px;
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif; }
+#slider_probe_counterbalance caption { caption-side:top; padding:4px 0; color:#444;
+  font-size:12px; text-align:left; font-weight:600; }
+</style>
+<div id="slider_probe_counterbalance"><h2>Slider-Probe Counterbalancing Simulation</h2><p>This simulation mirrors the revised memory-task placement logic: every memory pair receives a slider probe; one-intervening-item pairs use the only candidate; two-intervening-item pairs are pseudo-randomized and assigned with exact within-block earlier/later balance.</p><p><strong>Simulation:</strong> 1000 participants × 4 blocks.</p><h3>Participant-block invariant summary</h3><table border="1" class="dataframe">
+  <thead>
+    <tr>
+      <th>selected_probe_position</th>
+      <th colspan="3" halign="left">center</th>
+      <th colspan="3" halign="left">earlier</th>
+      <th colspan="3" halign="left">later</th>
+    </tr>
+    <tr>
+      <th></th>
+      <th>mean</th>
+      <th>min</th>
+      <th>max</th>
+      <th>mean</th>
+      <th>min</th>
+      <th>max</th>
+      <th>mean</th>
+      <th>min</th>
+      <th>max</th>
+    </tr>
+    <tr>
+      <th>block</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>1</th>
+      <td>6.0</td>
+      <td>6</td>
+      <td>6</td>
+      <td>4.0</td>
+      <td>4</td>
+      <td>4</td>
+      <td>4.0</td>
+      <td>4</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>6.0</td>
+      <td>6</td>
+      <td>6</td>
+      <td>4.0</td>
+      <td>4</td>
+      <td>4</td>
+      <td>4.0</td>
+      <td>4</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>6.0</td>
+      <td>6</td>
+      <td>6</td>
+      <td>4.0</td>
+      <td>4</td>
+      <td>4</td>
+      <td>4.0</td>
+      <td>4</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>6.0</td>
+      <td>6</td>
+      <td>6</td>
+      <td>4.0</td>
+      <td>4</td>
+      <td>4</td>
+      <td>4.0</td>
+      <td>4</td>
+      <td>4</td>
+    </tr>
+  </tbody>
+</table><h3>Distance-2 pair-level assignment rates</h3><table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th>selected_probe_position</th>
+      <th>block</th>
+      <th>pair_id</th>
+      <th>pair_label</th>
+      <th>earlier</th>
+      <th>later</th>
+      <th>total</th>
+      <th>p_earlier</th>
+      <th>p_later</th>
+      <th>earlier_minus_later</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th></th>
+      <td>1</td>
+      <td>P02</td>
+      <td>P02 (6, 9)</td>
+      <td>520</td>
+      <td>480</td>
+      <td>1000</td>
+      <td>0.520</td>
+      <td>0.480</td>
+      <td>40</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>1</td>
+      <td>P03</td>
+      <td>P03 (7, 10)</td>
+      <td>514</td>
+      <td>486</td>
+      <td>1000</td>
+      <td>0.514</td>
+      <td>0.486</td>
+      <td>28</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>1</td>
+      <td>P06</td>
+      <td>P06 (17, 20)</td>
+      <td>497</td>
+      <td>503</td>
+      <td>1000</td>
+      <td>0.497</td>
+      <td>0.503</td>
+      <td>-6</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>1</td>
+      <td>P08</td>
+      <td>P08 (23, 26)</td>
+      <td>495</td>
+      <td>505</td>
+      <td>1000</td>
+      <td>0.495</td>
+      <td>0.505</td>
+      <td>-10</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>1</td>
+      <td>P09</td>
+      <td>P09 (28, 31)</td>
+      <td>502</td>
+      <td>498</td>
+      <td>1000</td>
+      <td>0.502</td>
+      <td>0.498</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>1</td>
+      <td>P10</td>
+      <td>P10 (30, 33)</td>
+      <td>495</td>
+      <td>505</td>
+      <td>1000</td>
+      <td>0.495</td>
+      <td>0.505</td>
+      <td>-10</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>1</td>
+      <td>P12</td>
+      <td>P12 (35, 38)</td>
+      <td>502</td>
+      <td>498</td>
+      <td>1000</td>
+      <td>0.502</td>
+      <td>0.498</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>1</td>
+      <td>P14</td>
+      <td>P14 (42, 45)</td>
+      <td>475</td>
+      <td>525</td>
+      <td>1000</td>
+      <td>0.475</td>
+      <td>0.525</td>
+      <td>-50</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>2</td>
+      <td>P02</td>
+      <td>P02 (6, 9)</td>
+      <td>504</td>
+      <td>496</td>
+      <td>1000</td>
+      <td>0.504</td>
+      <td>0.496</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>2</td>
+      <td>P03</td>
+      <td>P03 (7, 10)</td>
+      <td>495</td>
+      <td>505</td>
+      <td>1000</td>
+      <td>0.495</td>
+      <td>0.505</td>
+      <td>-10</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>2</td>
+      <td>P06</td>
+      <td>P06 (17, 20)</td>
+      <td>501</td>
+      <td>499</td>
+      <td>1000</td>
+      <td>0.501</td>
+      <td>0.499</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>2</td>
+      <td>P08</td>
+      <td>P08 (23, 26)</td>
+      <td>489</td>
+      <td>511</td>
+      <td>1000</td>
+      <td>0.489</td>
+      <td>0.511</td>
+      <td>-22</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>2</td>
+      <td>P09</td>
+      <td>P09 (28, 31)</td>
+      <td>494</td>
+      <td>506</td>
+      <td>1000</td>
+      <td>0.494</td>
+      <td>0.506</td>
+      <td>-12</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>2</td>
+      <td>P10</td>
+      <td>P10 (30, 33)</td>
+      <td>501</td>
+      <td>499</td>
+      <td>1000</td>
+      <td>0.501</td>
+      <td>0.499</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>2</td>
+      <td>P12</td>
+      <td>P12 (35, 38)</td>
+      <td>512</td>
+      <td>488</td>
+      <td>1000</td>
+      <td>0.512</td>
+      <td>0.488</td>
+      <td>24</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>2</td>
+      <td>P14</td>
+      <td>P14 (42, 45)</td>
+      <td>504</td>
+      <td>496</td>
+      <td>1000</td>
+      <td>0.504</td>
+      <td>0.496</td>
+      <td>8</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>3</td>
+      <td>P02</td>
+      <td>P02 (6, 9)</td>
+      <td>501</td>
+      <td>499</td>
+      <td>1000</td>
+      <td>0.501</td>
+      <td>0.499</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>3</td>
+      <td>P03</td>
+      <td>P03 (7, 10)</td>
+      <td>522</td>
+      <td>478</td>
+      <td>1000</td>
+      <td>0.522</td>
+      <td>0.478</td>
+      <td>44</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>3</td>
+      <td>P06</td>
+      <td>P06 (17, 20)</td>
+      <td>513</td>
+      <td>487</td>
+      <td>1000</td>
+      <td>0.513</td>
+      <td>0.487</td>
+      <td>26</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>3</td>
+      <td>P08</td>
+      <td>P08 (23, 26)</td>
+      <td>513</td>
+      <td>487</td>
+      <td>1000</td>
+      <td>0.513</td>
+      <td>0.487</td>
+      <td>26</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>3</td>
+      <td>P09</td>
+      <td>P09 (28, 31)</td>
+      <td>497</td>
+      <td>503</td>
+      <td>1000</td>
+      <td>0.497</td>
+      <td>0.503</td>
+      <td>-6</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>3</td>
+      <td>P10</td>
+      <td>P10 (30, 33)</td>
+      <td>448</td>
+      <td>552</td>
+      <td>1000</td>
+      <td>0.448</td>
+      <td>0.552</td>
+      <td>-104</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>3</td>
+      <td>P12</td>
+      <td>P12 (35, 38)</td>
+      <td>500</td>
+      <td>500</td>
+      <td>1000</td>
+      <td>0.500</td>
+      <td>0.500</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>3</td>
+      <td>P14</td>
+      <td>P14 (42, 45)</td>
+      <td>506</td>
+      <td>494</td>
+      <td>1000</td>
+      <td>0.506</td>
+      <td>0.494</td>
+      <td>12</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>4</td>
+      <td>P02</td>
+      <td>P02 (6, 9)</td>
+      <td>506</td>
+      <td>494</td>
+      <td>1000</td>
+      <td>0.506</td>
+      <td>0.494</td>
+      <td>12</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>4</td>
+      <td>P03</td>
+      <td>P03 (7, 10)</td>
+      <td>515</td>
+      <td>485</td>
+      <td>1000</td>
+      <td>0.515</td>
+      <td>0.485</td>
+      <td>30</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>4</td>
+      <td>P06</td>
+      <td>P06 (17, 20)</td>
+      <td>497</td>
+      <td>503</td>
+      <td>1000</td>
+      <td>0.497</td>
+      <td>0.503</td>
+      <td>-6</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>4</td>
+      <td>P08</td>
+      <td>P08 (23, 26)</td>
+      <td>498</td>
+      <td>502</td>
+      <td>1000</td>
+      <td>0.498</td>
+      <td>0.502</td>
+      <td>-4</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>4</td>
+      <td>P09</td>
+      <td>P09 (28, 31)</td>
+      <td>483</td>
+      <td>517</td>
+      <td>1000</td>
+      <td>0.483</td>
+      <td>0.517</td>
+      <td>-34</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>4</td>
+      <td>P10</td>
+      <td>P10 (30, 33)</td>
+      <td>509</td>
+      <td>491</td>
+      <td>1000</td>
+      <td>0.509</td>
+      <td>0.491</td>
+      <td>18</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>4</td>
+      <td>P12</td>
+      <td>P12 (35, 38)</td>
+      <td>495</td>
+      <td>505</td>
+      <td>1000</td>
+      <td>0.495</td>
+      <td>0.505</td>
+      <td>-10</td>
+    </tr>
+    <tr>
+      <th></th>
+      <td>4</td>
+      <td>P14</td>
+      <td>P14 (42, 45)</td>
+      <td>497</td>
+      <td>503</td>
+      <td>1000</td>
+      <td>0.497</td>
+      <td>0.503</td>
+      <td>-6</td>
+    </tr>
+  </tbody>
+</table></div>
