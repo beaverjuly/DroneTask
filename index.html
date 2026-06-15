@@ -400,17 +400,14 @@
       task_version: 'v3.1-png-main-practice-emoji-latin-square-block-order',
       stimuli_version: stimuli_version,
 
-      // Canonical condition arrays from stimuli.js
       true_vol: factors_vol,
       true_stc: factors_stc,
       true_valence: factors_valence,
 
-      // Latin-square block-order metadata
       latin_square_group: latin_square_group,
       latin_square_order: block_order.join(','),
       latin_square_order_labels: block_order_labels.join('|'),
 
-      // Backward-compatible alias
       randomized: randomized,
 
       PROLIFIC_PID: PROLIFIC_PID,
@@ -419,7 +416,8 @@
       subId: subId,
       pilot_mode: PILOT_MODE,
       consent_shown: SHOW_CONSENT
-    };
+    }
+  };
 
   // ── Stimulus sets: main task uses PNGs; practice uses text emojis ──
   var stimulus_set_images = jsPsych.randomization.shuffle(STIMULUS_IMAGE_POOL.slice());
@@ -661,7 +659,7 @@
             '</div>',
           choices: jsPsych.NO_KEYS,
           trial_duration: 1600,
-          ttimeline: [{ stimulus: birds[design_idx] }]
+          timeline: [{ stimulus: birds[design_idx] }]
         });
       }
 
