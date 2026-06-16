@@ -2,103 +2,47 @@
 
 This repository contains the jsPsych implementation of the Drone Task, optimized for Pavlovia hosting, Prolific recruitment, and internal pilot testing. It includes a drone-based collection game (reward/loss blocks) and object-memory tests.
 
-### ⚠️ Pilot Compatibility Requirements
-The current pilot uses newer emoji stimuli that require specific hardware/software to render correctly.
-* **Allowed:** Mac laptop/desktop, macOS 14.4+, recent Safari/Chrome/Firefox, physical keyboard.
-* **Not Allowed:** Windows, Chromebook, Linux, iOS/Android phones or tablets.
-* *Note:* A compatibility gate (`static/task/compat-gate.js`) blocks incompatible users automatically. This should be treated as a technical screen-out, not low-quality behavior.
+# Testing & Deployment Links
 
----
+## Local base: http://localhost:8000/index.html
 
-## Setup Instructions
+## Pavlovia base: https://run.pavlovia.org/jiaheyi/DroneTask/
 
-1.  **Verify Plugins:** Ensure `static/lib/jspsych-pavlovia-3.2.5.js` and `static/task/compat-gate.js` exist. If paths change, update the `<script>` tags in `index.html`.
-2.  **Prolific Codes:** In `index.html`, replace `CODE_SUCCESS` and `CODE_REJECT` placeholders with real Prolific completion codes.
-3.  **Consent Form:** Replace placeholder contact fields in `index.html` with IRB-approved language. 
+|Environment |Purpose                                       |Example URL                                              |Save behavior                            |Console confirmation                             |Safe for participants?                                |
+|------------|----------------------------------------------|---------------------------------------------------------|-----------------------------------------|-------------------------------------------------|------------------------------------------------------|
+|**Local**   |Compat gate only                              |`?dev=1&stage=gate`                                      |CSV download at end                      |`[DEV] stage: compatibility gate only`           |QA only                                               |
+|**Local**   |Instructions only                             |`?dev=1&stage=instructions`                              |CSV download at end                      |`[DEV] stage: instructions only`                 |QA only                                               |
+|**Local**   |Short encoding block 1, 5 trials              |`?dev=1&stage=encoding&block=1&ntrials=5`                |CSV download at end                      |`[DEV] stage: encoding, block=1`                 |QA only                                               |
+|**Local**   |Memory test only, block 1 (seeded)            |`?dev=1&stage=test&block=1`                              |CSV download at end                      |`[DEV] Seeded 50 trials…` + `Verification: 50/50`|QA only                                               |
+|**Local**   |Memory test only, block 2                     |`?dev=1&stage=test&block=2`                              |CSV download at end                      |Same as above with block=2                       |QA only                                               |
+|**Local**   |Memory test all boundary pairs (block 2 alias)|`?dev=1&stage=test&block=boundary`                       |CSV download at end                      |`DEV_BLOCK_NUM=2`                                |QA only — note: runs *all* 14 pairs, not only boundary|
+|**Local**   |Slider QA — all pair types                    |`?dev=1&stage=test&block=1`                              |CSV download at end                      |Slider-probe spot-check in console               |QA only                                               |
+|**Local**   |Full block (encoding + memory), 5 trials      |`?dev=1&stage=block&block=1&ntrials=5`                   |CSV download at end                      |`[DEV] stage: full block 1`                      |QA only                                               |
+|**Local**   |Full pilot (all 4 blocks, no consent, no gate)|`?pilot=1&consent=0&gate=0`                              |CSV download at end                      |`DATA_SAVE_MODE = download`                      |Researcher testing                                    |
+|**Local**   |Termination screen                            |`?dev=1&stage=termination`                               |CSV download at end                      |`[DEV] stage: termination`                       |QA only                                               |
+|**Pavlovia**|Compat gate QA                                |`?dev=1&stage=gate`                                      |CSV download                             |`IS_PAVLOVIA=true, DATA_SAVE_MODE=download`      |QA only                                               |
+|**Pavlovia**|Memory test QA, block 1                       |`?dev=1&stage=test&block=1&consent=0`                    |CSV download                             |`[DEV] Seeded 50 trials`                         |QA only                                               |
+|**Pavlovia**|Memory test QA, block=boundary                |`?dev=1&stage=test&block=boundary&consent=0`             |CSV download                             |`DEV_BLOCK_NUM=2`                                |QA only                                               |
+|**Pavlovia**|Full encoding block QA                        |`?dev=1&stage=encoding&block=1&ntrials=5&consent=0`      |CSV download                             |`[DEV] stage: encoding`                          |QA only                                               |
+|**Pavlovia**|Dev + force Pavlovia save                     |`?dev=1&stage=test&block=1&pavlovia_save=1`              |Pavlovia session save                    |`USE_PAVLOVIA=true, DATA_SAVE_MODE=pavlovia`     |QA only                                               |
+|**Pavlovia**|Pilot run (no Prolific redirect)              |`?pilot=1&consent=0`                                     |Pavlovia session save                    |`USE_PAVLOVIA=true, PILOT_MODE=true`             |Researcher pilot                                      |
+|**Pavlovia**|Production / real Prolific participants       |*(no special params; Prolific injects PROLIFIC_PID etc.)*|Pavlovia session save + Prolific redirect|`USE_PAVLOVIA=true, PILOT_MODE=false`            |✅ Real participants                                   |
 
----
+## Parameter glossary for the table above:
 
-## 2. URL Parameters & Controls
-
-Modify the task behavior by appending these parameters to the URL (e.g., `?pilot=1&consent=0`).
-
-| Parameter | Default | Action |
-| :--- | :--- | :--- |
-| `pilot` | `1` | `1` = ends with a thank-you screen (no Prolific redirect). `0` = Production mode (redirects to Prolific). |
-| `consent` | `1` | `1` = shows consent. `0` = skips consent for internal debugging. |
-| `gate` | `1` | `1` = runs Mac/OS/Emoji check. `0` = skips gate for internal debugging. |
-| `dev` | `0` | `1` = enables development routes (skips Pavlovia saving). |
-| `stage` | `full` | If `dev=1`, choose: `instructions`, `encoding` (`bird`), `test` (`memory`), `block` (`block1`/`block2`), or `termination`. |
-| `block` | `1` | If `dev=1`, selects memory block 1–4. |
-| `ntrials` | `full` | If `dev=1`, limits main task trials for faster testing. |
-
----
-
-## 3. Testing & Deployment Links
-
-### Local Development (`python3 -m http.server 8000`)
-* **Full Task:** `http://localhost:8000/index.html`
-* **Skip Gate (Debug):** `http://localhost:8000/index.html?gate=0`
-* **Instructions Only:** `http://localhost:8000/index.html?dev=1&stage=instructions`
-* **Short Block + Memory:** `http://localhost:8000/index.html?dev=1&stage=block&block=1&ntrials=5`
-
-### Pavlovia Pilot (Internal Use)
-When experiment status is **PILOTING**, launch directly using the **Pilot button** on the Pavlovia dashboard. *(Do not rely on plain URLs here, as Pavlovia requires time-limited pilot tokens).*
-
-### Stable Supervisor/Lab Pilot Link
-Once experiment status is **RUNNING**, use this link to share a safe, non-redirecting version:
-`https://run.pavlovia.org/<username>/DroneTask/?pilot=1`
-* *Note on `dev=1` in Pavlovia:* Adding `dev=1` to a Pavlovia link will still trigger the compatibility gate, but it will skip normal Pavlovia data saving and jump to specific task sections.
-
-### Prolific Production Link
-Once ready for real data collection, use this in Prolific:
-`https://run.pavlovia.org/<username>/DroneTask/?pilot=0&PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}`
-
----
-
-## Repository Structure
-
-* `index.html`: Main entry point (timeline, URL params, consent, data saving, Prolific redirects).
-* `inspect_task_design.ipynb`: Notebook for inspecting block structure, reward/loss assignment, temporal-order counterbalancing, and memory pairs. Generates outputs to `design_checks/`.
-* **`static/task/`**
-    * `compat-gate.js`: Device/OS/Emoji/Keyboard screener.
-    * `trial.js`: Core drone collection plugin.
-    * `memory_task.js`: Object-memory test.
-    * `instructions.js`, `comprehension1.js`, `comprehension2.js`: Flow and checks.
-    * `stimuli.js` & `stimuli-details.js`: Trajectories, reward/loss factors, and emoji pools.
-    * `game.min.css`: Core styling.
-
----
-
-## Data Saving
-Pavlovia saving is automatically enabled when hosted on Pavlovia, the plugin is loaded, and `dev` mode is off. Data rows will include:
-* `PROLIFIC_PID`, `STUDY_ID`, `SESSION_ID`, `workerId`, `subId`
-* `pilot_mode`, `consent_shown`, `device_compatible`
-
----
-
-## Pre-Deployment Checklist
-
-**Code & Setup**
-- [ ] `index.html` loads without console errors.
-- [ ] Plugin files (`jspsych-pavlovia-3.2.5.js` & `compat-gate.js`) exist and paths are correct.
-- [ ] `trial.js`, `memory_task.js`, `instructions.js`, and comprehension scripts pass `node --check`.
-
-**Prolific & Consent**
-- [ ] Consent text uses IRB-approved language and is shown by default.
-- [ ] `CODE_SUCCESS` and `CODE_REJECT` match Prolific setup.
-- [ ] Prolific study description explicitly states the Mac/macOS/keyboard requirements.
-- [ ] Production URL uses `pilot=0`. `consent=0` and `gate=0` are strictly removed.
-
-**Task Behavior**
-- [ ] Compatibility gate blocks incorrect devices; `device_compatible` is saved in data.
-- [ ] Incompatible users are instructed to return the Prolific study.
-- [ ] Practice drone motion is visible before hidden-drone instructions.
-- [ ] Practices include both green/reward and red/loss scoring.
-- [ ] Main task keeps the drone hidden.
-- [ ] Object frames and temporal-order questions (horizontal layout) render correctly on Macs.
-- [ ] Temporal-order key mapping is counterbalanced and recorded.
-
-**Pavlovia Environment**
-- [ ] Pavlovia **PILOTING** works via the dashboard Pilot button.
-- [ ] Stable external pilot testing uses **RUNNING** status with `pilot=1`.
+|Param               |Meaning                                                                                                |Safe in production?      |
+|--------------------|-------------------------------------------------------------------------------------------------------|-------------------------|
+|`dev=1`             |Activates debug routing (`stage=` branches); suppresses Pavlovia save                                  |No — QA only             |
+|`pilot=1`           |No Prolific redirect at end; shows thank-you screen instead                                            |Yes — researcher piloting|
+|`consent=0`         |Skips consent screen                                                                                   |No — research use only   |
+|`gate=0`            |Compat gate is already off by default (`SHOW_COMPAT_GATE=false`); no effect unless you flip the default|N/A                      |
+|`ntrials=N`         |Cap per-block trial count                                                                              |No — QA only             |
+|`block=1–4`         |Which block to run in dev encoding/test/block stages                                                   |N/A — dev only           |
+|`block=boundary`    |Alias for block=2 (note: not a pair filter)                                                            |N/A — dev only           |
+|`latin_group=0–3`   |Force Latin-square group                                                                               |No — QA/testing only     |
+|`pavlovia_save=1`   |Force Pavlovia save even with `dev=1`                                                                  |Researcher use           |
+|`stage=gate`        |New: compat gate only                                                                                  |QA only                  |
+|`stage=instructions`|Instructions only                                                                                      |QA only                  |
+|`stage=encoding`    |Encoding trials only                                                                                   |QA only                  |
+|`stage=test`        |Memory test only (seeded data)                                                                         |QA only                  |
+|`stage=block`       |Full block: encoding + memory                                                                          |QA only                  |

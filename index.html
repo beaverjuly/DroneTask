@@ -1,17 +1,18 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Bird Game</title>
+  <title>Drone Game</title>
 
   <!-- Load libraries -->
   <script src="static/lib/jquery-3.7.1/jquery-3.7.1.min.js"></script>
-  <script src="static/lib/jspsych-6.1.0/jspsych.js"></script>
+  <script src="static/lib/jspsych-6.3.1/jspsych.js"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-instructions.js" type="text/javascript"></script>
-  <script src="static/lib/jspsych-6.1.0/plugins/jspsych-html-keyboard-response.js" type="text/javascript"></script>
-  <script src="static/lib/jspsych-6.1.0/plugins/jspsych-image-keyboard-response.js" type="text/javascript"></script>
+  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-html-keyboard-response.js" type="text/javascript"></script>
+  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-image-keyboard-response.js" type="text/javascript"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-call-function.js" type="text/javascript"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-fullscreen.js" type="text/javascript"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-html-button-response.js" type="text/javascript"></script>
+  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-preload.js" type="text/javascript"></script>
   <link href="static/lib/jspsych-6.3.1/css/jspsych.css" rel="stylesheet" type="text/css"></link>
 
   <!-- Pavlovia integration plugin (place in static/lib/) -->
@@ -340,7 +341,7 @@
     stimulus:
       '<div style="max-width:820px; margin:auto; text-align:left; font-size:16px; line-height:1.45em;">' +
         '<h2 style="text-align:center;">Consent to participate</h2>' +
-        '<p><strong>Study Title:</strong> Drone Tracking and Memory Study</p>' +
+        '<p><strong>Study Title:</strong> Drone Tracking Game</p>' +
         '<p><strong>Purpose of the study:</strong> The purpose of this study is to understand how people learn from changing environments and remember items that appear during a computer-based task.</p>' +
         '<p><strong>What you will do:</strong> You will complete a drone-tracking game, short memory tests, and demographic questions. The study takes approximately 50 minutes.</p>' +
         '<p><strong>Risks:</strong> The risks are minimal and are similar to those of everyday computer use. You may experience mild fatigue or boredom.</p>' +
@@ -387,10 +388,9 @@
     type: 'instructions',
     pages: [
       '<div style="max-width:760px;margin:0 auto;text-align:center;font-size:20px;line-height:1.65;">' +
-        '<div style="font-size:32px;font-weight:800;margin-bottom:18px;">🌠 Welcome to the drone game! 🌌</div>' +
-        '<p>You will complete a drone collection game, short memory tests, and a brief questionnaire.</p>' +
-        '<p>The study takes about <strong>50 minutes</strong>.</p>' +
-        '<p>Your bonus depends on task performance and data quality, so please read carefully and stay attentive.</p>' +
+        '<div style="font-size:32px;font-weight:800;margin-bottom:18px;">🌠 Welcome to the drone tracking game! 🌌</div>' +
+        '<p>The game takes about <strong>50 minutes</strong>.</p>' +
+        '<p>Your bonus depends on game performance, so please stay attentive and try your best!</p>' +
       '</div>'
     ],
     show_clickable_nav: true,
@@ -908,8 +908,16 @@
     numTrials = numTrials || 50;
     var fakeImgs = stimulus_set_images.slice(0, numTrials);
 
+    if (fakeImgs.length < numTrials) {
+      console.warn('[DEV] seedFakeBirdData: only ' + fakeImgs.length +
+                   ' stimulus images available, need ' + numTrials);
+    }
+
     var design_idx = block_order[blockNum - 1];
 
+    // Write the parameter record so _getBlockParamsFromData() in
+    // memory_task.js can find vol/stc/valence arrays.  This record
+    // does NOT rely on trial_type so the 6.3.1 override is harmless.
     jsPsych.data.write({
       true_vol: factors_vol,
       true_stc: factors_stc,
@@ -919,8 +927,17 @@
       latin_square_order_labels: block_order_labels.join('|')
     });
 
+    // ── Dev fallback store ──
+    // jsPsych 6.3.1's data.write() merges {trial_type: currentPlugin.type}
+    // AFTER the user object, so our explicit trial_type:'trial' gets
+    // overwritten to 'call-function'.  filter({trial_type:'trial'}) then
+    // returns 0 rows.  Instead of fighting the library, we store the
+    // fake encoding rows in a global that memory_task.js can read directly.
+    if (!window.DEV_FAKE_BLOCK_DATA) window.DEV_FAKE_BLOCK_DATA = {};
+
+    var fakeRows = [];
     for (var i = 0; i < numTrials; i++) {
-      jsPsych.data.write({
+      fakeRows.push({
         trial_type: 'trial',
         block: blockNum,
         display_block: blockNum,
@@ -944,13 +961,17 @@
         randomized: design_idx
       });
     }
+    window.DEV_FAKE_BLOCK_DATA[blockNum] = fakeRows;
 
     console.log(
       '[DEV] Seeded ' + numTrials +
-      ' fake trials for displayed block ' + blockNum +
+      ' fake trials → DEV_FAKE_BLOCK_DATA[' + blockNum + ']' +
       ', design_idx=' + design_idx +
       ', condition=' + getCanonicalConditionId(design_idx)
     );
+    console.log('[DEV]   first stim_img = ' + fakeRows[0].stim_img);
+    console.log('[DEV]   last  stim_img = ' + fakeRows[fakeRows.length - 1].stim_img);
+    console.log('[DEV]   probe spot-check: pair [2,4] idx 3 → ' + fakeRows[2].stim_img);
   }
 
   var practice_check_core = {
@@ -1409,21 +1430,47 @@
     // ── Normalise stage aliases ───────────────────────────────────
     var _stageMap = {
       'bird': 'encoding', 'memory': 'test',
-      'block1': 'block',  'block2': 'block'
+      'block1': 'block',  'block2': 'block',
+      'gate': 'gate'
     };
     var _stage = _stageMap[DEV_STAGE] || DEV_STAGE;
 
     if (DEV_STAGE === 'block1') { DEV_BLOCK_NUM = 1; }
     if (DEV_STAGE === 'block2') { DEV_BLOCK_NUM = 2; }
 
+    // Flag set in text-only branches so we skip the image preload trial.
+    var _skipPreload = false;
+
     // ── DEV: instructions only ────────────────────────────────────
     if (DEV_MODE && _stage === 'instructions') {
+      _skipPreload = true;
       console.log('[DEV] stage: instructions only');
       maybeAddCompatGate();
       timeline = timeline.concat(welcome, feedback0, instructions_loop);
       timeline.push({
         type: 'html-keyboard-response',
         stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Instructions complete. Press any key.</p>',
+        choices: jsPsych.ALL_KEYS
+      });
+
+    // ── DEV: compatibility gate only ──────────────────────────────
+    } else if (DEV_MODE && _stage === 'gate') {
+      _skipPreload = true;
+      console.log('[DEV] stage: compatibility gate only');
+      if (typeof COMPAT_GATE !== 'undefined' && COMPAT_GATE.timeline) {
+        timeline = timeline.concat(COMPAT_GATE.timeline);
+      } else {
+        timeline.push({
+          type: 'html-keyboard-response',
+          stimulus: '<p style="font-size:22px;padding:40px;color:#b00020;">' +
+                    '<strong>[DEV]</strong> COMPAT_GATE not defined — ' +
+                    'is static/task/compat-gate.js loaded?</p>',
+          choices: jsPsych.ALL_KEYS
+        });
+      }
+      timeline.push({
+        type: 'html-keyboard-response',
+        stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Compat gate complete. Press any key.</p>',
         choices: jsPsych.ALL_KEYS
       });
 
@@ -1489,6 +1536,7 @@
 
     // ── DEV: termination screen ───────────────────────────────────
     } else if (DEV_MODE && _stage === 'termination') {
+      _skipPreload = true;
       console.log('[DEV] stage: termination');
       timeline.push({
         type: 'html-keyboard-response',
@@ -1526,69 +1574,157 @@
       );
     }
 
-    // ── Pavlovia integration ────────────────────────────────────
-    var IS_LOCAL_DEV =
-      DEV_MODE ||
+    // ── Environment detection ─────────────────────────────────
+    // IS_LOCAL_ENV: true when running from localhost/file:// (python -m http.server, etc.)
+    // DEV_MODE:     true when ?dev=1 is in the URL (debug routing, but NOT env detection)
+    // IS_PAVLOVIA:  true when actually hosted on Pavlovia (run.pavlovia.org / pavlovia.org)
+    var IS_LOCAL_ENV =
       window.location.hostname === 'localhost' ||
       window.location.hostname === '127.0.0.1' ||
       window.location.protocol === 'file:';
 
-    var hasPavlovia =
-      !IS_LOCAL_DEV &&
-      (typeof jsPsych !== 'undefined' &&
-      typeof jsPsych.plugins !== 'undefined' &&
-      typeof jsPsych.plugins['pavlovia'] !== 'undefined');
+    var IS_PAVLOVIA =
+      window.location.hostname.indexOf('pavlovia.org') !== -1;
 
-    if (hasPavlovia) {
-      timeline.unshift({
-        type: 'pavlovia',
-        command: 'init'
+    // Pavlovia plugin available?  Works regardless of dev mode.
+    var hasPavloviaPlugin =
+      typeof jsPsych !== 'undefined' &&
+      typeof jsPsych.plugins !== 'undefined' &&
+      typeof jsPsych.plugins['pavlovia'] !== 'undefined';
+
+    // Use Pavlovia save when hosted on Pavlovia (pilot or production),
+    // but NOT in dev-mode dev links (to avoid creating noise data).
+    // Set ?pavlovia_save=1 to force Pavlovia saving even with dev=1.
+    var FORCE_PAVLOVIA_SAVE = _urlParams.get('pavlovia_save') === '1';
+    var USE_PAVLOVIA = IS_PAVLOVIA && hasPavloviaPlugin && (!DEV_MODE || FORCE_PAVLOVIA_SAVE);
+
+    // Data-saving strategy
+    //   'pavlovia'  — Pavlovia session save (timeline finish trial + async upload)
+    //   'download'  — browser CSV download at experiment end (local & dev)
+    var DATA_SAVE_MODE = USE_PAVLOVIA ? 'pavlovia' : 'download';
+
+    console.log('───────── Environment ─────────');
+    console.log('  IS_LOCAL_ENV      =', IS_LOCAL_ENV);
+    console.log('  IS_PAVLOVIA       =', IS_PAVLOVIA);
+    console.log('  DEV_MODE          =', DEV_MODE);
+    console.log('  PILOT_MODE        =', PILOT_MODE);
+    console.log('  hasPavloviaPlugin =', hasPavloviaPlugin);
+    console.log('  USE_PAVLOVIA      =', USE_PAVLOVIA);
+    console.log('  DATA_SAVE_MODE    =', DATA_SAVE_MODE);
+    console.log('──────────────────────────────');
+
+    // ── Build prefix: Pavlovia-init → addProperties → (preload) ──
+    // addProperties MUST run before any task data is written so that:
+    //   • participant IDs and metadata appear in all data rows, and
+    //   • the Pavlovia finish trial's CSV snapshot already includes them.
+    // (on_finish fires AFTER Pavlovia finish, so addToAll there is too late.)
+    var _prefixTrials = [];
+
+    // 1. Pavlovia session open (must be first)
+    if (USE_PAVLOVIA) {
+      _prefixTrials.push({ type: 'pavlovia', command: 'init' });
+    }
+
+    // 2. Stamp global metadata on every future data row
+    _prefixTrials.push({
+      type: 'call-function',
+      func: function() {
+        jsPsych.data.addProperties({
+          PROLIFIC_PID:                 PROLIFIC_PID,
+          STUDY_ID:                     STUDY_ID,
+          SESSION_ID:                   SESSION_ID,
+          workerId:                     workerId,
+          subId:                        subId,
+          pilot_mode:                   PILOT_MODE,
+          dev_mode:                     DEV_MODE,
+          consent_shown:                SHOW_CONSENT,
+          data_save_mode:               DATA_SAVE_MODE,
+          is_pavlovia:                  IS_PAVLOVIA,
+          is_local_env:                 IS_LOCAL_ENV,
+          latin_square_group:           latin_square_group,
+          latin_square_order:           block_order.join(','),
+          latin_square_order_labels:    block_order_labels.join('|'),
+          reward_uses_shifted_sequences:
+            (typeof reward_uses_shifted_sequences !== 'undefined')
+              ? reward_uses_shifted_sequences : null
+        });
+        console.log('[DATA] addProperties applied — all future data rows stamped with session metadata.');
+      }
+    });
+
+    // 3. Image preload (jspsych-preload plugin; skipped for text-only dev stages)
+    // jspsych-preload's update_loading_progress_bar() already has a null-guard,
+    // so this is Pavlovia-safe without any extra wrapper.
+    if (!_skipPreload && preload_images.length > 0) {
+      _prefixTrials.push({
+        type: 'preload',
+        images: preload_images,
+        show_progress_bar: true,
+        message: '<p style="font-size:16px;font-family:sans-serif;">Loading experiment assets…</p>',
+        continue_after_error: true,
+        show_detailed_errors: false,
+        on_error: function(f) { console.warn('[preload] Failed:', f); }
       });
+    }
+
+    timeline = _prefixTrials.concat(timeline);
+
+    // 4. Pavlovia session close (must be last task trial)
+    if (USE_PAVLOVIA) {
       timeline.push({
         type: 'pavlovia',
         command: 'finish',
         participantId: PROLIFIC_PID || workerId
       });
-      console.log('[Pavlovia] init/finish trials added to timeline.');
+      console.log('[Pavlovia] init + finish trials inserted. DATA_SAVE_MODE = pavlovia.');
     } else {
-      console.log('[Pavlovia] skipped — local/dev mode or plugin not detected.');
+      console.log('[Pavlovia] skipped — ' +
+        (IS_LOCAL_ENV ? 'local environment' :
+         DEV_MODE     ? 'dev-mode (?pavlovia_save=1 to override)' :
+                        'plugin not found') + '. DATA_SAVE_MODE = download.');
     }
 
     jsPsych.init({
       timeline: timeline,
       show_progress_bar: true,
-      preload_images: preload_images,
       on_finish: function() {
         window.removeEventListener("beforeunload", verify_unload);
+
+        // Append interaction log to the last data row.
+        // All session metadata was already stamped via addProperties at timeline start.
         var interaction_data = jsPsych.data.getInteractionData();
-        jsPsych.data.get().addToLast({ interactions: interaction_data.json() });
+        jsPsych.data.addDataToLastTrial({ interactions: interaction_data.json() });
 
-        // Tag every row with participant identifiers.
-        jsPsych.data.get().addToAll({
-          PROLIFIC_PID:  PROLIFIC_PID,
-          STUDY_ID:      STUDY_ID,
-          SESSION_ID:    SESSION_ID,
-          workerId:      workerId,
-          subId:         subId,
-          pilot_mode:    PILOT_MODE,
-          consent_shown: SHOW_CONSENT,
-          device_compatible: !window._device_incompatible,
+        // ── Helper: offer data as CSV download ──
+        function downloadCSV() {
+          try {
+            var csv = jsPsych.data.get().csv();
+            var filename = 'drone_task_' +
+              (PROLIFIC_PID || workerId || 'unknown') + '_' +
+              new Date().toISOString().replace(/[:.]/g, '-') + '.csv';
+            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            var link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            console.log('[DATA] CSV downloaded: ' + filename + ' (' + csv.length + ' bytes)');
+            return filename;
+          } catch (e) {
+            console.error('[DATA] CSV download failed:', e);
+            return null;
+          }
+        }
 
-          latin_square_group: latin_square_group,
-          latin_square_order: block_order.join(','),
-          latin_square_order_labels: block_order_labels.join('|')
-        });
-
-        // 0. Device incompatible: screened out at the compat gate.
-        //    Do not reject — Prolific policy requires compensation for
-        //    screen-outs. Data is saved so the researcher can identify
-        //    and compensate these participants.
+        // 0. Device incompatible: screened out at compat gate.
         if (window._device_incompatible) {
           console.log('[COMPAT] Participant screened out — device incompatible.');
+          if (DATA_SAVE_MODE === 'download') downloadCSV();
           return;
         }
 
-        // 1. Declined consent: no save, no Prolific completion.
+        // 1. Declined consent: no save.
         if (consent_declined) {
           var declineMsg = PILOT_MODE
             ? '<h2>You have declined to participate</h2>' +
@@ -1599,19 +1735,37 @@
               '<p style="font-size:14px;color:#555;">Please return to Prolific and ' +
               'select "Return study" so you are not charged for this session. ' +
               'You may now close this tab.</p>';
+          document.body.innerHTML =
+            '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
+            'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
+            'background:#fff;">' + declineMsg + '</div>';
+          return;
+        }
 
+        // 2. Download mode (local / dev): trigger CSV and show done screen.
+        if (DATA_SAVE_MODE === 'download') {
+          var savedFile = downloadCSV();
           document.body.innerHTML =
             '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
             'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
             'background:#fff;">' +
-            declineMsg +
+            '<h2>Session Complete</h2>' +
+            (savedFile
+              ? '<p style="font-size:16px;">Data saved as<br><code style="font-size:13px;' +
+                'background:#f0f0f0;padding:2px 8px;border-radius:4px;">' + savedFile + '</code></p>'
+              : '<p style="font-size:16px;color:#d9534f;">CSV download may have failed. ' +
+                'Check browser downloads.</p>') +
+            '<p style="font-size:13px;color:#777;">' +
+            (DEV_MODE ? '[DEV] ' : '') + 'save_mode=' + DATA_SAVE_MODE + '</p>' +
+            '<p style="font-size:14px;color:#555;">You may now close this tab.</p>' +
             '</div>';
+          console.log('[DATA] on_finish complete — mode=' + DATA_SAVE_MODE);
           return;
         }
 
-        // 2. PILOT mode: show final thank-you; no Prolific redirect.
+        // 3. Pavlovia pilot: data already uploaded by the finish trial.
         if (PILOT_MODE) {
-          console.log('[MODE] Pilot mode complete — showing thank-you, no Prolific redirect.');
+          console.log('[MODE] Pilot complete — data uploaded via Pavlovia finish trial.');
           document.body.innerHTML =
             '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
             'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
@@ -1623,7 +1777,7 @@
           return;
         }
 
-        // 3. PRODUCTION mode: existing success / reject redirect logic.
+        // 4. Pavlovia production: Prolific redirect.
         if (low_quality) {
           redirect_reject(workerId, assignmentId, hitId, CODE_REJECT);
         } else {

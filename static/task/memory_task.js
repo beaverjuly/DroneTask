@@ -453,6 +453,20 @@ jsPsych.plugins['memory-task'] = (function() {
       .filterCustom(function(t) { return t.true_vol_param !== null && t.true_vol_param !== undefined; })
       .values();
 
+    // ── Dev-only fallback ──────────────────────────────────────────
+    // jsPsych 6.3.1's data.write() overrides trial_type with the
+    // current plugin name, so seeded rows from seedFakeBirdData end
+    // up as trial_type:'call-function' and the filter above misses
+    // them.  When running a dev test route, the seeded data is stored
+    // in window.DEV_FAKE_BLOCK_DATA instead.
+    if (block_trials.length === 0 &&
+        typeof window.DEV_FAKE_BLOCK_DATA !== 'undefined' &&
+        Array.isArray(window.DEV_FAKE_BLOCK_DATA[block])) {
+      block_trials = window.DEV_FAKE_BLOCK_DATA[block].slice();
+      console.log('[memory-task] Using DEV_FAKE_BLOCK_DATA fallback (' +
+                  block_trials.length + ' trials for block ' + block + ')');
+    }
+
     block_trials.sort(function(a, b) {
       return (a.trial || 0) - (b.trial || 0);
     });
