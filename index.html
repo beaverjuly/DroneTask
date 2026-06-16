@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Drone Game</title>
+  <title>Bird Game</title>
 
   <!-- Load libraries -->
   <script src="static/lib/jquery-3.7.1/jquery-3.7.1.min.js"></script>
@@ -42,6 +42,12 @@
   <script src="static/task/termination.js" type="text/javascript"></script>
   <script src="static/task/instructions.js" type="text/javascript"></script>
   <script src="static/task/compat-gate.js" type="text/javascript"></script>
+
+  <!-- Extracted modules (load after task scripts that define globals they read) -->
+  <script src="static/task/latin_square.js" type="text/javascript"></script>
+  <script src="static/task/preload.js" type="text/javascript"></script>
+  <script src="static/task/data_saving.js" type="text/javascript"></script>
+  <script src="static/task/dev_routes.js" type="text/javascript"></script>
 
   <meta charset="UTF-8">
   <style>
@@ -213,117 +219,10 @@
 
   // ──────────────────────────────────────────────────────────────
   // Latin-square block-order counterbalancing
-  //
-  // Canonical design indices:
-  //   0 = reward, high volatility / low stochasticity
-  //   1 = reward, low  volatility / high stochasticity
-  //   2 = loss,   high volatility / low stochasticity
-  //   3 = loss,   low  volatility / high stochasticity
-  //
-  // The latent position sequences remain attached to their canonical
-  // design index. The Latin Square only changes the order in which
-  // participants encounter the four canonical conditions.
+  // (Constants, helpers, and construction logic in static/task/latin_square.js)
   // ──────────────────────────────────────────────────────────────
-
-  var CANONICAL_CONDITION_LABELS = [
-    'A_reward_highVol_lowStc',
-    'B_reward_lowVol_highStc',
-    'C_loss_highVol_lowStc',
-    'D_loss_lowVol_highStc'
-  ];
-
-  var LATIN_SQUARE_4 = [
-    [0, 1, 3, 2],
-    [1, 2, 0, 3],
-    [2, 3, 1, 0],
-    [3, 0, 2, 1]
-  ];
-
-  function hashStringToInt(s) {
-    var h = 0;
-    s = String(s || '');
-
-    for (var i = 0; i < s.length; i++) {
-      h = ((h << 5) - h) + s.charCodeAt(i);
-      h |= 0; // force 32-bit integer
-    }
-
-    return Math.abs(h);
-  }
-
-  function isPermutationOf0123(arr) {
-    if (!Array.isArray(arr) || arr.length !== 4) return false;
-
-    var seen = {};
-    for (var i = 0; i < arr.length; i++) {
-      if (arr[i] < 0 || arr[i] > 3) return false;
-      if (seen[arr[i]]) return false;
-      seen[arr[i]] = true;
-    }
-
-    return true;
-  }
-
-  function getCanonicalConditionId(designIdx) {
-    return CANONICAL_CONDITION_LABELS[designIdx] || ('condition_' + designIdx);
-  }
-
-  function getLatinSquareGroup() {
-    // Optional dev override:
-    //   ?latin_group=0
-    //   ?latin_group=1
-    //   ?latin_group=2
-    //   ?latin_group=3
-    var forced = _urlParams.get('latin_group');
-
-    if (forced !== null && forced !== '') {
-      var forcedInt = parseInt(forced, 10);
-      if (!isNaN(forcedInt) && forcedInt >= 0 && forcedInt < LATIN_SQUARE_4.length) {
-        console.log('[LATIN] Using forced latin_group=' + forcedInt);
-        return forcedInt;
-      }
-
-      console.warn('[LATIN] Ignoring invalid latin_group=' + forced);
-    }
-
-    // Prefer stable external participant IDs when available.
-    // In local/debug mode, workerId may include Date.now(), so group can vary across reloads.
-    var idForCounterbalance =
-      PROLIFIC_PID ||
-      workerId ||
-      subId ||
-      SESSION_ID ||
-      ('debug_' + Date.now());
-
-    return hashStringToInt(idForCounterbalance) % LATIN_SQUARE_4.length;
-  }
-
-  var latin_square_group = getLatinSquareGroup();
-  var block_order = LATIN_SQUARE_4[latin_square_group].slice();
-
-  if (!isPermutationOf0123(block_order)) {
-    throw new Error('[LATIN] Invalid block_order: ' + JSON.stringify(block_order));
-  }
-
-  // Backward-compatible alias.
-  // Existing downstream code still uses the variable name `randomized`.
-  // Under the revised design, this is no longer a free random shuffle;
-  // it is the participant's Latin-square block order.
-  var randomized = block_order.slice();
-
-  var block_order_labels = block_order.map(function(idx) {
-    return getCanonicalConditionId(idx);
-  });
-  
-  if (DEV_MODE) {
-    console.log('[DEV] Latin-square group:', latin_square_group);
-    console.log('[DEV] Block order:', block_order);
-    console.log('[DEV] Block order labels:', block_order_labels);
-  }
-
-  console.log('[LATIN] latin_square_group =', latin_square_group);
-  console.log('[LATIN] block_order =', block_order);
-  console.log('[LATIN] block_order_labels =', block_order_labels);
+  initLatinSquare();
+  // Globals now set: latin_square_group, block_order, randomized, block_order_labels
 
   // ──────────────────────────────────────────────────────────────
   // Consent form — REPLACE THE PLACEHOLDER TEXT BELOW with your
@@ -341,7 +240,7 @@
     stimulus:
       '<div style="max-width:820px; margin:auto; text-align:left; font-size:16px; line-height:1.45em;">' +
         '<h2 style="text-align:center;">Consent to participate</h2>' +
-        '<p><strong>Study Title:</strong> Drone Tracking Game</p>' +
+        '<p><strong>Study Title:</strong> Drone Tracking and Memory Study</p>' +
         '<p><strong>Purpose of the study:</strong> The purpose of this study is to understand how people learn from changing environments and remember items that appear during a computer-based task.</p>' +
         '<p><strong>What you will do:</strong> You will complete a drone-tracking game, short memory tests, and demographic questions. The study takes approximately 50 minutes.</p>' +
         '<p><strong>Risks:</strong> The risks are minimal and are similar to those of everyday computer use. You may experience mild fatigue or boredom.</p>' +
@@ -388,9 +287,10 @@
     type: 'instructions',
     pages: [
       '<div style="max-width:760px;margin:0 auto;text-align:center;font-size:20px;line-height:1.65;">' +
-        '<div style="font-size:32px;font-weight:800;margin-bottom:18px;">🌠 Welcome to the drone tracking game! 🌌</div>' +
-        '<p>The game takes about <strong>50 minutes</strong>.</p>' +
-        '<p>Your bonus depends on game performance, so please stay attentive and try your best!</p>' +
+        '<div style="font-size:32px;font-weight:800;margin-bottom:18px;">🌠 Welcome to the drone game! 🌌</div>' +
+        '<p>You will complete a drone collection game, short memory tests, and a brief questionnaire.</p>' +
+        '<p>The study takes about <strong>50 minutes</strong>.</p>' +
+        '<p>Your bonus depends on task performance and data quality, so please read carefully and stay attentive.</p>' +
       '</div>'
     ],
     show_clickable_nav: true,
@@ -631,7 +531,7 @@
             '</div>' +
 
             '<div style="font-size:15px;color:#64748b;">' +
-              'Press <strong>space</strong> or an <strong>arrow key</strong> to begin.<br>' +
+              'Press any key to begin.<br>' +
               '<span style="font-size:13px;">Auto-starts in 20 seconds.</span>' +
             '</div>' +
           '</div>';
@@ -641,7 +541,7 @@
           stimulus_width: 180,
           maintain_aspect_ratio: true,
           prompt: transitionHTML,
-          choices: [32, 37, 39],
+          choices: jsPsych.ALL_KEYS,
           trial_duration: 20000,
           timeline: [{ stimulus: birds[design_idx] }]
         });
@@ -904,75 +804,7 @@
     return timeline;
   }
 
- function seedFakeBirdData(blockNum, numTrials) {
-    numTrials = numTrials || 50;
-    var fakeImgs = stimulus_set_images.slice(0, numTrials);
-
-    if (fakeImgs.length < numTrials) {
-      console.warn('[DEV] seedFakeBirdData: only ' + fakeImgs.length +
-                   ' stimulus images available, need ' + numTrials);
-    }
-
-    var design_idx = block_order[blockNum - 1];
-
-    // Write the parameter record so _getBlockParamsFromData() in
-    // memory_task.js can find vol/stc/valence arrays.  This record
-    // does NOT rely on trial_type so the 6.3.1 override is harmless.
-    jsPsych.data.write({
-      true_vol: factors_vol,
-      true_stc: factors_stc,
-      true_valence: factors_valence,
-      latin_square_group: latin_square_group,
-      latin_square_order: block_order.join(','),
-      latin_square_order_labels: block_order_labels.join('|')
-    });
-
-    // ── Dev fallback store ──
-    // jsPsych 6.3.1's data.write() merges {trial_type: currentPlugin.type}
-    // AFTER the user object, so our explicit trial_type:'trial' gets
-    // overwritten to 'call-function'.  filter({trial_type:'trial'}) then
-    // returns 0 rows.  Instead of fighting the library, we store the
-    // fake encoding rows in a global that memory_task.js can read directly.
-    if (!window.DEV_FAKE_BLOCK_DATA) window.DEV_FAKE_BLOCK_DATA = {};
-
-    var fakeRows = [];
-    for (var i = 0; i < numTrials; i++) {
-      fakeRows.push({
-        trial_type: 'trial',
-        block: blockNum,
-        display_block: blockNum,
-        trial: i + 1,
-        stim_img: fakeImgs[i],
-
-        design_idx: design_idx,
-        canonical_design_idx: design_idx,
-        condition_id: getCanonicalConditionId(design_idx),
-
-        true_vol_param: factors_vol[design_idx],
-        true_stc_param: factors_stc[design_idx],
-        vol_level: factors_vol[design_idx] === 49 ? 'high' : 'low',
-        stc_level: factors_stc[design_idx] === 64 ? 'high' : 'low',
-        valence: factors_valence[design_idx],
-
-        latin_square_group: latin_square_group,
-        latin_square_order: block_order.join(','),
-        latin_square_order_labels: block_order_labels.join('|'),
-
-        randomized: design_idx
-      });
-    }
-    window.DEV_FAKE_BLOCK_DATA[blockNum] = fakeRows;
-
-    console.log(
-      '[DEV] Seeded ' + numTrials +
-      ' fake trials → DEV_FAKE_BLOCK_DATA[' + blockNum + ']' +
-      ', design_idx=' + design_idx +
-      ', condition=' + getCanonicalConditionId(design_idx)
-    );
-    console.log('[DEV]   first stim_img = ' + fakeRows[0].stim_img);
-    console.log('[DEV]   last  stim_img = ' + fakeRows[fakeRows.length - 1].stim_img);
-    console.log('[DEV]   probe spot-check: pair [2,4] idx 3 → ' + fakeRows[2].stim_img);
-  }
+  // seedFakeBirdData is defined in static/task/dev_routes.js
 
   var practice_check_core = {
     type: 'call-function',
@@ -1331,28 +1163,8 @@
     button_label_next: "Finish"
   };
 
-  var preload_images = [
-    'static/img/task_assets/reward/drone0.png',
-    'static/img/task_assets/reward/drone1.png',
-    'static/img/task_assets/reward/drone2.png',
-    'static/img/task_assets/reward/drone3.png',
-    'static/img/task_assets/reward/drone4.png'
-  ];
-
-  // Preload main object PNG stimuli.
-  if (Array.isArray(stimulus_set_images)) {
-    preload_images = preload_images.concat(stimulus_set_images);
-  }
-
-  // Preload practice stimuli too, if any are image paths.
-  // Emoji practice stimuli will be ignored safely.
-  if (Array.isArray(practice_stimulus_images)) {
-    preload_images = preload_images.concat(
-      practice_stimulus_images.filter(function(x) {
-        return typeof x === 'string' && (x.indexOf('/') !== -1 || x.indexOf('.png') !== -1);
-      })
-    );
-  }
+  // Preload image list (built by static/task/preload.js)
+  var preload_images = buildPreloadImageList(stimulus_set_images, practice_stimulus_images);
 
   var feedback_p1 = {
     type: 'instructions',
@@ -1415,19 +1227,20 @@
     }
 
     var timeline = [];
-    function maybeAddCompatGate() {
+
+    function maybeAddCompatGate(tl) {
       if (
         SHOW_COMPAT_GATE &&
         typeof COMPAT_GATE !== 'undefined' &&
         COMPAT_GATE.timeline
       ) {
-        timeline = timeline.concat(COMPAT_GATE.timeline);
+        Array.prototype.push.apply(tl, COMPAT_GATE.timeline);
       } else {
         console.log('[COMPAT] Compatibility gate skipped.');
       }
     }
 
-    // ── Normalise stage aliases ───────────────────────────────────
+    // ── Stage normalisation and dev-route aliases ──
     var _stageMap = {
       'bird': 'encoding', 'memory': 'test',
       'block1': 'block',  'block2': 'block',
@@ -1438,124 +1251,41 @@
     if (DEV_STAGE === 'block1') { DEV_BLOCK_NUM = 1; }
     if (DEV_STAGE === 'block2') { DEV_BLOCK_NUM = 2; }
 
-    // Flag set in text-only branches so we skip the image preload trial.
+    // ── Build task timeline ──
     var _skipPreload = false;
 
-    // ── DEV: instructions only ────────────────────────────────────
-    if (DEV_MODE && _stage === 'instructions') {
-      _skipPreload = true;
-      console.log('[DEV] stage: instructions only');
-      maybeAddCompatGate();
-      timeline = timeline.concat(welcome, feedback0, instructions_loop);
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Instructions complete. Press any key.</p>',
-        choices: jsPsych.ALL_KEYS
+    if (DEV_MODE && _stage !== 'full') {
+      // Dev route: delegate to dev_routes.js
+      var _devResult = buildDevTimeline({
+        stage:                  _stage,
+        devBlockNum:            DEV_BLOCK_NUM,
+        devBlock:               DEV_BLOCK,
+        devNtrials:             DEV_NTRIALS,
+        devVersion:             DEV_VERSION,
+        trials:                 trials,
+        create_memory_timeline: create_memory_timeline,
+        maybeAddCompatGate:     maybeAddCompatGate,
+        welcome:                welcome,
+        feedback0:              feedback0,
+        instructions_loop:      instructions_loop,
+        consent_trial:          consent_trial,
+        buildBirdMemoryTrials:  buildBirdMemoryTrials,
+        survey_demographics:    survey_demographics,
+        feedback1:              feedback1,
+        finish:                 finish,
+        SHOW_CONSENT:           SHOW_CONSENT
       });
-
-    // ── DEV: compatibility gate only ──────────────────────────────
-    } else if (DEV_MODE && _stage === 'gate') {
-      _skipPreload = true;
-      console.log('[DEV] stage: compatibility gate only');
-      if (typeof COMPAT_GATE !== 'undefined' && COMPAT_GATE.timeline) {
-        timeline = timeline.concat(COMPAT_GATE.timeline);
-      } else {
-        timeline.push({
-          type: 'html-keyboard-response',
-          stimulus: '<p style="font-size:22px;padding:40px;color:#b00020;">' +
-                    '<strong>[DEV]</strong> COMPAT_GATE not defined — ' +
-                    'is static/task/compat-gate.js loaded?</p>',
-          choices: jsPsych.ALL_KEYS
-        });
-      }
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Compat gate complete. Press any key.</p>',
-        choices: jsPsych.ALL_KEYS
-      });
-
-    // ── DEV: encoding (trial) block only ─────────────────────────
-    } else if (DEV_MODE && _stage === 'encoding') {
-      console.log('[DEV] stage: encoding, block=' + DEV_BLOCK);
-      maybeAddCompatGate();
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Encoding — block <em>' +
-                  DEV_BLOCK + '</em>. Press any key.</p>',
-        choices: jsPsych.ALL_KEYS
-      });
-      var _encStart = (DEV_BLOCK_NUM - 1) * 50;
-      var _encEnd   = DEV_BLOCK_NUM * 50;
-      timeline = timeline.concat(trials.slice(_encStart, _encEnd));
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Encoding complete. Press any key.</p>',
-        choices: jsPsych.ALL_KEYS
-      });
-
-    // ── DEV: memory / test block only ────────────────────────────
-    } else if (DEV_MODE && (_stage === 'test' || _stage === 'recognition')) {
-      console.log('[DEV] stage: ' + _stage + ', block=' + DEV_BLOCK);
-      maybeAddCompatGate();
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Memory test — block <em>' +
-                  DEV_BLOCK + '</em>. Press any key.</p>',
-        choices: jsPsych.ALL_KEYS
-      });
-      timeline.push({
-        type: 'call-function',
-        func: function () { seedFakeBirdData(DEV_BLOCK_NUM, 50); }
-      });
-      timeline = timeline.concat(create_memory_timeline(DEV_BLOCK_NUM));
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Memory test complete. Press any key.</p>',
-        choices: jsPsych.ALL_KEYS
-      });
-
-    // ── DEV: single full block (encoding + memory) ────────────────
-    } else if (DEV_MODE && _stage === 'block') {
-      console.log('[DEV] stage: full block ' + DEV_BLOCK_NUM);
-      maybeAddCompatGate();
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Full block ' +
-                  DEV_BLOCK_NUM + '. Press any key.</p>',
-        choices: jsPsych.ALL_KEYS
-      });
-      var _bStart = (DEV_BLOCK_NUM - 1) * 50;
-      var _bEnd   = DEV_BLOCK_NUM * 50;
-      timeline = timeline.concat(trials.slice(_bStart, _bEnd));
-      timeline = timeline.concat(create_memory_timeline(DEV_BLOCK_NUM));
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Block complete. Press any key.</p>',
-        choices: jsPsych.ALL_KEYS
-      });
-
-    // ── DEV: termination screen ───────────────────────────────────
-    } else if (DEV_MODE && _stage === 'termination') {
-      _skipPreload = true;
-      console.log('[DEV] stage: termination');
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:24px;padding:40px;"><strong>[DEV] Termination Screen</strong></p>' +
-                  '<p style="font-size:16px;color:#d9534f;">Game terminated. Press any key.</p>',
-        choices: jsPsych.ALL_KEYS
-      });
-
-    // ── Full experiment (DEV full or production) ──────────────────
+      timeline = _devResult.timeline;
+      _skipPreload = _devResult.skipPreload;
     } else {
+      // Full experiment (production or dev ?stage=full)
       if (DEV_MODE) {
         console.log('[DEV] stage: full experiment' +
                     (DEV_NTRIALS > 0 ? ' (ntrials=' + DEV_NTRIALS + ')' : '') +
                     ', version=' + DEV_VERSION);
       }
       var combinedTrials = buildBirdMemoryTrials();
-
-      // ── Compatibility gate (before consent, so incompatible participants can return immediately) ───────────────────────
-      maybeAddCompatGate();
+      maybeAddCompatGate(timeline);
 
       if (SHOW_CONSENT) {
         timeline = timeline.concat(consent_trial);
@@ -1574,216 +1304,56 @@
       );
     }
 
-    // ── Environment detection ─────────────────────────────────
-    // IS_LOCAL_ENV: true when running from localhost/file:// (python -m http.server, etc.)
-    // DEV_MODE:     true when ?dev=1 is in the URL (debug routing, but NOT env detection)
-    // IS_PAVLOVIA:  true when actually hosted on Pavlovia (run.pavlovia.org / pavlovia.org)
-    var IS_LOCAL_ENV =
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1' ||
-      window.location.protocol === 'file:';
+    // ── Environment detection and data-saving setup ──
+    // (logic in static/task/data_saving.js)
+    var _env = initEnvironment(_urlParams, DEV_MODE, PILOT_MODE);
 
-    var IS_PAVLOVIA =
-      window.location.hostname.indexOf('pavlovia.org') !== -1;
-
-    // Pavlovia plugin available?  Works regardless of dev mode.
-    var hasPavloviaPlugin =
-      typeof jsPsych !== 'undefined' &&
-      typeof jsPsych.plugins !== 'undefined' &&
-      typeof jsPsych.plugins['pavlovia'] !== 'undefined';
-
-    // Use Pavlovia save when hosted on Pavlovia (pilot or production),
-    // but NOT in dev-mode dev links (to avoid creating noise data).
-    // Set ?pavlovia_save=1 to force Pavlovia saving even with dev=1.
-    var FORCE_PAVLOVIA_SAVE = _urlParams.get('pavlovia_save') === '1';
-    var USE_PAVLOVIA = IS_PAVLOVIA && hasPavloviaPlugin && (!DEV_MODE || FORCE_PAVLOVIA_SAVE);
-
-    // Data-saving strategy
-    //   'pavlovia'  — Pavlovia session save (timeline finish trial + async upload)
-    //   'download'  — browser CSV download at experiment end (local & dev)
-    var DATA_SAVE_MODE = USE_PAVLOVIA ? 'pavlovia' : 'download';
-
-    console.log('───────── Environment ─────────');
-    console.log('  IS_LOCAL_ENV      =', IS_LOCAL_ENV);
-    console.log('  IS_PAVLOVIA       =', IS_PAVLOVIA);
-    console.log('  DEV_MODE          =', DEV_MODE);
-    console.log('  PILOT_MODE        =', PILOT_MODE);
-    console.log('  hasPavloviaPlugin =', hasPavloviaPlugin);
-    console.log('  USE_PAVLOVIA      =', USE_PAVLOVIA);
-    console.log('  DATA_SAVE_MODE    =', DATA_SAVE_MODE);
-    console.log('──────────────────────────────');
-
-    // ── Build prefix: Pavlovia-init → addProperties → (preload) ──
-    // addProperties MUST run before any task data is written so that:
-    //   • participant IDs and metadata appear in all data rows, and
-    //   • the Pavlovia finish trial's CSV snapshot already includes them.
-    // (on_finish fires AFTER Pavlovia finish, so addToAll there is too late.)
+    // ── Prefix trials: Pavlovia-init → metadata stamp → preload ──
     var _prefixTrials = [];
 
-    // 1. Pavlovia session open (must be first)
-    if (USE_PAVLOVIA) {
+    if (_env.USE_PAVLOVIA) {
       _prefixTrials.push({ type: 'pavlovia', command: 'init' });
     }
 
-    // 2. Stamp global metadata on every future data row
-    _prefixTrials.push({
-      type: 'call-function',
-      func: function() {
-        jsPsych.data.addProperties({
-          PROLIFIC_PID:                 PROLIFIC_PID,
-          STUDY_ID:                     STUDY_ID,
-          SESSION_ID:                   SESSION_ID,
-          workerId:                     workerId,
-          subId:                        subId,
-          pilot_mode:                   PILOT_MODE,
-          dev_mode:                     DEV_MODE,
-          consent_shown:                SHOW_CONSENT,
-          data_save_mode:               DATA_SAVE_MODE,
-          is_pavlovia:                  IS_PAVLOVIA,
-          is_local_env:                 IS_LOCAL_ENV,
-          latin_square_group:           latin_square_group,
-          latin_square_order:           block_order.join(','),
-          latin_square_order_labels:    block_order_labels.join('|'),
-          reward_uses_shifted_sequences:
-            (typeof reward_uses_shifted_sequences !== 'undefined')
-              ? reward_uses_shifted_sequences : null
-        });
-        console.log('[DATA] addProperties applied — all future data rows stamped with session metadata.');
-      }
-    });
+    _prefixTrials.push(buildMetadataStampTrial(_env,
+      { PROLIFIC_PID: PROLIFIC_PID, STUDY_ID: STUDY_ID,
+        SESSION_ID: SESSION_ID, workerId: workerId, subId: subId },
+      { pilotMode: PILOT_MODE, devMode: DEV_MODE, showConsent: SHOW_CONSENT,
+        latinSquareGroup: latin_square_group,
+        blockOrder: block_order, blockOrderLabels: block_order_labels }
+    ));
 
-    // 3. Image preload (jspsych-preload plugin; skipped for text-only dev stages)
-    // jspsych-preload's update_loading_progress_bar() already has a null-guard,
-    // so this is Pavlovia-safe without any extra wrapper.
-    if (!_skipPreload && preload_images.length > 0) {
-      _prefixTrials.push({
-        type: 'preload',
-        images: preload_images,
-        show_progress_bar: true,
-        message: '<p style="font-size:16px;font-family:sans-serif;">Loading experiment assets…</p>',
-        continue_after_error: true,
-        show_detailed_errors: false,
-        on_error: function(f) { console.warn('[preload] Failed:', f); }
-      });
-    }
+    var _preloadTrial = buildPreloadTrial(_skipPreload, preload_images);
+    if (_preloadTrial) _prefixTrials.push(_preloadTrial);
 
     timeline = _prefixTrials.concat(timeline);
 
-    // 4. Pavlovia session close (must be last task trial)
-    if (USE_PAVLOVIA) {
+    // ── Suffix: Pavlovia finish (must be last) ──
+    if (_env.USE_PAVLOVIA) {
       timeline.push({
         type: 'pavlovia',
         command: 'finish',
         participantId: PROLIFIC_PID || workerId
       });
-      console.log('[Pavlovia] init + finish trials inserted. DATA_SAVE_MODE = pavlovia.');
-    } else {
-      console.log('[Pavlovia] skipped — ' +
-        (IS_LOCAL_ENV ? 'local environment' :
-         DEV_MODE     ? 'dev-mode (?pavlovia_save=1 to override)' :
-                        'plugin not found') + '. DATA_SAVE_MODE = download.');
     }
 
+    // ── Launch ──
     jsPsych.init({
       timeline: timeline,
       show_progress_bar: true,
-      on_finish: function() {
-        window.removeEventListener("beforeunload", verify_unload);
-
-        // Append interaction log to the last data row.
-        // All session metadata was already stamped via addProperties at timeline start.
-        var interaction_data = jsPsych.data.getInteractionData();
-        jsPsych.data.addDataToLastTrial({ interactions: interaction_data.json() });
-
-        // ── Helper: offer data as CSV download ──
-        function downloadCSV() {
-          try {
-            var csv = jsPsych.data.get().csv();
-            var filename = 'drone_task_' +
-              (PROLIFIC_PID || workerId || 'unknown') + '_' +
-              new Date().toISOString().replace(/[:.]/g, '-') + '.csv';
-            var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            var link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            console.log('[DATA] CSV downloaded: ' + filename + ' (' + csv.length + ' bytes)');
-            return filename;
-          } catch (e) {
-            console.error('[DATA] CSV download failed:', e);
-            return null;
-          }
-        }
-
-        // 0. Device incompatible: screened out at compat gate.
-        if (window._device_incompatible) {
-          console.log('[COMPAT] Participant screened out — device incompatible.');
-          if (DATA_SAVE_MODE === 'download') downloadCSV();
-          return;
-        }
-
-        // 1. Declined consent: no save.
-        if (consent_declined) {
-          var declineMsg = PILOT_MODE
-            ? '<h2>You have declined to participate</h2>' +
-              '<p>Thank you for your interest. No data has been saved.</p>' +
-              '<p style="font-size:14px;color:#555;">You may now close this tab.</p>'
-            : '<h2>You have declined to participate</h2>' +
-              '<p>Thank you for your interest. No data has been saved.</p>' +
-              '<p style="font-size:14px;color:#555;">Please return to Prolific and ' +
-              'select "Return study" so you are not charged for this session. ' +
-              'You may now close this tab.</p>';
-          document.body.innerHTML =
-            '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
-            'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
-            'background:#fff;">' + declineMsg + '</div>';
-          return;
-        }
-
-        // 2. Download mode (local / dev): trigger CSV and show done screen.
-        if (DATA_SAVE_MODE === 'download') {
-          var savedFile = downloadCSV();
-          document.body.innerHTML =
-            '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
-            'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
-            'background:#fff;">' +
-            '<h2>Session Complete</h2>' +
-            (savedFile
-              ? '<p style="font-size:16px;">Data saved as<br><code style="font-size:13px;' +
-                'background:#f0f0f0;padding:2px 8px;border-radius:4px;">' + savedFile + '</code></p>'
-              : '<p style="font-size:16px;color:#d9534f;">CSV download may have failed. ' +
-                'Check browser downloads.</p>') +
-            '<p style="font-size:13px;color:#777;">' +
-            (DEV_MODE ? '[DEV] ' : '') + 'save_mode=' + DATA_SAVE_MODE + '</p>' +
-            '<p style="font-size:14px;color:#555;">You may now close this tab.</p>' +
-            '</div>';
-          console.log('[DATA] on_finish complete — mode=' + DATA_SAVE_MODE);
-          return;
-        }
-
-        // 3. Pavlovia pilot: data already uploaded by the finish trial.
-        if (PILOT_MODE) {
-          console.log('[MODE] Pilot complete — data uploaded via Pavlovia finish trial.');
-          document.body.innerHTML =
-            '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
-            'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
-            'background:#fff;">' +
-            '<h2>Thank you for participating!</h2>' +
-            '<p style="font-size:16px;">Your responses have been recorded.</p>' +
-            '<p style="font-size:14px;color:#555;">You may now close this tab.</p>' +
-            '</div>';
-          return;
-        }
-
-        // 4. Pavlovia production: Prolific redirect.
-        if (low_quality) {
-          redirect_reject(workerId, assignmentId, hitId, CODE_REJECT);
-        } else {
-          redirect_success(workerId, assignmentId, hitId, CODE_SUCCESS);
-        }
-      }
+      on_finish: buildOnFinishCallback(_env, {
+        PROLIFIC_PID:      PROLIFIC_PID,
+        workerId:          workerId,
+        assignmentId:      assignmentId,
+        hitId:             hitId,
+        PILOT_MODE:        PILOT_MODE,
+        DEV_MODE:          DEV_MODE,
+        CODE_SUCCESS:      CODE_SUCCESS,
+        CODE_REJECT:       CODE_REJECT,
+        getConsentDeclined: function() { return consent_declined; },
+        getLowQuality:      function() { return low_quality; },
+        verifyUnload:       verify_unload
+      })
     });
   })();
 </script>
