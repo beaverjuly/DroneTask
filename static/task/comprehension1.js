@@ -225,10 +225,14 @@ jsPsych.plugins['comprehension1'] = (function() {
     html += '<div class="comp-shell"><div class="comp-card">';
 
     html += '<div class="comp-header">';
-              'Answer all questions correctly to continue. ' +
-              'If you get any wrong, you must <strong>click the locked question</strong> ' +
-              'to review the relevant instructions before you can revise your answer.' +
-            '</div>';
+    html +=   '<div class="comp-kicker">Understanding Check</div>';
+    html +=   '<p class="comp-subtitle">' +
+                'To confirm understanding of the mission, complete the following questions.<br>' +
+                'For any incorrect question, you must <strong>click the question to review the instructions</strong>, ' +
+                'then revise your answer to continue.<br>' +
+                '<strong>Answer all questions correctly to start the mission!</strong>' +
+              '</p>';
+    html += '</div>';
 
     if (justReviewedTopic) {
       html += '<div class="comp-banner">' +
