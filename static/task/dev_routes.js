@@ -11,10 +11,25 @@
 //   buildDevTimeline(config)
 //     Returns { timeline: [...], skipPreload: bool }
 //     config: { stage, devBlockNum, devBlock, devNtrials, devVersion,
-//               trials, create_memory_timeline, maybeAddCompatGate,
-//               welcome, feedback0, instructions_loop, consent_trial,
-//               buildBirdMemoryTrials, survey_demographics, feedback1,
-//               finish, SHOW_CONSENT, SHOW_COMPAT_GATE }
+//               trials, create_memory_timeline,
+//               welcome, feedback0, instructions_loop, comprehensionTimeline,
+//               consent_trial, buildBirdMemoryTrials, survey_demographics,
+//               feedback1, finish, SHOW_CONSENT }
+//
+//   Recognised ?stage= values (after alias normalisation in index.html's
+//   _stageMap — see that file for the alias table):
+//     instructions    — inst1..inst4 decks + practice trials, no main task
+//     comprehension    — comprehension1/2 loops only, skips inst decks/practice
+//     gate             — currently aliased to 'instructions' in index.html;
+//                         this file still has a literal branch below in case
+//                         a compatibility gate is reintroduced later
+//     encoding         — one encoding block only (alias: 'bird')
+//     test / recognition — one memory-test block only (alias: 'memory')
+//     block            — one encoding block + its memory test
+//                         (canonical link name: 'encoding-test', aliased
+//                         to 'block' in index.html's _stageMap)
+//     termination      — termination screen only
+//     (anything else)  — full experiment, optionally capped via ntrials
 // ──────────────────────────────────────────────────────────────
 
 /**
@@ -103,7 +118,6 @@ function seedFakeBirdData(blockNum, numTrials) {
  *   .devVersion           - version string
  *   .trials               - encoding trial array from make_trials(0, block_order)
  *   .create_memory_timeline - function(blockNum) → memory timeline
- *   .maybeAddCompatGate   - function(timeline) → pushes compat gate if enabled
  *   .welcome              - welcome trial
  *   .feedback0            - pre-instructions feedback trial
  *   .instructions_loop    - full instruction sequence
@@ -125,7 +139,6 @@ function buildDevTimeline(cfg) {
   if (stage === 'instructions') {
     skipPreload = true;
     console.log('[DEV] stage: instructions only');
-    cfg.maybeAddCompatGate(timeline);
     timeline = timeline.concat(cfg.welcome, cfg.feedback0, cfg.instructions_loop);
     timeline.push({
       type: 'html-keyboard-response',
@@ -133,31 +146,43 @@ function buildDevTimeline(cfg) {
       choices: jsPsych.ALL_KEYS
     });
 
-  // ── compatibility gate only ──
-  } else if (stage === 'gate') {
+  // ── comprehension checks only (skips inst1–inst4 decks + practice) ──
+  } else if (stage === 'comprehension') {
     skipPreload = true;
-    console.log('[DEV] stage: compatibility gate only');
-    if (typeof COMPAT_GATE !== 'undefined' && COMPAT_GATE.timeline) {
-      timeline = timeline.concat(COMPAT_GATE.timeline);
-    } else {
-      timeline.push({
-        type: 'html-keyboard-response',
-        stimulus: '<p style="font-size:22px;padding:40px;color:#b00020;">' +
-                  '<strong>[DEV]</strong> COMPAT_GATE not defined — ' +
-                  'is static/task/compat-gate.js loaded?</p>',
-        choices: jsPsych.ALL_KEYS
-      });
-    }
+    console.log('[DEV] stage: comprehension checks only (loops until correct, never terminates)');
     timeline.push({
       type: 'html-keyboard-response',
-      stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Compat gate complete. Press any key.</p>',
+      stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Comprehension checks only ' +
+                '— wrong-locked questions still route to their review deck. Press any key.</p>',
+      choices: jsPsych.ALL_KEYS
+    });
+    timeline = timeline.concat(cfg.comprehensionTimeline);
+    timeline.push({
+      type: 'html-keyboard-response',
+      stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Comprehension checks complete. Press any key.</p>',
+      choices: jsPsych.ALL_KEYS
+    });
+
+  // ── compatibility gate (removed) ──
+  // NOTE: index.html's _stageMap currently aliases 'gate' → 'instructions',
+  // so in practice this branch is unreachable — ?stage=gate never arrives
+  // here as the literal string 'gate'. It's left in place so that if a
+  // compatibility gate is reintroduced later, deleting that one alias
+  // entry in index.html immediately restores a dedicated gate route;
+  // at that point, replace the placeholder message below with the
+  // real gate timeline.
+  } else if (stage === 'gate') {
+    skipPreload = true;
+    console.log('[DEV] stage: compatibility gate (removed from runtime)');
+    timeline.push({
+      type: 'html-keyboard-response',
+      stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Compatibility gate has been removed. Press any key.</p>',
       choices: jsPsych.ALL_KEYS
     });
 
   // ── encoding block only ──
   } else if (stage === 'encoding') {
     console.log('[DEV] stage: encoding, block=' + cfg.devBlock);
-    cfg.maybeAddCompatGate(timeline);
     timeline.push({
       type: 'html-keyboard-response',
       stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Encoding — block <em>' +
@@ -176,7 +201,6 @@ function buildDevTimeline(cfg) {
   // ── memory test only (seeded data) ──
   } else if (stage === 'test' || stage === 'recognition') {
     console.log('[DEV] stage: ' + stage + ', block=' + cfg.devBlock);
-    cfg.maybeAddCompatGate(timeline);
     timeline.push({
       type: 'html-keyboard-response',
       stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Memory test — block <em>' +
@@ -194,13 +218,15 @@ function buildDevTimeline(cfg) {
       choices: jsPsych.ALL_KEYS
     });
 
-  // ── full block (encoding + memory) ──
+  // ── encoding + memory test, one block ──
+  // Canonical link name is 'encoding-test' (aliased to this 'block'
+  // stage value in index.html's _stageMap; old ?stage=block / block1 /
+  // block2 links keep working unchanged — see the alias table there).
   } else if (stage === 'block') {
-    console.log('[DEV] stage: full block ' + cfg.devBlockNum);
-    cfg.maybeAddCompatGate(timeline);
+    console.log('[DEV] stage: encoding+test (block ' + cfg.devBlockNum + ')');
     timeline.push({
       type: 'html-keyboard-response',
-      stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Full block ' +
+      stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Encoding + Test — block ' +
                 cfg.devBlockNum + '. Press any key.</p>',
       choices: jsPsych.ALL_KEYS
     });
@@ -210,7 +236,7 @@ function buildDevTimeline(cfg) {
     timeline = timeline.concat(cfg.create_memory_timeline(cfg.devBlockNum));
     timeline.push({
       type: 'html-keyboard-response',
-      stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Block complete. Press any key.</p>',
+      stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Encoding + Test complete. Press any key.</p>',
       choices: jsPsych.ALL_KEYS
     });
 
@@ -231,8 +257,6 @@ function buildDevTimeline(cfg) {
                 (cfg.devNtrials > 0 ? ' (ntrials=' + cfg.devNtrials + ')' : '') +
                 ', version=' + cfg.devVersion);
     var combinedTrials = cfg.buildBirdMemoryTrials();
-
-    cfg.maybeAddCompatGate(timeline);
 
     if (cfg.SHOW_CONSENT) {
       timeline = timeline.concat(cfg.consent_trial);

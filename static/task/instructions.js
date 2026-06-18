@@ -688,7 +688,8 @@ pageBody('👽 Examine each object carefully',
     '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
       'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
       '<div style="font-size:34px;margin-bottom:8px;">🌲 ⇠ 🎤 ⇢ 🍤</div>' +
-      '<div style="font-size:15px;line-height:1.45;color:#4b5563;"><strong>When</strong> did one object came between other two?</div>' +
+      '<div style="font-size:15px;line-height:1.45;color:#4b5563;"><strong>When</strong> did one object appear between the other two?</div>' +
+    '</div>' +
     '</div>' ,
 
 // P3: slider example + priority
@@ -720,7 +721,8 @@ pageBody('Example question',
           'font-size:42px;box-shadow:0 4px 12px rgba(0,0,0,.08);">🍤</div>' +
       '</div>' +
 
-    '</div>' 
+    '</div>' +
+    '</div>'
   ],
   show_clickable_nav: true,
   button_label_previous: 'Prev',

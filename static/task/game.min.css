@@ -362,7 +362,7 @@
 /* ── Stimulus emoji card ── */
 .stimulus-card {
   position: absolute;
-  top: 24%;
+  top: clamp(3%, 15vh, 10%);
   transform: translateX(-50%);
   z-index: 14;
   width: 250px;

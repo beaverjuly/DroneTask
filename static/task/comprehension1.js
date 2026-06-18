@@ -180,12 +180,12 @@ jsPsych.plugins['comprehension1'] = (function() {
 
     var statusEl = '';
     if (status === 'correct-locked') {
-      statusEl = '<span class="q-status" style="color:#16a34a;font-size:18px;">✓</span>';
+      statusEl = '<span class="q-status" style="color:#16a34a;font-size:18px;">&#x2713;</span>';
     } else if (status === 'wrong-editable') {
-      statusEl = '<span class="q-status" style="color:#d97706;">🔄 Please answer again</span>';
+      statusEl = '<span class="q-status" style="color:#d97706;">&#x1F504; Please answer again</span>';
     } else if (status === 'wrong-locked') {
       statusEl = '<span class="q-status q-status-cta" style="color:#dc2626;">' +
-                   '🔍 Click to review →</span>';
+                   '&#x1F50D; Click to review &#x2192;</span>';
     }
 
     var html = '<div class="comp-q ' + status + '" data-q-idx="' + idx + '">';
@@ -226,20 +226,20 @@ jsPsych.plugins['comprehension1'] = (function() {
 
     html += '<div class="comp-header">';
     html +=   '<div class="comp-kicker">Understanding Check</div>';
-    html +=   '<p class="comp-subtitle">' +
-                'To confirm understanding of the mission, complete the following questions.<br>' +
-                'For any incorrect question, you must <strong>click the question to review the instructions</strong>, ' +
-                'then revise your answer to continue.<br>' +
-                '<strong>Answer all questions correctly to start the mission!</strong>' +
-              '</p>';
+    html +=   '<p class="comp-subtitle">';
+    html +=     'To confirm understanding of the mission, complete the following questions.<br>';
+    html +=     'For any incorrect question, you must <strong>click the question to review the instructions</strong>, ';
+    html +=     'then revise your answer to continue.<br>';
+    html +=     '<strong>Answer all questions correctly to start the mission!</strong>';
+    html +=   '</p>';
     html += '</div>';
 
     if (justReviewedTopic) {
-      html += '<div class="comp-banner">' +
-                'You just reviewed <strong>' +
-                  (TOPIC_LABEL[justReviewedTopic] || justReviewedTopic) + '</strong>. ' +
-                'Please update your highlighted answer below, then submit again.' +
-              '</div>';
+      html += '<div class="comp-banner">';
+      html +=   'You just reviewed <strong>' +
+                  (TOPIC_LABEL[justReviewedTopic] || justReviewedTopic) + '</strong>. ';
+      html +=   'Please update your highlighted answer below, then submit again.';
+      html += '</div>';
     }
 
     // Progress pips

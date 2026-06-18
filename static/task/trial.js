@@ -711,17 +711,88 @@ plugin.trial = function (display_element, trial) {
 
     var missed_response = function () {
       jsPsych.pluginAPI.cancelAllKeyboardResponses();
-      var msg;
-      if (trial.is_moving_practice) {
-        msg = '<p style="font-size:20px;line-height:1.5em">Are you there? You should try to move the collector using left and right arrow keys.<br><br>Please pay more attention and move the collector, otherwise we will end the game here!</p>';
-      } else if (trial.strong_warning) {
-        msg = '<p style="font-size:20px;line-height:1.5em">Are you there? You have not moved the collector for a long time.<br><br>We have warned you more than ' +
-              trial.missing_msg_warning_number +
-              ' times. <br><br><b>Warning: we are about to reject your work!</b></p>';
-      } else {
-        msg = '<p style="font-size:20px;line-height:1.5em">Are you there? You have not moved the collector for a long time.<br><br>Please pay more attention and play with your collector, otherwise we may end the experiment early and reject your work.</p>';
+
+      function warningCard(icon, title, body, footer, tone) {
+        var styles = {
+          orange: {
+            bg: '#fff7ed',
+            border: '#fb923c',
+            title: '#9a3412',
+            footer: '#7c2d12'
+          },
+          red: {
+            bg: '#fef2f2',
+            border: '#ef4444',
+            title: '#991b1b',
+            footer: '#7f1d1d'
+          },
+          blue: {
+            bg: '#eff6ff',
+            border: '#93c5fd',
+            title: '#1e3a8a',
+            footer: '#1e40af'
+          }
+        };
+
+        var s = styles[tone] || styles.orange;
+
+        return (
+          '<div style="' +
+            'max-width:760px;margin:18vh auto;padding:34px 42px;' +
+            'border-radius:22px;background:' + s.bg + ';' +
+            'border:2px solid ' + s.border + ';' +
+            'box-shadow:0 14px 42px rgba(15,23,42,.18);' +
+            'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+            'text-align:center;line-height:1.55;color:#1f2937;">' +
+
+            '<div style="font-size:44px;margin-bottom:10px;">' + icon + '</div>' +
+
+            '<div style="' +
+              'font-size:30px;font-weight:850;margin-bottom:14px;color:' + s.title + ';">' +
+              title +
+            '</div>' +
+
+            '<p style="font-size:20px;margin:0 0 14px 0;">' +
+              body +
+            '</p>' +
+
+            '<p style="font-size:17px;margin:0;color:' + s.footer + ';">' +
+              footer +
+            '</p>' +
+          '</div>'
+        );
       }
+
+      var msg;
+
+      if (trial.is_moving_practice) {
+        msg = warningCard(
+          '⚠️',
+          'Still there?',
+          'Please move your collector with the arrow keys.',
+          'Your mission will end early if you leave your collector for many trials.',
+          'orange'
+        );
+      } else if (trial.strong_warning) {
+        msg = warningCard(
+          '⚠️',
+          'Still there?',
+          'Please move your collector with the arrow keys.',
+          'Your mission will end early if you leave your collector for many trials.',
+          'red'
+        );
+      } else {
+        msg = warningCard(
+          '⚠️',
+          'Still there?',
+          'Please move your collector with the arrow keys.',
+          'Your mission will end early if you leave your collector for many trials.',
+          'orange'
+        );
+      }
+
       display_element.innerHTML = msg;
+
       jsPsych.pluginAPI.setTimeout(function () {
         end_trial(0);
       }, trial.missing_duration);

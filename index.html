@@ -31,23 +31,21 @@
   <script src="static/js/jspsych-screen-check.js"></script>
 
   <!-- Load experiment -->
-  <script src="static/task/trial.js" type="text/javascript"></script>
-  <script src="static/task/memory_task.js" type="text/javascript"></script>
+  <script src="static/task/trial.js?v=20260616a" type="text/javascript"></script>
+  <script src="static/task/memory_task.js?v=20260616a" type="text/javascript"></script>
 
   <link href="static/task/game.min.css" rel="stylesheet" type="text/css"></link>
-  <script src="static/task/stimuli.js" type="text/javascript"></script>
-  <script src="static/task/stimuli-details.js" type="text/javascript"></script>
-  <script src="static/task/comprehension1.js" type="text/javascript"></script>
-  <script src="static/task/comprehension2.js" type="text/javascript"></script>
-  <script src="static/task/termination.js" type="text/javascript"></script>
-  <script src="static/task/instructions.js" type="text/javascript"></script>
-  <script src="static/task/compat-gate.js" type="text/javascript"></script>
+  <script src="static/task/stimuli.js?v=20260616a" type="text/javascript"></script>
+  <script src="static/task/stimuli-details.js?v=20260616a" type="text/javascript"></script>
+  <script src="static/task/comprehension1.js?v=20260616a" type="text/javascript"></script>
+  <script src="static/task/comprehension2.js?v=20260616a" type="text/javascript"></script>
+  <script src="static/task/instructions.js?v=20260616a" type="text/javascript"></script>
 
   <!-- Extracted modules (load after task scripts that define globals they read) -->
-  <script src="static/task/latin_square.js" type="text/javascript"></script>
-  <script src="static/task/preload.js" type="text/javascript"></script>
-  <script src="static/task/data_saving.js" type="text/javascript"></script>
-  <script src="static/task/dev_routes.js" type="text/javascript"></script>
+  <script src="static/task/latin_square.js?v=20260616a" type="text/javascript"></script>
+  <script src="static/task/preload.js?v=20260616a" type="text/javascript"></script>
+  <script src="static/task/data_saving.js?v=20260616a" type="text/javascript"></script>
+  <script src="static/task/dev_routes.js?v=20260616a" type="text/javascript"></script>
 
   <meta charset="UTF-8">
   <style>
@@ -92,8 +90,7 @@
 
   // ?version=simple | version=rich — task variant switch.
   var DEV_VERSION = _urlParams.get('version') || 'full';
-  // Set ?gate=0 to skip the compatibility gate during local debugging.
-  // By default, the gate is shown even in dev links.
+  // Compatibility gate removed — no longer needed.
   var SHOW_COMPAT_GATE = false;
 
   // ──────────────────────────────────────────────────────────────
@@ -538,7 +535,7 @@
 
         trials.push({
           type: 'image-keyboard-response',
-          stimulus_width: 180,
+          stimulus_width: 480,
           maintain_aspect_ratio: true,
           prompt: transitionHTML,
           choices: jsPsych.ALL_KEYS,
@@ -548,7 +545,7 @@
 
         trials.push({
           type: 'image-keyboard-response',
-          stimulus_width: 180,
+          stimulus_width: 480,
           maintain_aspect_ratio: true,
           prompt:
             '<div style="' +
@@ -840,60 +837,10 @@
 
   // ──────────────────────────────────────────────────────────────
   // Robust comprehension-loop helpers.
-  // Instead of checking jsPsych.data.get().last(1), which can point to
-  // an instruction page or another trial type, explicitly query the
-  // latest completed trial of the intended comprehension plugin.
   // ──────────────────────────────────────────────────────────────
   function getLastTrialOfType(trialType) {
     var rows = jsPsych.data.get().filter({ trial_type: trialType }).values();
     return rows.length ? rows[rows.length - 1] : null;
-  }
-
-  function hasComprehensionErrors(trialType) {
-    var data = getLastTrialOfType(trialType);
-
-    return (
-      data &&
-      typeof data.num_errors === 'number' &&
-      data.num_errors > 0
-    );
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // Topic-aware comprehension review.
-  // The comprehension plugins return:
-  //   done: true/false
-  //   review_topic: 'inst1' | 'inst2' | 'inst3' | 'inst4' | null
-  //   num_errors: number
-  //
-  // If a participant clicks a wrong locked question, review_topic is set.
-  // We route them only to the corresponding instruction deck, then return
-  // to the same comprehension check.
-  // ──────────────────────────────────────────────────────────────
-
-  function getLastTrialOfType(trialType) {
-    var rows = jsPsych.data.get().filter({ trial_type: trialType }).values();
-    return rows.length ? rows[rows.length - 1] : null;
-  }
-
-  function needsReview(trialType) {
-    var data = getLastTrialOfType(trialType);
-    return !!(
-      data &&
-      data.done === false &&
-      data.review_topic
-    );
-  }
-
-  function failedWithoutReview(trialType) {
-    var data = getLastTrialOfType(trialType);
-    return !!(
-      data &&
-      data.done === false &&
-      !data.review_topic &&
-      typeof data.num_errors === 'number' &&
-      data.num_errors > 0
-    );
   }
 
   function passedComprehension(trialType) {
@@ -901,136 +848,70 @@
     return !!(data && data.done === true);
   }
 
-  function reviewDeckForTopic(topic) {
-    if (topic === 'inst1') return [addSmoothTransitions(inst1)];
-    if (topic === 'inst2') return [addSmoothTransitions(inst2_locking_and_bag)];
-    if (topic === 'inst3') return [addSmoothTransitions(inst3_drone_disappears)];
-    if (topic === 'inst4') return [addSmoothTransitions(inst4_full_game)];
-    return [];
-  }
+  // ──────────────────────────────────────────────────────────────
+  // Topic-aware comprehension loop.
+  //
+  // Each comprehension plugin (comprehension1 / comprehension2) returns:
+  //   done: true   → all answers correct, exit the loop
+  //   done: false  → review_topic is set when the participant clicks
+  //                  a wrong-locked card; null if they submitted with
+  //                  errors but did not click any card (the plugin
+  //                  re-paints in-place in that case, so finishTrial
+  //                  only fires on click-to-review or all-correct).
+  //
+  // The loop:
+  //   1. Present the comprehension trial.
+  //   2. If it ended with review_topic, show the matching instruction
+  //      deck (conditional nodes — only the matching one fires).
+  //   3. loop_function checks: if not passed, repeat from step 1.
+  //
+  // Participants are NEVER terminated for wrong comprehension answers.
+  // The cycle repeats indefinitely until all answers are correct.
+  // ──────────────────────────────────────────────────────────────
 
-  function makeReviewLoop(trialType, compTrial) {
+  function makeComprehensionLoop(trialType, compTrial) {
     return {
       timeline: [
+        compTrial,
+        // Conditional review decks — only the matching topic fires
         {
           timeline: [addSmoothTransitions(inst1)],
           conditional_function: function() {
             var d = getLastTrialOfType(trialType);
-            return !!(d && d.review_topic === 'inst1');
+            return !!(d && d.done === false && d.review_topic === 'inst1');
           }
         },
         {
           timeline: [addSmoothTransitions(inst2_locking_and_bag)],
           conditional_function: function() {
             var d = getLastTrialOfType(trialType);
-            return !!(d && d.review_topic === 'inst2');
+            return !!(d && d.done === false && d.review_topic === 'inst2');
           }
         },
         {
           timeline: [addSmoothTransitions(inst3_drone_disappears)],
           conditional_function: function() {
             var d = getLastTrialOfType(trialType);
-            return !!(d && d.review_topic === 'inst3');
+            return !!(d && d.done === false && d.review_topic === 'inst3');
           }
         },
         {
           timeline: [addSmoothTransitions(inst4_full_game)],
           conditional_function: function() {
             var d = getLastTrialOfType(trialType);
-            return !!(d && d.review_topic === 'inst4');
+            return !!(d && d.done === false && d.review_topic === 'inst4');
           }
-        },
-        compTrial
+        }
       ],
-      conditional_function: function() {
-        return needsReview(trialType);
+      loop_function: function() {
+        // Keep looping until all answers are correct
+        return !passedComprehension(trialType);
       }
     };
   }
 
-  var comprehension1_review_loop = makeReviewLoop('comprehension1', comprehension1);
-  var comprehension2_review_loop = makeReviewLoop('comprehension2', comprehension2);
-
-  // This catches the case where they submit with wrong answers but do not
-  // click a wrong card for review. It should not immediately terminate.
-  var force_review_message = {
-    type: 'html-keyboard-response',
-    stimulus:
-      '<div style="max-width:680px;margin:12vh auto;padding:28px 34px;' +
-        'border-radius:18px;background:#fff7ed;border:1px solid #fed7aa;' +
-        'box-shadow:0 10px 30px rgba(15,23,42,.10);text-align:center;' +
-        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;">' +
-        '<div style="font-size:28px;font-weight:850;color:#9a3412;margin-bottom:10px;">Review needed</div>' +
-        '<p style="font-size:18px;line-height:1.6;color:#374151;margin:0;">' +
-          'Some answers are still incorrect. Please click each red locked question to review its related instruction page, then answer it again.' +
-        '</p>' +
-        '<p style="font-size:15px;color:#64748b;margin-top:18px;">Press any key to return to the questions.</p>' +
-      '</div>',
-    choices: jsPsych.ALL_KEYS
-  };
-
-  var comprehension1_force_review = {
-    timeline: [force_review_message, comprehension1],
-    conditional_function: function() {
-      return failedWithoutReview('comprehension1');
-    }
-  };
-
-  var comprehension2_force_review = {
-    timeline: [force_review_message, comprehension2],
-    conditional_function: function() {
-      return failedWithoutReview('comprehension2');
-    }
-  };
-
-  // Keep this as a final safety net only. Under the topic-aware flow,
-  // participants should not reach this unless something unexpected happens.
-  var comprehension_check_core = {
-    type: 'call-function',
-    func: function() {},
-    on_finish: function(trial) {
-      low_quality = true;
-      jsPsych.endExperiment();
-    }
-  };
-
-  var terminate = {
-    type: 'termination',
-    show_clickable_nav: true,
-    button_label_previous: "Prev",
-    button_label_next: "Next",
-    on_start: function(trial) {
-      var c2 = getLastTrialOfType('comprehension2');
-      var c1 = getLastTrialOfType('comprehension1');
-
-      var failed = null;
-      if (c2 && c2.done === false && typeof c2.num_errors === 'number' && c2.num_errors > 0) {
-        failed = c2;
-      } else if (c1 && c1.done === false && typeof c1.num_errors === 'number' && c1.num_errors > 0) {
-        failed = c1;
-      }
-
-      var correctness = failed && Array.isArray(failed.correctness_responses)
-        ? failed.correctness_responses
-        : [];
-
-      trial.incorrect = correctness.findIndex(function(element) {
-        return element === 0;
-      }) + 1;
-    }
-  };
-
-  var comprehension_check = {
-    timeline: [terminate, comprehension_check_core],
-    conditional_function: function() {
-      // Final fallback: only terminate if a comprehension is failed and there
-      // is no review topic currently pending.
-      return (
-        failedWithoutReview('comprehension1') ||
-        failedWithoutReview('comprehension2')
-      );
-    }
-  };
+  var comprehension1_loop = makeComprehensionLoop('comprehension1', comprehension1);
+  var comprehension2_loop = makeComprehensionLoop('comprehension2', comprehension2);
 
   function addSmoothTransitions(node) {
     if (!node || node.type !== 'instructions') return node;
@@ -1099,19 +980,29 @@
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_full_game));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(quiz));
 
-  // Mechanics check
-  instructions_loop = instructions_loop.concat(comprehension1);
-  instructions_loop = instructions_loop.concat(comprehension1_review_loop);
-  instructions_loop = instructions_loop.concat(comprehension1_force_review);
+  // Mechanics check (loops until all correct — never terminates)
+  instructions_loop.push(comprehension1_loop);
 
-  // Full mission check
-  instructions_loop = instructions_loop.concat(comprehension2);
-  instructions_loop = instructions_loop.concat(comprehension2_review_loop);
-  instructions_loop = instructions_loop.concat(comprehension2_force_review);
+  // Full mission check (loops until all correct — never terminates)
+  instructions_loop.push(comprehension2_loop);
 
-  // Final safety net only
-  instructions_loop = instructions_loop.concat(comprehension_check);
   instructions_loop = instructions_loop.concat(ready);
+
+  // ──────────────────────────────────────────────────────────────
+  // Dev-only: comprehension checks in isolation (?dev=1&stage=comprehension).
+  // Reuses the SAME comprehension1_loop / comprehension2_loop objects that
+  // ship in instructions_loop — not a re-implementation — so this route
+  // always reflects the live loop_function/review-deck logic above.
+  // Skips inst1–inst4 main decks and all practice trials; review decks
+  // still render automatically when a wrong-locked question is clicked,
+  // since that logic lives inside makeComprehensionLoop() itself.
+  // ──────────────────────────────────────────────────────────────
+  var comprehensionOnlyTimeline = [].concat(
+    addSmoothTransitions(quiz),
+    comprehension1_loop,
+    comprehension2_loop,
+    ready
+  );
 
   var feedback0 = {
     type: 'instructions',
@@ -1228,23 +1119,33 @@
 
     var timeline = [];
 
-    function maybeAddCompatGate(tl) {
-      if (
-        SHOW_COMPAT_GATE &&
-        typeof COMPAT_GATE !== 'undefined' &&
-        COMPAT_GATE.timeline
-      ) {
-        Array.prototype.push.apply(tl, COMPAT_GATE.timeline);
-      } else {
-        console.log('[COMPAT] Compatibility gate skipped.');
-      }
-    }
-
     // ── Stage normalisation and dev-route aliases ──
+    //
+    // 'gate' → 'instructions': the compatibility gate was removed from
+    // runtime, so old ?stage=gate links now land on the instructions
+    // route instead of a removed-feature placeholder. If a compatibility
+    // gate is reintroduced in the future, delete this one alias entry —
+    // dev_routes.js still has a literal stage==='gate' branch ready to
+    // receive it (see the comment there).
+    //
+    // 'encoding-test' is the canonical name for the combined
+    // encoding+memory-test route (previously called "Full block";
+    // internal stage value is still 'block', unchanged, so old
+    // ?stage=block / ?stage=block1 / ?stage=block2 links keep working).
+    // Several alternate spellings are mapped too because a literal '+'
+    // typed directly in a URL query string is decoded to a SPACE by
+    // URLSearchParams (form-encoding rules) — it does NOT survive as
+    // a '+' character — so '?stage=encoding+test' actually arrives
+    // here as the string "encoding test". Use 'encoding-test' (hyphen)
+    // when sharing links; it round-trips through any URL bar untouched.
     var _stageMap = {
       'bird': 'encoding', 'memory': 'test',
       'block1': 'block',  'block2': 'block',
-      'gate': 'gate'
+      'encoding-test':  'block',   // ← canonical, recommended
+      'encoding_test':  'block',
+      'encoding test':  'block',   // unencoded '+' decodes to this
+      'encoding+test':  'block',   // properly percent-encoded (%2B) decodes to this
+      'gate': 'instructions'
     };
     var _stage = _stageMap[DEV_STAGE] || DEV_STAGE;
 
@@ -1264,10 +1165,10 @@
         devVersion:             DEV_VERSION,
         trials:                 trials,
         create_memory_timeline: create_memory_timeline,
-        maybeAddCompatGate:     maybeAddCompatGate,
         welcome:                welcome,
         feedback0:              feedback0,
         instructions_loop:      instructions_loop,
+        comprehensionTimeline:  comprehensionOnlyTimeline,
         consent_trial:          consent_trial,
         buildBirdMemoryTrials:  buildBirdMemoryTrials,
         survey_demographics:    survey_demographics,
@@ -1285,7 +1186,6 @@
                     ', version=' + DEV_VERSION);
       }
       var combinedTrials = buildBirdMemoryTrials();
-      maybeAddCompatGate(timeline);
 
       if (SHOW_CONSENT) {
         timeline = timeline.concat(consent_trial);
