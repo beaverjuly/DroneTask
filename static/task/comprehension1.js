@@ -1,30 +1,21 @@
 // ═══════════════════════════════════════════════════════════════════════
 // comprehension1.js — Mission mechanics check (with topic-aware review)
 //
-// Behaviour:
-//   • First render: all questions editable, no marks.
-//   • On Submit (any wrong):
-//       correct  → locked, GREEN border, ✓ badge
-//       wrong    → locked, RED   border, "Click to review →" CTA
-//                  (radios disabled — cannot be edited until reviewed)
-//   • Click on a wrong-locked question → finishTrial({
-//         done:false, review_topic:'inst1'|'inst2'|'inst3', ... })
-//     The timeline downstream takes the participant to that block, then
-//     loops back here.
-//   • On re-entry, questions previously CLICKED become editable
-//     (ORANGE border, "Please answer again" hint). Other wrong questions
-//     remain locked-clickable. Correct ones remain locked-correct.
-//   • Submit again validates only the editable questions; locked answers
-//     do not change. Once all are correct → finishTrial({done:true,...}).
+// Flow:
+//   1. First render: all questions editable.  Submit is active.
+//      - Submit with blanks → toast "some questions are unanswered".
+//      - Submit with all answered → validate.
+//        correct → GREEN (locked);  wrong → RED (locked, clickable).
+//        Submit button disables.
+//   2. Post-validation: participant clicks each RED question to review.
+//      After review they return; that question becomes ORANGE (editable).
+//      Changing the radio immediately validates:
+//        correct → GREEN instantly;  wrong → stays ORANGE.
+//      Submit re-enables only when ALL questions are GREEN.
+//   3. Submit when all GREEN → ✅ animation → finishTrial({done:true}).
 //
-// Question → topic mapping:
-//   Q1 main goal              → inst1
-//   Q2 collector white/grey   → inst2 (locking)
-//   Q3 bag always under drone → inst3 (air currents)
-//   Q4 green: catch more = +  → inst2 (bag colour)
-//   Q5 red:   catch more = +  → inst2 (bag colour)
-//   Q6 idle ends mission      → inst2 (idle warning)
-//   Q7 objects + main mission → inst2 (objects)
+// Bug-proof: before navigating away for review, ALL current editable
+// radio selections are snapshotted into state, so nothing reverts.
 // ═══════════════════════════════════════════════════════════════════════
 
 jsPsych.plugins['comprehension1'] = (function() {
@@ -42,8 +33,6 @@ jsPsych.plugins['comprehension1'] = (function() {
     }
   };
 
-  // Questions for this comprehension block, each tagged with the
-  // instruction topic to send the participant back to on review.
   var PROMPTS = [
     {
       text: 'Your main goal is to move the collector to catch as many supply fragments as possible.',
@@ -96,7 +85,6 @@ jsPsych.plugins['comprehension1'] = (function() {
     }
   ];
 
-  // Friendly label shown in the "you just reviewed X" banner.
   var TOPIC_LABEL = {
     inst1: 'mission goal',
     inst2: 'collector & supplies',
@@ -117,7 +105,6 @@ jsPsych.plugins['comprehension1'] = (function() {
       '.comp-kicker{display:inline-block;padding:4px 11px;border-radius:999px;',
         'background:#e8f1ff;color:#1d4ed8;font-size:13px;font-weight:800;letter-spacing:.04em;',
         'text-transform:uppercase;margin-bottom:10px;}',
-      '.comp-title{margin:0;font-size:26px;line-height:1.25;font-weight:850;}',
       '.comp-subtitle{margin:10px auto 0 auto;max-width:720px;font-size:15px;line-height:1.55;color:#4b5563;}',
       '.comp-banner{margin:14px auto 0 auto;max-width:720px;padding:10px 16px;border-radius:10px;',
         'background:#fef9c3;border:1px solid #fde68a;color:#854d0e;font-size:15px;font-weight:600;}',
@@ -155,20 +142,27 @@ jsPsych.plugins['comprehension1'] = (function() {
       '.q-option input{width:18px;height:18px;accent-color:#2563eb;}',
       '.q-option.enabled input{cursor:pointer;}',
       '.q-option.disabled input{cursor:not-allowed;}',
-      '.submit-wrap{display:flex;justify-content:center;margin-top:22px;}',
+      '.submit-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:22px;}',
       '#comp-submit{font-size:17px;font-weight:800;padding:11px 30px;border-radius:999px;border:none;',
-        'color:#fff;background:#2563eb;box-shadow:0 6px 18px rgba(37,99,235,.28);cursor:pointer;}',
-      '#comp-submit:hover{background:#1d4ed8;}',
-      '@media (max-width:720px){.comp-card{padding:22px 18px 26px 18px;}.comp-title{font-size:23px;}',
+        'color:#fff;background:#2563eb;box-shadow:0 6px 18px rgba(37,99,235,.28);cursor:pointer;',
+        'transition:background .2s,opacity .2s,box-shadow .2s;}',
+      '#comp-submit:hover:not(.disabled){background:#1d4ed8;}',
+      '#comp-submit.disabled{background:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:.7;}',
+      '.comp-toast{padding:10px 18px;border-radius:10px;font-size:15px;font-weight:600;',
+        'opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;max-width:500px;}',
+      '.comp-toast.visible{opacity:1;}',
+      '.comp-toast.warn{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;}',
+      '.comp-toast.unanswered{background:#fffbeb;border:1px solid #fde68a;color:#854d0e;}',
+      '@media(max-width:720px){.comp-card{padding:22px 18px 26px 18px;}',
         '.q-text{font-size:16px;}.q-options{margin-left:0;}}',
       '</style>'
     ].join('');
   }
 
   function renderQuestion(prompt, idx, state) {
-    var c    = state.correctness[idx]; // null | true | false
-    var rev  = state.reviewed[idx];     // bool — has user clicked review
-    var resp = state.responses[idx];   // null | option string
+    var c    = state.correctness[idx];
+    var rev  = state.reviewed[idx];
+    var resp = state.responses[idx];
 
     var status;
     if (c === null) status = 'unanswered';
@@ -182,14 +176,13 @@ jsPsych.plugins['comprehension1'] = (function() {
     if (status === 'correct-locked') {
       statusEl = '<span class="q-status" style="color:#16a34a;font-size:18px;">&#x2713;</span>';
     } else if (status === 'wrong-editable') {
-      statusEl = '<span class="q-status" style="color:#d97706;">&#x1F504; Please answer again</span>';
+      statusEl = '<span class="q-status" style="color:#d97706;">&#x1F504; Please revise</span>';
     } else if (status === 'wrong-locked') {
       statusEl = '<span class="q-status q-status-cta" style="color:#dc2626;">' +
                    '&#x1F50D; Click to review &#x2192;</span>';
     }
 
     var html = '<div class="comp-q ' + status + '" data-q-idx="' + idx + '">';
-
     html += '<div class="q-topline">';
     html +=   '<div class="q-num">' + (idx + 1) + '</div>';
     html +=   '<div class="q-body">';
@@ -209,15 +202,24 @@ jsPsych.plugins['comprehension1'] = (function() {
       html += '<label class="' + optClass + '">';
       html +=   '<input type="radio" name="q' + idx + '" value="' + opt + '"' +
                   (isChecked ? ' checked' : '') +
-                  (inputsDisabled ? ' disabled' : '') +
-                  (!inputsDisabled ? ' required' : '') + '>';
+                  (inputsDisabled ? ' disabled' : '') + '>';
       html +=   '<span>' + opt + '</span>';
       html += '</label>';
     }
     html += '</div>';
-
     html += '</div>';
     return html;
+  }
+
+  function isAllCorrect(state) {
+    for (var i = 0; i < PROMPTS.length; i++) {
+      if (state.correctness[i] !== true) return false;
+    }
+    return true;
+  }
+
+  function submitShouldBeDisabled(state) {
+    return state.attempts > 0 && !isAllCorrect(state);
   }
 
   function renderAll(state, justReviewedTopic) {
@@ -238,11 +240,10 @@ jsPsych.plugins['comprehension1'] = (function() {
       html += '<div class="comp-banner">';
       html +=   'You just reviewed <strong>' +
                   (TOPIC_LABEL[justReviewedTopic] || justReviewedTopic) + '</strong>. ';
-      html +=   'Please update your highlighted answer below, then submit again.';
+      html +=   'Please update your highlighted answer below.';
       html += '</div>';
     }
 
-    // Progress pips
     html += '<div class="comp-progress">';
     for (var k = 0; k < PROMPTS.length; k++) {
       var pipCls = 'comp-pip';
@@ -251,18 +252,20 @@ jsPsych.plugins['comprehension1'] = (function() {
       html += '<div class="' + pipCls + '" title="Question ' + (k + 1) + '"></div>';
     }
     html += '</div>';
-    html += '</div>'; // /comp-header
+    html += '</div>';
 
-    html += '<form id="comp-form"><div class="comp-list">';
+    html += '<div class="comp-list" id="comp-list">';
     for (var i = 0; i < PROMPTS.length; i++) {
       html += renderQuestion(PROMPTS[i], i, state);
     }
     html += '</div>';
 
+    var btnDisabled = submitShouldBeDisabled(state);
     html += '<div class="submit-wrap">';
-    html += '<button type="submit" id="comp-submit">Submit answers</button>';
+    html += '<button type="button" id="comp-submit" class="' +
+              (btnDisabled ? 'disabled' : '') + '">Submit answers</button>';
+    html += '<div class="comp-toast" id="comp-toast"></div>';
     html += '</div>';
-    html += '</form>';
 
     html += '</div></div>';
     return html;
@@ -271,9 +274,6 @@ jsPsych.plugins['comprehension1'] = (function() {
   plugin.trial = function(display_element, trial) {
     var startTime = performance.now();
 
-    // Persist state across review iterations on window.__comp1State.
-    // First entry initialises fresh state; on each loop iteration the
-    // existing state is restored.
     if (!window.__comp1State) {
       window.__comp1State = {
         responses:   PROMPTS.map(function() { return null; }),
@@ -284,7 +284,6 @@ jsPsych.plugins['comprehension1'] = (function() {
     }
     var state = window.__comp1State;
 
-    // Detect whether we just returned from a review.
     var allComp = jsPsych.data.get().filter({ trial_type: 'comprehension1' }).values();
     var lastComp = allComp.length > 0 ? allComp[allComp.length - 1] : null;
     var justReviewedTopic = (lastComp && lastComp.review_topic) ? lastComp.review_topic : null;
@@ -297,25 +296,46 @@ jsPsych.plugins['comprehension1'] = (function() {
     }
 
     function bindHandlers() {
-      var listEl = display_element.querySelector('.comp-list');
-      var formEl = display_element.querySelector('#comp-form');
-
-      // Click-to-review (delegated on the list)
+      var listEl = display_element.querySelector('#comp-list');
+      var submitBtn = display_element.querySelector('#comp-submit');
       listEl.addEventListener('click', onCardClick);
+      listEl.addEventListener('change', onRadioChange);
+      submitBtn.addEventListener('click', onSubmitClick);
+    }
 
-      // Submit
-      formEl.addEventListener('submit', onSubmit);
+    function snapshotEditable() {
+      for (var i = 0; i < PROMPTS.length; i++) {
+        var isEditable = (state.correctness[i] === null) ||
+                         (state.correctness[i] === false && state.reviewed[i]);
+        if (!isEditable) continue;
+        var el = display_element.querySelector('input[name="q' + i + '"]:checked');
+        if (el) state.responses[i] = el.value;
+      }
+    }
+
+    function onRadioChange(e) {
+      var radio = e.target;
+      if (radio.tagName !== 'INPUT' || radio.type !== 'radio') return;
+      var idx = parseInt(radio.name.slice(1), 10);
+      state.responses[idx] = radio.value;
+
+      if (state.attempts > 0 && state.correctness[idx] === false && state.reviewed[idx]) {
+        if (radio.value === PROMPTS[idx].correct) {
+          state.correctness[idx] = true;
+          state.reviewed[idx] = false;
+          snapshotEditable();
+          justReviewedTopic = null;
+          paint();
+        }
+      }
     }
 
     function onCardClick(e) {
       var card = e.target.closest('.comp-q');
       if (!card || !card.classList.contains('wrong-locked')) return;
-
       var idx = parseInt(card.getAttribute('data-q-idx'), 10);
-      // Mark this question as having been reviewed so it becomes editable
-      // when we return.
+      snapshotEditable();
       state.reviewed[idx] = true;
-
       finishWith({
         done: false,
         review_topic: PROMPTS[idx].topic,
@@ -323,43 +343,87 @@ jsPsych.plugins['comprehension1'] = (function() {
       });
     }
 
-    function onSubmit(e) {
-      e.preventDefault();
-
-      // Read responses ONLY from currently-editable questions.
-      // Locked questions retain their stored state.responses[i] value.
-      for (var i = 0; i < PROMPTS.length; i++) {
-        var locked = (state.correctness[i] === true) ||
-                     (state.correctness[i] === false && !state.reviewed[i]);
-        if (locked) continue;
-
-        var checkedEl = display_element.querySelector('input[name="q' + i + '"]:checked');
-        state.responses[i] = checkedEl ? checkedEl.value : null;
-      }
-
-      // Validate.
-      var allCorrect = true;
-      for (var j = 0; j < PROMPTS.length; j++) {
-        if (state.responses[j] === null) {
-          allCorrect = false;
-        } else if (state.responses[j] === PROMPTS[j].correct) {
-          state.correctness[j] = true;
-        } else {
-          state.correctness[j] = false;
-          allCorrect = false;
+    function onSubmitClick() {
+      if (state.attempts === 0) {
+        snapshotEditable();
+        var hasBlank = false;
+        for (var b = 0; b < PROMPTS.length; b++) {
+          if (state.responses[b] === null) { hasBlank = true; break; }
         }
+        if (hasBlank) {
+          showToast('Oops, some questions are unanswered \u2014 please complete all to submit!', 'unanswered');
+          return;
+        }
+        var allCorrect = true;
+        for (var j = 0; j < PROMPTS.length; j++) {
+          if (state.responses[j] === PROMPTS[j].correct) {
+            state.correctness[j] = true;
+          } else {
+            state.correctness[j] = false;
+            allCorrect = false;
+          }
+        }
+        state.attempts += 1;
+        if (allCorrect) {
+          showSuccessAnimation(function() { finishWith({ done: true }); });
+        } else {
+          justReviewedTopic = null;
+          paint();
+        }
+        return;
       }
-      state.attempts += 1;
 
-      if (allCorrect) {
-        finishWith({ done: true });
-      } else {
-        // Re-paint in place — the participant stays on this page until
-        // they get all correct or click a wrong-locked card to review.
-        // (After a re-paint there is no longer a "just reviewed" banner.)
-        justReviewedTopic = null;
-        paint();
+      if (!isAllCorrect(state)) {
+        showToast('Oops, some questions are still incorrect \u2014 please review and revise to submit!', 'warn');
+        return;
       }
+
+      state.attempts += 1;
+      showSuccessAnimation(function() { finishWith({ done: true }); });
+    }
+
+    function showToast(msg, cls) {
+      var toast = display_element.querySelector('#comp-toast');
+      if (!toast) return;
+      toast.className = 'comp-toast ' + cls;
+      toast.textContent = msg;
+      void toast.offsetWidth;
+      toast.classList.add('visible');
+      setTimeout(function() { toast.classList.remove('visible'); }, 3500);
+    }
+
+    function showSuccessAnimation(callback) {
+      display_element.innerHTML =
+        '<style>' +
+        '@keyframes comp-check-pop{' +
+          '0%{transform:scale(0) rotate(-20deg);opacity:0}' +
+          '50%{transform:scale(1.3) rotate(5deg);opacity:1}' +
+          '70%{transform:scale(0.95) rotate(-2deg)}' +
+          '100%{transform:scale(1) rotate(0deg);opacity:1}' +
+        '}' +
+        '@keyframes comp-check-ring{' +
+          '0%{transform:scale(0.8);opacity:0}' +
+          '50%{transform:scale(1);opacity:0.4}' +
+          '100%{transform:scale(1.8);opacity:0}' +
+        '}' +
+        '@keyframes comp-check-fade{' +
+          '0%{opacity:0;transform:translateY(10px)}' +
+          '100%{opacity:1;transform:translateY(0)}' +
+        '}' +
+        '</style>' +
+        '<div style="display:flex;flex-direction:column;align-items:center;' +
+          'justify-content:center;min-height:60vh;font-family:-apple-system,' +
+          'BlinkMacSystemFont,Segoe UI,Arial,sans-serif;text-align:center;">' +
+          '<div style="position:relative;width:120px;height:120px;margin-bottom:24px;">' +
+            '<div style="position:absolute;inset:0;border-radius:50%;' +
+              'border:3px solid #22c55e;animation:comp-check-ring 1s ease-out forwards;"></div>' +
+            '<div style="font-size:80px;line-height:120px;' +
+              'animation:comp-check-pop 0.6s cubic-bezier(.17,.67,.29,1.2) forwards;">\u2705</div>' +
+          '</div>' +
+          '<div style="font-size:24px;font-weight:800;color:#16a34a;' +
+            'animation:comp-check-fade 0.5s ease-out 0.3s both;">All correct!</div>' +
+        '</div>';
+      setTimeout(callback, 1500);
     }
 
     function finishWith(extra) {
@@ -371,7 +435,6 @@ jsPsych.plugins['comprehension1'] = (function() {
           state.correctness[i] === null ? null : (state.correctness[i] ? 1 : 0)
         );
       }
-
       var data = {
         done: !!extra.done,
         review_topic: extra.review_topic || null,
@@ -385,12 +448,9 @@ jsPsych.plugins['comprehension1'] = (function() {
         attempts: state.attempts,
         rt: performance.now() - startTime
       };
-
       if (extra.done) {
-        // Reset state so any future fresh run (e.g. retake) starts clean.
         window.__comp1State = null;
       }
-
       jsPsych.finishTrial(data);
     }
   };

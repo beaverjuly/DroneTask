@@ -2,7 +2,7 @@
 // dev_routes.js — Dev/QA route timeline construction
 //
 // Provides:
-//   seedFakeBirdData(blockNum, numTrials)
+//   seedFakeBlockData(blockNum, numTrials)
 //     Seeds window.DEV_FAKE_BLOCK_DATA[blockNum] for dev memory QA.
 //     Uses globals: stimulus_set_images, block_order, factors_vol,
 //     factors_stc, factors_valence, latin_square_group, block_order_labels,
@@ -13,7 +13,7 @@
 //     config: { stage, devBlockNum, devBlock, devNtrials, devVersion,
 //               trials, create_memory_timeline,
 //               welcome, feedback0, instructions_loop, comprehensionTimeline,
-//               consent_trial, buildBirdMemoryTrials, survey_demographics,
+//               consent_trial, buildBlockMemoryTrials, survey_demographics,
 //               feedback1, finish, SHOW_CONSENT }
 //
 //   Recognised ?stage= values (after alias normalisation in index.html's
@@ -28,7 +28,6 @@
 //     block            — one encoding block + its memory test
 //                         (canonical link name: 'encoding-test', aliased
 //                         to 'block' in index.html's _stageMap)
-//     termination      — termination screen only
 //     (anything else)  — full experiment, optionally capped via ntrials
 // ──────────────────────────────────────────────────────────────
 
@@ -42,12 +41,12 @@
  * in window.DEV_FAKE_BLOCK_DATA instead, which memory_task.js reads
  * as a dev-only fallback when the production query returns 0 rows.
  */
-function seedFakeBirdData(blockNum, numTrials) {
+function seedFakeBlockData(blockNum, numTrials) {
   numTrials = numTrials || 50;
   var fakeImgs = stimulus_set_images.slice(0, numTrials);
 
   if (fakeImgs.length < numTrials) {
-    console.warn('[DEV] seedFakeBirdData: only ' + fakeImgs.length +
+    console.warn('[DEV] seedFakeBlockData: only ' + fakeImgs.length +
                  ' stimulus images available, need ' + numTrials);
   }
 
@@ -122,7 +121,7 @@ function seedFakeBirdData(blockNum, numTrials) {
  *   .feedback0            - pre-instructions feedback trial
  *   .instructions_loop    - full instruction sequence
  *   .consent_trial        - consent trial object
- *   .buildBirdMemoryTrials - function() → interleaved encoding+memory
+ *   .buildBlockMemoryTrials - function() → interleaved encoding+memory
  *   .survey_demographics  - demographics survey trial
  *   .feedback1            - post-task feedback trial
  *   .finish               - finish trial
@@ -164,13 +163,6 @@ function buildDevTimeline(cfg) {
     });
 
   // ── compatibility gate (removed) ──
-  // NOTE: index.html's _stageMap currently aliases 'gate' → 'instructions',
-  // so in practice this branch is unreachable — ?stage=gate never arrives
-  // here as the literal string 'gate'. It's left in place so that if a
-  // compatibility gate is reintroduced later, deleting that one alias
-  // entry in index.html immediately restores a dedicated gate route;
-  // at that point, replace the placeholder message below with the
-  // real gate timeline.
   } else if (stage === 'gate') {
     skipPreload = true;
     console.log('[DEV] stage: compatibility gate (removed from runtime)');
@@ -209,7 +201,7 @@ function buildDevTimeline(cfg) {
     });
     timeline.push({
       type: 'call-function',
-      func: function () { seedFakeBirdData(cfg.devBlockNum, 50); }
+      func: function () { seedFakeBlockData(cfg.devBlockNum, 50); }
     });
     timeline = timeline.concat(cfg.create_memory_timeline(cfg.devBlockNum));
     timeline.push({
@@ -219,9 +211,6 @@ function buildDevTimeline(cfg) {
     });
 
   // ── encoding + memory test, one block ──
-  // Canonical link name is 'encoding-test' (aliased to this 'block'
-  // stage value in index.html's _stageMap; old ?stage=block / block1 /
-  // block2 links keep working unchanged — see the alias table there).
   } else if (stage === 'block') {
     console.log('[DEV] stage: encoding+test (block ' + cfg.devBlockNum + ')');
     timeline.push({
@@ -240,23 +229,12 @@ function buildDevTimeline(cfg) {
       choices: jsPsych.ALL_KEYS
     });
 
-  // ── termination screen ──
-  } else if (stage === 'termination') {
-    skipPreload = true;
-    console.log('[DEV] stage: termination');
-    timeline.push({
-      type: 'html-keyboard-response',
-      stimulus: '<p style="font-size:24px;padding:40px;"><strong>[DEV] Termination Screen</strong></p>' +
-                '<p style="font-size:16px;color:#d9534f;">Game terminated. Press any key.</p>',
-      choices: jsPsych.ALL_KEYS
-    });
-
   // ── full experiment (dev with ntrials cap, or unrecognised stage) ──
   } else {
     console.log('[DEV] stage: full experiment' +
                 (cfg.devNtrials > 0 ? ' (ntrials=' + cfg.devNtrials + ')' : '') +
                 ', version=' + cfg.devVersion);
-    var combinedTrials = cfg.buildBirdMemoryTrials();
+    var combinedTrials = cfg.buildBlockMemoryTrials();
 
     if (cfg.SHOW_CONSENT) {
       timeline = timeline.concat(cfg.consent_trial);
@@ -265,6 +243,7 @@ function buildDevTimeline(cfg) {
     }
 
     timeline = timeline.concat(
+      cfg.enter_fullscreen,
       cfg.welcome,
       cfg.feedback0,
       cfg.instructions_loop,

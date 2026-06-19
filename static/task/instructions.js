@@ -561,7 +561,7 @@ var inst3_drone_disappears = {
       0.65),
 
     // P2: drone disappears
-    pageBody('🚨 In the real mission, you cannot see the drone',
+    pageBody('⚠️ In the real mission, you cannot see the drone',
       'You can only see the supply being dropped, <br>' + 
       '🧐 So you must <strong>infer</strong> where the drone is from where the bag lands.',
       { headColor: '#b00020' }) +
@@ -569,13 +569,13 @@ var inst3_drone_disappears = {
         'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         '<div style="flex:1;min-width:280px;">' +
           '<div style="text-align:center;font-size:14px;font-weight:700;color:#0a7f2e;margin-bottom:4px;">' +
-            '💡 drone visible</div>' +
+            '✔️ drone visible</div>' +
           mockGame({ droneX: 55, collectorX: 50, collectorLocked: true,
             bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
         '</div>' +
         '<div style="flex:1;min-width:280px;">' +
           '<div style="text-align:center;font-size:14px;font-weight:700;color:#b00020;margin-bottom:4px;">' +
-            '🚨 drone hidden</div>' +
+            '❔ drone hidden</div>' +
           mockGame({ collectorX: 50, collectorLocked: true,
             bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
         '</div>' +
@@ -749,23 +749,41 @@ var ready = {
   type: 'instructions',
   pages: [
     HIDE_PREV +
-    '<div style="font-size:21px;line-height:1.8;text-align:center;">' +
-      '<strong style="font-size:28px;"> You are being teleported now...</strong>' +
-      '<br><br> <strong> 🌠 Good luck! 🌌</strong>' +
+    '<style>' +
+    '@keyframes tp-drift{' +
+      '0%{transform:translateY(0) scale(1);opacity:0}' +
+      '10%{opacity:1}' +
+      '90%{opacity:1}' +
+      '100%{transform:translateY(-60vh) scale(0.3);opacity:0}' +
+    '}' +
+    '@keyframes tp-pulse{' +
+      '0%,100%{transform:scale(1);opacity:0.7}' +
+      '50%{transform:scale(1.15);opacity:1}' +
+    '}' +
+    '@keyframes tp-glow{' +
+      '0%,100%{text-shadow:0 0 8px rgba(99,102,241,.3)}' +
+      '50%{text-shadow:0 0 24px rgba(99,102,241,.6),0 0 48px rgba(139,92,246,.3)}' +
+    '}' +
+    '.tp-wrap{position:relative;overflow:hidden;min-height:50vh;' +
+      'display:flex;flex-direction:column;align-items:center;justify-content:center;}' +
+    '.tp-particle{position:absolute;bottom:-20px;font-size:22px;pointer-events:none;' +
+      'animation:tp-drift linear infinite;}' +
+    '.tp-title{font-size:30px;font-weight:850;margin-bottom:14px;' +
+      'animation:tp-glow 2s ease-in-out infinite;}' +
+    '.tp-luck{font-size:26px;font-weight:700;animation:tp-pulse 1.8s ease-in-out infinite;}' +
+    '</style>' +
+    '<div class="tp-wrap">' +
+      '<div class="tp-particle" style="left:8%;animation-duration:3.2s;animation-delay:0s;">▪️</div>' +
+      '<div class="tp-particle" style="left:20%;animation-duration:2.8s;animation-delay:0.4s;font-size:16px;">▪️</div>' +
+      '<div class="tp-particle" style="left:35%;animation-duration:3.5s;animation-delay:1.1s;">▪️</div>' +
+      '<div class="tp-particle" style="left:50%;animation-duration:2.6s;animation-delay:0.2s;font-size:18px;">▪️</div>' +
+      '<div class="tp-particle" style="left:65%;animation-duration:3.0s;animation-delay:0.8s;">▪️</div>' +
+      '<div class="tp-particle" style="left:78%;animation-duration:3.4s;animation-delay:1.5s;font-size:14px;">▪️</div>' +
+      '<div class="tp-particle" style="left:90%;animation-duration:2.9s;animation-delay:0.6s;">▪️</div>' +
+      '<div class="tp-particle" style="left:44%;animation-duration:3.8s;animation-delay:1.8s;font-size:20px;">▪️</div>' +
+      '<div class="tp-title">🌌 You are being teleported now... 🌌</div>' +
+      '<div class="tp-luck"> Good luck! </div>' +
     '</div>'
-  ],
-  show_clickable_nav: true,
-  button_label_previous: 'Prev',
-  button_label_next: 'Next'
-};
-
-var inst1_incorrect = {
-  type: 'instructions',
-  pages: [
-    HIDE_PREV +
-    pageBody('🫣 Some answers were incorrect.',
-      'The instructions will be repeated. Please read carefully.',
-      { headColor: '#b00020' })
   ],
   show_clickable_nav: true,
   button_label_previous: 'Prev',
@@ -779,30 +797,6 @@ var inst3_incorrect = {
       'Your mission must be aborted now.', { headColor: '#b00020' })
   ],
   show_clickable_nav: false
-};
-
-var inst_summary = {
-  type: 'instructions',
-  pages: [].concat(
-    [
-      HIDE_PREV +
-      pageBody('🫣 You did not answer all questions correctly.',
-        'The instructions will be repeated.<br><strong>Focus on the rules below.</strong>',
-        { headColor: '#b00020' })
-    ],
-    inst1.pages,
-    inst2_locking_and_bag.pages,
-    inst3_drone_disappears.pages,
-    inst4_full_game.pages,
-    [
-      pageBody('🫡 Now',
-        'Try answer the questions again.<br>' +
-        '<strong>Answer them correctly to start your journey!</strong>')
-    ]
-  ),
-  show_clickable_nav: true,
-  button_label_previous: 'Prev',
-  button_label_next: 'Next'
 };
 
 // ═══════════════════════════════════════════════════════════════════

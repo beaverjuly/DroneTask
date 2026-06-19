@@ -11,11 +11,6 @@ jsPsych.plugins["trial"] = (function () {
         default: null,
         description: "starting location"
       },
-      terminate_now: {
-        type: jsPsych.plugins.parameterType.BOOL,
-        array: false,
-        default: false
-      },
       show_missing: {
         type: jsPsych.plugins.parameterType.BOOL,
         array: false,
@@ -26,7 +21,7 @@ jsPsych.plugins["trial"] = (function () {
         array: false,
         default: false
       },
-      show_bird: {
+      show_drone: {
         type: jsPsych.plugins.parameterType.BOOL,
         array: false,
         default: false
@@ -48,8 +43,8 @@ jsPsych.plugins["trial"] = (function () {
         type: jsPsych.plugins.parameterType.KEYCODE,
         array: true,
         pretty_name: "Choices",
-        default: [32, 37, 39],
-        description: "Keys corresponding to each context (left, right, down)."
+        default: [' ', 'arrowleft', 'arrowright'],
+        description: "Keys corresponding to each context (space, left, right)."
       },
       strong_warning: {
         type: jsPsych.plugins.parameterType.BOOL,
@@ -73,14 +68,14 @@ jsPsych.plugins["trial"] = (function () {
         default: 1,
         description: "0 if the collector moved this trial, otherwise 1."
       },
-      coins_distribution: {
+      supply_distribution: {
         type: jsPsych.plugins.parameterType.INT,
         array: true,
         pretty_name: "distribution of drop objects",
         default: [-4.25, -3, -1.75, -0.75, -0.25, 0.25, 0.75, 1.75, 3, 4.25],
         description: "horizontal spread of fragments around bag landing position"
       },
-      coins_duration: {
+      supply_duration: {
         type: jsPsych.plugins.parameterType.INT,
         array: true,
         default: [350, 400, 500, 550, 600, 600, 600, 500, 500, 400],
@@ -93,25 +88,25 @@ jsPsych.plugins["trial"] = (function () {
         default: 35,
         description: "x of outcome position"
       },
-      bird_position: {
+      drone_position: {
         type: jsPsych.plugins.parameterType.INT,
         array: false,
         default: null,
         description: "x of the drone (legacy name kept for data compatibility)"
       },
-      bird_start_position: {
+      drone_start_position: {
         type: jsPsych.plugins.parameterType.INT,
         array: false,
         default: null,
         description: "starting x position of the drone animation"
       },
-      animate_bird: {
+      animate_drone: {
         type: jsPsych.plugins.parameterType.BOOL,
         array: false,
         default: false,
         description: "whether the visible drone should animate from start to target"
       },
-      bird_animation_duration: {
+      drone_animation_duration: {
         type: jsPsych.plugins.parameterType.INT,
         array: false,
         default: 900,
@@ -267,11 +262,11 @@ jsPsych.plugins["trial"] = (function () {
       "</div>";
 
     // Drone indicator (practice only)
-    var showDroneNow = trial.show_drone || trial.show_bird;
+    var showDroneNow = trial.show_drone || trial.show_drone;
     var droneStart = (
-      typeof trial.bird_start_position === "number"
-        ? trial.bird_start_position
-        : trial.bird_position
+      typeof trial.drone_start_position === "number"
+        ? trial.drone_start_position
+        : trial.drone_position
     );
 
     var droneClass = "drone-el";
@@ -322,8 +317,9 @@ jsPsych.plugins["trial"] = (function () {
     var x = trial.bucket_position;
     var step = 2;
 
-    if (key == 39) x = x + step;
-    else if (key == 37) x = x - step;
+    // jsPsych 6.3.1 returns key as a lowercase string (e.g. 'arrowright')
+    if (key === 'arrowright') x = x + step;
+    else if (key === 'arrowleft') x = x - step;
 
     if (x > 90) x = 90;
     else if (x < 10) x = 10;
@@ -374,8 +370,8 @@ jsPsych.plugins["trial"] = (function () {
 
     var defaultDist = [-4.25, -3, -1.75, -0.75, -0.25, 0.25, 0.75, 1.75, 3, 4.25];
     var offsets =
-      Array.isArray(trial.coins_distribution) && trial.coins_distribution.length
-        ? trial.coins_distribution
+      Array.isArray(trial.supply_distribution) && trial.supply_distribution.length
+        ? trial.supply_distribution
         : defaultDist;
 
     var bagX = clampPercent(trial.bag_position, 12, 88);
@@ -433,11 +429,11 @@ jsPsych.plugins["trial"] = (function () {
     setTimeout(function () {
       // Keep the drone visible during visible practice trials.
       // Do not reset left here if it has already traveled during the response phase.
-      if (trial.show_drone || trial.show_bird) {
+      if (trial.show_drone || trial.show_drone) {
         var drone = document.getElementById("drone");
         if (drone) {
-          if (!trial.animate_bird) {
-            drone.style.left = trial.bird_position + "%";
+          if (!trial.animate_drone) {
+            drone.style.left = trial.drone_position + "%";
           }
           drone.classList.add("visible", "outcome-phase");
         }
@@ -464,7 +460,7 @@ jsPsych.plugins["trial"] = (function () {
     setTimeout(function () {
       var distance = Math.abs(trial.bucket_position - trial.bag_position);
       var captureCount = computeCaptureCount(distance);
-      trial.coins_caught = captureCount;
+      trial.supply_caught = captureCount;
 
       // Switch from drop animation to landing pulse. The pulse fades out the
       // bag dot while the fragments take over the visual space.
@@ -479,7 +475,7 @@ jsPsych.plugins["trial"] = (function () {
 
     // — Step 3: feedback value text appears near the landing position.
     setTimeout(function () {
-      var captureCount = trial.coins_caught;
+      var captureCount = trial.supply_caught;
       var valueChange = va.feedback_sign(captureCount);
       var displayText;
 
@@ -547,7 +543,7 @@ jsPsych.plugins["trial"] = (function () {
         bagDot.classList.remove("dropping", "landed");
       }
       if (peLine) peLine.style.display = "none";
-      if (drone && !trial.animate_bird) {
+      if (drone && !trial.animate_drone) {
         drone.classList.remove("visible", "outcome-phase");
       }
       if (fragLayer) fragLayer.innerHTML = "";
@@ -584,11 +580,7 @@ plugin.trial = function (display_element, trial) {
       }
     };
 
-    if (trial.show_bird && !trial.show_drone) trial.show_drone = trial.show_bird;
-
-    if (trial.terminate_now) {
-      setTimeout(function () { end_trial(2); }, 1);
-    }
+    if (trial.show_drone && !trial.show_drone) trial.show_drone = trial.show_drone;
 
     if (trial.is_moving_practice) {
       trial.no_response_duration = 5000;
@@ -597,14 +589,14 @@ plugin.trial = function (display_element, trial) {
     display_element.innerHTML = make_html(trial);
     setCollectorUnlocked();
 
-    if ((trial.show_bird || trial.show_drone) && trial.animate_bird) {
+    if ((trial.show_drone || trial.show_drone) && trial.animate_drone) {
       jsPsych.pluginAPI.setTimeout(function () {
         var drone = display_element.querySelector('#drone');
         if (drone) {
           var startX = (
-            typeof trial.bird_start_position === 'number'
-              ? trial.bird_start_position
-              : trial.bird_position
+            typeof trial.drone_start_position === 'number'
+              ? trial.drone_start_position
+              : trial.drone_position
           );
 
           drone.style.left = startX + '%';
@@ -614,9 +606,9 @@ plugin.trial = function (display_element, trial) {
           void drone.offsetWidth;
 
           drone.style.transition =
-            'left ' + (trial.bird_animation_duration || 900) +
+            'left ' + (trial.drone_animation_duration || 900) +
             'ms cubic-bezier(.22,.61,.36,1), opacity 0.3s';
-          drone.style.left = trial.bird_position + '%';
+          drone.style.left = trial.drone_position + '%';
         }
       }, 80);
     }
@@ -804,7 +796,16 @@ plugin.trial = function (display_element, trial) {
 
       setCollectorUnlocked();
 
-      var coins_caught_value = completed === 1 ? trial.coins_caught : null;
+      var supply_caught_value = completed === 1 ? trial.supply_caught : null;
+
+      // Score = the points shown to the participant.
+      // reward: score === supply_caught (0 to +10)
+      // loss:   score === supply_caught - 10 (-10 to 0)
+      var score_value = null;
+      if (supply_caught_value !== null) {
+        var _va = getValenceConfig(trial.valence || 'reward');
+        score_value = _va.feedback_sign(supply_caught_value);
+      }
 
       var _trial_duration_ms = null;
       try {
@@ -822,15 +823,15 @@ plugin.trial = function (display_element, trial) {
 
       var miss_reason = null;
       if (completed === 0) miss_reason = "no_move_timeout";
-      if (completed === 2) miss_reason = "terminated";
 
       var trial_data = {
-        bird_position:       trial.bird_position,
+        drone_position:       trial.drone_position,
         bag_position:        trial.bag_position,
         bucket_position:     trial.bucket_position,
         completed:           completed,
         stayed:              trial.stayed,
-        coins_caught:        coins_caught_value,
+        supply_caught:        supply_caught_value,
+        score:               score_value,
         valence:             trial.valence || "reward",
         bucket_start_pos:    _bucket_start_pos,
         bucket_end_pos:      _bucket_end_pos,

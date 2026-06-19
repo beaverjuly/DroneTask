@@ -1,15 +1,21 @@
 // ═══════════════════════════════════════════════════════════════════════
 // comprehension2.js — Full mission rules check (with topic-aware review)
 //
-// Same architecture as comprehension1.js — see that file for full notes.
+// Flow:
+//   1. First render: all questions editable.  Submit is active.
+//      - Submit with blanks → toast "some questions are unanswered".
+//      - Submit with all answered → validate.
+//        correct → GREEN (locked);  wrong → RED (locked, clickable).
+//        Submit button disables.
+//   2. Post-validation: participant clicks each RED question to review.
+//      After review they return; that question becomes ORANGE (editable).
+//      Changing the radio immediately validates:
+//        correct → GREEN instantly;  wrong → stays ORANGE.
+//      Submit re-enables only when ALL questions are GREEN.
+//   3. Submit when all GREEN → ✅ animation → finishTrial({done:true}).
 //
-// Question → topic mapping:
-//   Q1 drone hidden in real mission       → inst3
-//   Q2 drone visible all 4 planets (False) → inst3
-//   Q3 drone hovers then jumps             → inst3
-//   Q4 best strategy (place under est)     → inst3
-//   Q5 how many planets/drones (4)         → inst4
-//   Q6 memory questions don't change score → inst4
+// Bug-proof: before navigating away for review, ALL current editable
+// radio selections are snapshotted into state, so nothing reverts.
 // ═══════════════════════════════════════════════════════════════════════
 
 jsPsych.plugins['comprehension2'] = (function() {
@@ -75,8 +81,8 @@ jsPsych.plugins['comprehension2'] = (function() {
   var TOPIC_LABEL = {
     inst1: 'mission goal',
     inst2: 'collector & supplies',
-    inst3: 'drone behaviour',
-    inst4: 'full mission & memory'
+    inst3: 'air currents',
+    inst4: 'full mission'
   };
 
   function buildStyles() {
@@ -84,7 +90,7 @@ jsPsych.plugins['comprehension2'] = (function() {
       '<style>',
       'body{min-height:100vh;overflow-y:auto;',
         'background:radial-gradient(circle at top,rgba(245,243,255,.96),rgba(250,250,252,1) 58%);}',
-      '.comp-shell{box-sizing:border-box;max-width:900px;margin:36px auto 80px auto;padding:0 18px;',
+      '.comp-shell{box-sizing:border-box;max-width:920px;margin:32px auto 80px auto;padding:0 18px;',
         'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#1f2937;}',
       '.comp-card{background:rgba(255,255,255,.97);border:1px solid rgba(148,163,184,.35);',
         'border-radius:18px;box-shadow:0 12px 34px rgba(15,23,42,.12);padding:26px 30px 30px 30px;}',
@@ -92,7 +98,6 @@ jsPsych.plugins['comprehension2'] = (function() {
       '.comp-kicker{display:inline-block;padding:4px 11px;border-radius:999px;',
         'background:#f3e8ff;color:#7e22ce;font-size:13px;font-weight:800;letter-spacing:.04em;',
         'text-transform:uppercase;margin-bottom:10px;}',
-      '.comp-title{margin:0;font-size:26px;line-height:1.25;font-weight:850;}',
       '.comp-subtitle{margin:10px auto 0 auto;max-width:720px;font-size:15px;line-height:1.55;color:#4b5563;}',
       '.comp-banner{margin:14px auto 0 auto;max-width:720px;padding:10px 16px;border-radius:10px;',
         'background:#fef9c3;border:1px solid #fde68a;color:#854d0e;font-size:15px;font-weight:600;}',
@@ -108,7 +113,7 @@ jsPsych.plugins['comprehension2'] = (function() {
       '.comp-q.wrong-locked:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(220,38,38,.18);}',
       '.comp-q.wrong-editable{border:2px solid #f59e0b;background:#fffbeb;}',
       '.q-topline{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;}',
-      '.q-num{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:#312e81;color:#fff;',
+      '.q-num{flex:0 0 auto;width:28px;height:28px;border-radius:50%;background:#1f2937;color:#fff;',
         'display:inline-flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;',
         'margin-top:1px;}',
       '.comp-q.correct-locked .q-num{background:#16a34a;}',
@@ -122,7 +127,7 @@ jsPsych.plugins['comprehension2'] = (function() {
       '.q-status-cta{margin-left:auto;}',
       '.q-text{font-size:17px;line-height:1.48;margin:0;}',
       '.q-options{display:flex;gap:10px;flex-wrap:wrap;margin-left:38px;}',
-      '.q-option{display:inline-flex;align-items:center;gap:8px;min-width:86px;padding:8px 12px;',
+      '.q-option{display:inline-flex;align-items:center;gap:8px;min-width:96px;padding:8px 12px;',
         'border-radius:999px;background:#fff;border:1px solid #d1d5db;font-size:15px;font-weight:650;}',
       '.q-option.enabled{cursor:pointer;}',
       '.q-option.enabled:hover{border-color:#7e22ce;background:#fcfaff;}',
@@ -130,11 +135,18 @@ jsPsych.plugins['comprehension2'] = (function() {
       '.q-option input{width:18px;height:18px;accent-color:#7e22ce;}',
       '.q-option.enabled input{cursor:pointer;}',
       '.q-option.disabled input{cursor:not-allowed;}',
-      '.submit-wrap{display:flex;justify-content:center;margin-top:22px;}',
+      '.submit-wrap{display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:22px;}',
       '#comp-submit{font-size:17px;font-weight:800;padding:11px 30px;border-radius:999px;border:none;',
-        'color:#fff;background:#7e22ce;box-shadow:0 6px 18px rgba(126,34,206,.26);cursor:pointer;}',
-      '#comp-submit:hover{background:#6b21a8;}',
-      '@media (max-width:720px){.comp-card{padding:22px 18px 26px 18px;}.comp-title{font-size:23px;}',
+        'color:#fff;background:#7e22ce;box-shadow:0 6px 18px rgba(126,34,206,.28);cursor:pointer;',
+        'transition:background .2s,opacity .2s,box-shadow .2s;}',
+      '#comp-submit:hover:not(.disabled){background:#6b21a8;}',
+      '#comp-submit.disabled{background:#94a3b8;box-shadow:none;cursor:not-allowed;opacity:.7;}',
+      '.comp-toast{padding:10px 18px;border-radius:10px;font-size:15px;font-weight:600;',
+        'opacity:0;transition:opacity .3s;pointer-events:none;text-align:center;max-width:500px;}',
+      '.comp-toast.visible{opacity:1;}',
+      '.comp-toast.warn{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;}',
+      '.comp-toast.unanswered{background:#fffbeb;border:1px solid #fde68a;color:#854d0e;}',
+      '@media(max-width:720px){.comp-card{padding:22px 18px 26px 18px;}',
         '.q-text{font-size:16px;}.q-options{margin-left:0;}}',
       '</style>'
     ].join('');
@@ -157,14 +169,13 @@ jsPsych.plugins['comprehension2'] = (function() {
     if (status === 'correct-locked') {
       statusEl = '<span class="q-status" style="color:#16a34a;font-size:18px;">&#x2713;</span>';
     } else if (status === 'wrong-editable') {
-      statusEl = '<span class="q-status" style="color:#d97706;">&#x1F504; Please answer again</span>';
+      statusEl = '<span class="q-status" style="color:#d97706;">&#x1F504; Please revise</span>';
     } else if (status === 'wrong-locked') {
       statusEl = '<span class="q-status q-status-cta" style="color:#dc2626;">' +
                    '&#x1F50D; Click to review &#x2192;</span>';
     }
 
     var html = '<div class="comp-q ' + status + '" data-q-idx="' + idx + '">';
-
     html += '<div class="q-topline">';
     html +=   '<div class="q-num">' + (idx + 1) + '</div>';
     html +=   '<div class="q-body">';
@@ -184,15 +195,24 @@ jsPsych.plugins['comprehension2'] = (function() {
       html += '<label class="' + optClass + '">';
       html +=   '<input type="radio" name="q' + idx + '" value="' + opt + '"' +
                   (isChecked ? ' checked' : '') +
-                  (inputsDisabled ? ' disabled' : '') +
-                  (!inputsDisabled ? ' required' : '') + '>';
+                  (inputsDisabled ? ' disabled' : '') + '>';
       html +=   '<span>' + opt + '</span>';
       html += '</label>';
     }
     html += '</div>';
-
     html += '</div>';
     return html;
+  }
+
+  function isAllCorrect(state) {
+    for (var i = 0; i < PROMPTS.length; i++) {
+      if (state.correctness[i] !== true) return false;
+    }
+    return true;
+  }
+
+  function submitShouldBeDisabled(state) {
+    return state.attempts > 0 && !isAllCorrect(state);
   }
 
   function renderAll(state, justReviewedTopic) {
@@ -213,7 +233,7 @@ jsPsych.plugins['comprehension2'] = (function() {
       html += '<div class="comp-banner">';
       html +=   'You just reviewed <strong>' +
                   (TOPIC_LABEL[justReviewedTopic] || justReviewedTopic) + '</strong>. ';
-      html +=   'Please update your highlighted answer below, then submit again.';
+      html +=   'Please update your highlighted answer below.';
       html += '</div>';
     }
 
@@ -227,16 +247,18 @@ jsPsych.plugins['comprehension2'] = (function() {
     html += '</div>';
     html += '</div>';
 
-    html += '<form id="comp-form"><div class="comp-list">';
+    html += '<div class="comp-list" id="comp-list">';
     for (var i = 0; i < PROMPTS.length; i++) {
       html += renderQuestion(PROMPTS[i], i, state);
     }
     html += '</div>';
 
+    var btnDisabled = submitShouldBeDisabled(state);
     html += '<div class="submit-wrap">';
-    html += '<button type="submit" id="comp-submit">Submit answers</button>';
+    html += '<button type="button" id="comp-submit" class="' +
+              (btnDisabled ? 'disabled' : '') + '">Submit answers</button>';
+    html += '<div class="comp-toast" id="comp-toast"></div>';
     html += '</div>';
-    html += '</form>';
 
     html += '</div></div>';
     return html;
@@ -267,16 +289,45 @@ jsPsych.plugins['comprehension2'] = (function() {
     }
 
     function bindHandlers() {
-      var listEl = display_element.querySelector('.comp-list');
-      var formEl = display_element.querySelector('#comp-form');
+      var listEl = display_element.querySelector('#comp-list');
+      var submitBtn = display_element.querySelector('#comp-submit');
       listEl.addEventListener('click', onCardClick);
-      formEl.addEventListener('submit', onSubmit);
+      listEl.addEventListener('change', onRadioChange);
+      submitBtn.addEventListener('click', onSubmitClick);
+    }
+
+    function snapshotEditable() {
+      for (var i = 0; i < PROMPTS.length; i++) {
+        var isEditable = (state.correctness[i] === null) ||
+                         (state.correctness[i] === false && state.reviewed[i]);
+        if (!isEditable) continue;
+        var el = display_element.querySelector('input[name="q' + i + '"]:checked');
+        if (el) state.responses[i] = el.value;
+      }
+    }
+
+    function onRadioChange(e) {
+      var radio = e.target;
+      if (radio.tagName !== 'INPUT' || radio.type !== 'radio') return;
+      var idx = parseInt(radio.name.slice(1), 10);
+      state.responses[idx] = radio.value;
+
+      if (state.attempts > 0 && state.correctness[idx] === false && state.reviewed[idx]) {
+        if (radio.value === PROMPTS[idx].correct) {
+          state.correctness[idx] = true;
+          state.reviewed[idx] = false;
+          snapshotEditable();
+          justReviewedTopic = null;
+          paint();
+        }
+      }
     }
 
     function onCardClick(e) {
       var card = e.target.closest('.comp-q');
       if (!card || !card.classList.contains('wrong-locked')) return;
       var idx = parseInt(card.getAttribute('data-q-idx'), 10);
+      snapshotEditable();
       state.reviewed[idx] = true;
       finishWith({
         done: false,
@@ -285,33 +336,87 @@ jsPsych.plugins['comprehension2'] = (function() {
       });
     }
 
-    function onSubmit(e) {
-      e.preventDefault();
-      for (var i = 0; i < PROMPTS.length; i++) {
-        var locked = (state.correctness[i] === true) ||
-                     (state.correctness[i] === false && !state.reviewed[i]);
-        if (locked) continue;
-        var checkedEl = display_element.querySelector('input[name="q' + i + '"]:checked');
-        state.responses[i] = checkedEl ? checkedEl.value : null;
-      }
-      var allCorrect = true;
-      for (var j = 0; j < PROMPTS.length; j++) {
-        if (state.responses[j] === null) {
-          allCorrect = false;
-        } else if (state.responses[j] === PROMPTS[j].correct) {
-          state.correctness[j] = true;
-        } else {
-          state.correctness[j] = false;
-          allCorrect = false;
+    function onSubmitClick() {
+      if (state.attempts === 0) {
+        snapshotEditable();
+        var hasBlank = false;
+        for (var b = 0; b < PROMPTS.length; b++) {
+          if (state.responses[b] === null) { hasBlank = true; break; }
         }
+        if (hasBlank) {
+          showToast('Oops, some questions are unanswered \u2014 please complete all to submit!', 'unanswered');
+          return;
+        }
+        var allCorrect = true;
+        for (var j = 0; j < PROMPTS.length; j++) {
+          if (state.responses[j] === PROMPTS[j].correct) {
+            state.correctness[j] = true;
+          } else {
+            state.correctness[j] = false;
+            allCorrect = false;
+          }
+        }
+        state.attempts += 1;
+        if (allCorrect) {
+          showSuccessAnimation(function() { finishWith({ done: true }); });
+        } else {
+          justReviewedTopic = null;
+          paint();
+        }
+        return;
       }
+
+      if (!isAllCorrect(state)) {
+        showToast('Oops, some questions are still incorrect \u2014 please review and revise to submit!', 'warn');
+        return;
+      }
+
       state.attempts += 1;
-      if (allCorrect) {
-        finishWith({ done: true });
-      } else {
-        justReviewedTopic = null;
-        paint();
-      }
+      showSuccessAnimation(function() { finishWith({ done: true }); });
+    }
+
+    function showToast(msg, cls) {
+      var toast = display_element.querySelector('#comp-toast');
+      if (!toast) return;
+      toast.className = 'comp-toast ' + cls;
+      toast.textContent = msg;
+      void toast.offsetWidth;
+      toast.classList.add('visible');
+      setTimeout(function() { toast.classList.remove('visible'); }, 3500);
+    }
+
+    function showSuccessAnimation(callback) {
+      display_element.innerHTML =
+        '<style>' +
+        '@keyframes comp-check-pop{' +
+          '0%{transform:scale(0) rotate(-20deg);opacity:0}' +
+          '50%{transform:scale(1.3) rotate(5deg);opacity:1}' +
+          '70%{transform:scale(0.95) rotate(-2deg)}' +
+          '100%{transform:scale(1) rotate(0deg);opacity:1}' +
+        '}' +
+        '@keyframes comp-check-ring{' +
+          '0%{transform:scale(0.8);opacity:0}' +
+          '50%{transform:scale(1);opacity:0.4}' +
+          '100%{transform:scale(1.8);opacity:0}' +
+        '}' +
+        '@keyframes comp-check-fade{' +
+          '0%{opacity:0;transform:translateY(10px)}' +
+          '100%{opacity:1;transform:translateY(0)}' +
+        '}' +
+        '</style>' +
+        '<div style="display:flex;flex-direction:column;align-items:center;' +
+          'justify-content:center;min-height:60vh;font-family:-apple-system,' +
+          'BlinkMacSystemFont,Segoe UI,Arial,sans-serif;text-align:center;">' +
+          '<div style="position:relative;width:120px;height:120px;margin-bottom:24px;">' +
+            '<div style="position:absolute;inset:0;border-radius:50%;' +
+              'border:3px solid #22c55e;animation:comp-check-ring 1s ease-out forwards;"></div>' +
+            '<div style="font-size:80px;line-height:120px;' +
+              'animation:comp-check-pop 0.6s cubic-bezier(.17,.67,.29,1.2) forwards;">\u2705</div>' +
+          '</div>' +
+          '<div style="font-size:24px;font-weight:800;color:#16a34a;' +
+            'animation:comp-check-fade 0.5s ease-out 0.3s both;">All correct!</div>' +
+        '</div>';
+      setTimeout(callback, 1500);
     }
 
     function finishWith(extra) {
