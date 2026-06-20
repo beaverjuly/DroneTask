@@ -508,8 +508,54 @@ jsPsych.plugins["trial"] = (function () {
             emojiEl.style.display = "none";
           }
           if (imgEl) {
-            imgEl.src = trial.stim_img;
+            // Zero-flicker image reveal.
+            //
+            // The preload step (preload.js) parks every fully-decoded
+            // Image in window.__PRELOADED_IMAGES. If we have a hit, the
+            // browser will serve the <img src=...> assignment from
+            // memory with no re-fetch and no synchronous decode, so it
+            // is safe to reveal immediately.
+            //
+            // If we don't have a hit (dev route, missed asset, etc.),
+            // load through a hidden Image, await decode(), and only
+            // then assign src + reveal. This prevents the top-half /
+            // bottom-half scanline glitch seen on Pavlovia.
+            var stimUrl = trial.stim_img;
+            var cache = window.__PRELOADED_IMAGES;
+            var cached = cache && cache[stimUrl];
+            var isDecoded = cached && cached.complete && cached.naturalWidth > 0;
+
             imgEl.style.display = "block";
+
+            if (isDecoded) {
+              imgEl.src = stimUrl;
+              imgEl.style.visibility = "visible";
+            } else {
+              imgEl.style.visibility = "hidden";
+              var tmpImg = new Image();
+              var reveal = function () {
+                // Persist for any future trial that re-uses this stim.
+                if (!window.__PRELOADED_IMAGES) window.__PRELOADED_IMAGES = {};
+                window.__PRELOADED_IMAGES[stimUrl] = tmpImg;
+                imgEl.src = stimUrl;
+                imgEl.style.visibility = "visible";
+              };
+              tmpImg.onload = function () {
+                if (typeof tmpImg.decode === "function") {
+                  tmpImg.decode().then(reveal, reveal);
+                } else {
+                  reveal();
+                }
+              };
+              tmpImg.onerror = function () {
+                // Fall back to direct assignment so participants aren't
+                // stuck staring at a blank card; logged for QA.
+                console.warn("[trial] stim image load failed:", stimUrl);
+                imgEl.src = stimUrl;
+                imgEl.style.visibility = "visible";
+              };
+              tmpImg.src = stimUrl;
+            }
           }
         } else {
           if (imgEl) {
