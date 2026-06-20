@@ -48,18 +48,66 @@
     body { margin: 50px; }
     .jspsych-display-element { transition: opacity 0.12s ease-in-out; }
     .jspsych-display-element.transitioning { opacity: 0; }
+    
+    /* Default jsPsych nav buttons: subtle, for instruction Prev/Next */
+    .jspsych-btn {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 7px 13px;
+      border-radius: 9px;
+      border: 1px solid rgba(148, 163, 184, 0.55);
+      background: rgba(255, 255, 255, 0.55);
+      color: rgba(51, 65, 85, 0.72);
+      cursor: pointer;
+      box-shadow: none;
+      opacity: 0.72;
+    }
+
+    .jspsych-btn:hover {
+      background: rgba(255, 255, 255, 0.85);
+      color: rgba(30, 41, 59, 0.95);
+      opacity: 1;
+    }
+
+    /* Fullscreen button only: prominent */
+    .fullscreen-card .jspsych-btn,
+    #jspsych-fullscreen-btn {
+      font-size: 17px;
+      font-weight: 800;
+      padding: 12px 24px;
+      border-radius: 13px;
+      border: 1px solid #94a3b8;
+      background: #1e40af;
+      color: white;
+      opacity: 1;
+      box-shadow: 0 6px 18px rgba(30, 64, 175, .22);
+    }
+
+    .fullscreen-card .jspsych-btn:hover,
+    #jspsych-fullscreen-btn:hover {
+      background: #1d4ed8;
+    }
 
     /* Persistent fullscreen reminder — small corner badge, non-intrusive */
     #fs-remind {
-      position: fixed; top: 8px; right: 8px; z-index: 99999;
-      padding: 6px 14px; border-radius: 8px;
-      background: rgba(30,30,30,.82); color: #e2e8f0;
-      font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      cursor: pointer; user-select: none; display: none;
-      box-shadow: 0 2px 10px rgba(0,0,0,.3);
-      transition: opacity .3s;
+      position: fixed;
+      top: 8px;
+      right: 8px;
+      z-index: 99999;
+      padding: 8px 14px;
+      border-radius: 10px;
+      background: rgba(30,30,30,.88);
+      color: #e2e8f0;
+      font: 700 13px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      cursor: pointer;
+      user-select: none;
+      display: none;
+      box-shadow: 0 4px 14px rgba(0,0,0,.28);
     }
-    #fs-remind:hover { background: rgba(30,30,30,.96); }
+    #fs-remind:hover {
+      background: rgba(30,30,30,.98);
+    }
   </style>
 </head>
 <body>
@@ -235,28 +283,135 @@
     type: 'fullscreen',
     fullscreen_mode: true,
     message:
-      '<div style="max-width:620px;margin:0 auto;text-align:center;font-size:18px;' +
-        'line-height:1.6;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;">' +
-        '<div style="font-size:24px;font-weight:800;margin-bottom:14px;">\U0001f5a5\ufe0f Full-screen mode</div>' +
-        '<p>This study runs best in full screen.</p>' +
-        '<p style="font-size:15px;color:#64748b;">You can press <kbd style="' +
-          'padding:2px 6px;border-radius:4px;background:#f1f5f9;border:1px solid #cbd5e1;' +
-          'font-family:monospace;">Esc</kbd> to exit full screen at any time, ' +
-          'but a reminder will appear until you return.</p>' +
-      '</div>',
+    '<div style="' +
+
+      'max-width:720px;margin:8vh auto;padding:34px 42px;border-radius:22px;' +
+
+      'background:#f8fafc;border:2px solid #cbd5e1;' +
+
+      'box-shadow:0 14px 42px rgba(15,23,42,.14);' +
+
+      'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+
+      'text-align:center;line-height:1.6;color:#1f2937;">' +
+
+      '<div style="font-size:44px;margin-bottom:10px;">🖥️</div>' +
+
+      '<div style="font-size:30px;font-weight:850;margin-bottom:14px;">Full-screen mode</div>' +
+
+      '<p style="font-size:20px;margin:0 0 14px 0;">' +
+
+        'This study runs best in full screen.' +
+
+      '</p>' +
+
+      '<p style="font-size:16px;color:#64748b;margin:0;">' +
+
+        'You can press <strong>Esc</strong> to exit. A small reminder will appear until you return.' +
+
+      '</p>' +
+
+    '</div>',
     button_label: 'Enter full screen and continue',
-    delay_after: 200
+    delay_after: 200,
+    on_finish: function() {
+      window._hasEnteredFullscreen = true;
+    }
   };
 
-  // Persistent fullscreen monitor \u2014 shows/hides the corner badge.
+  // Persistent fullscreen monitor shows/hides the corner badge.
   (function initFullscreenMonitor() {
-    var badge = document.getElementById('fs-remind');
-    if (!badge) return;
-    function check() {
-      badge.style.display = document.fullscreenElement ? 'none' : 'block';
+    window._hasEnteredFullscreen = window._hasEnteredFullscreen || false;
+
+    function ensureBadge() {
+      var badge = document.getElementById('fs-remind');
+
+      if (!badge) {
+        badge = document.createElement('div');
+        badge.id = 'fs-remind';
+        badge.innerHTML = '⛶ Return to full screen';
+        badge.onclick = function() {
+          var target = document.documentElement;
+          var req =
+            target.requestFullscreen ||
+            target.webkitRequestFullscreen ||
+            target.mozRequestFullScreen ||
+            target.msRequestFullscreen;
+
+          if (req) {
+            req.call(target);
+            window._hasEnteredFullscreen = true;
+            setTimeout(checkFullscreenState, 250);
+          }
+        };
+
+        document.documentElement.appendChild(badge);
+      }
+
+      return badge;
     }
-    document.addEventListener('fullscreenchange', check);
-    setInterval(check, 4000);
+
+    function isDomFullscreen() {
+      return !!(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+    }
+
+    function looksLikeFullscreenViewport() {
+      // Fallback only. Browser-window fullscreen is not standardized.
+      var heightGap = Math.abs(window.innerHeight - screen.height);
+      var widthGap = Math.abs(window.innerWidth - screen.width);
+
+      return heightGap < 80 && widthGap < 80;
+    }
+
+    function shouldShowBadge() {
+      if (!window._hasEnteredFullscreen) return false;
+
+      // If DOM fullscreen is active, hide badge.
+      if (isDomFullscreen()) return false;
+
+      // If browser still appears visually fullscreen, hide badge.
+      // This avoids showing the badge when the user is in browser fullscreen
+      // but not DOM fullscreen.
+      if (looksLikeFullscreenViewport()) return false;
+
+      return true;
+    }
+
+    function checkFullscreenState() {
+      var badge = ensureBadge();
+
+      if (isDomFullscreen()) {
+        window._hasEnteredFullscreen = true;
+        badge.style.display = 'none';
+        return;
+      }
+
+      badge.style.display = shouldShowBadge() ? 'block' : 'none';
+    }
+
+    [
+      'fullscreenchange',
+      'webkitfullscreenchange',
+      'mozfullscreenchange',
+      'MSFullscreenChange',
+      'resize',
+      'focus',
+      'blur',
+      'visibilitychange',
+      'mousemove',
+      'keydown'
+    ].forEach(function(evt) {
+      document.addEventListener(evt, checkFullscreenState, true);
+      window.addEventListener(evt, checkFullscreenState, true);
+    });
+
+    setInterval(checkFullscreenState, 500);
+    checkFullscreenState();
   })();
 
   // ──────────────────────────────────────────────────────────────
