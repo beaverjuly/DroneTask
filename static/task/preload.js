@@ -276,11 +276,21 @@
   window.buildBackgroundPreloadTrial = function (preloadImages) {
     if (!preloadImages || preloadImages.length === 0) return null;
 
+    // Initialise shared status object so the gate trial can poll it.
+    window.__PRELOAD_STATUS = {
+      loaded: 0,
+      total:  preloadImages.length,
+      failed: [],
+      done:   false,
+      startedAt: 0
+    };
+
     return {
       type: 'call-function',
       func: function () {
         var t0 = performance.now();
         var total = preloadImages.length;
+        window.__PRELOAD_STATUS.startedAt = t0;
 
         var pill = document.createElement('div');
         pill.id = '__preload_pill';
@@ -296,9 +306,15 @@
         document.body.appendChild(pill);
 
         _runQueue(preloadImages, function (loaded, _total) {
+          // Update shared status on every progress tick so the gate
+          // trial (if/when it runs) can read live values.
+          window.__PRELOAD_STATUS.loaded = loaded;
           if (pill) pill.textContent = 'Loading assets\u2026 ' + loaded + ' / ' + _total;
         }).then(function (result) {
           var elapsed = Math.round(performance.now() - t0);
+          window.__PRELOAD_STATUS.loaded = result.loaded;
+          window.__PRELOAD_STATUS.failed = result.failed;
+          window.__PRELOAD_STATUS.done   = true;
           console.log('[preload:bg] loaded=' + result.loaded + '/' + result.total +
             ', failed=' + result.failed.length + ', elapsed=' + elapsed + 'ms');
           try {
@@ -328,4 +344,139 @@
       }
     };
   };
+
+  /**
+   * Preload-completion gate. Insert this trial right BEFORE the main
+   * task. If background preload is already done, the gate skips
+   * instantly (no UI flash). Otherwise it shows a "Preparing your
+   * mission…" screen with a live progress bar and waits for the
+   * background queue to drain before letting the main task begin.
+   *
+   * This prevents the main task from starting with un-cached images,
+   * which would otherwise force trial.js into a fallback fetch that
+   * duplicates the still-in-flight preload request.
+   */
+  window.buildPreloadGateTrial = function () {
+    return {
+      type: 'call-function',
+      async: true,
+      func: function (done) {
+        var status = window.__PRELOAD_STATUS;
+
+        // No preload was scheduled, or it's already complete → no wait.
+        if (!status || status.done) {
+          console.log('[preload-gate] already done, proceeding');
+          done();
+          return;
+        }
+
+        console.log('[preload-gate] waiting on background preload: ' +
+                    status.loaded + ' / ' + status.total);
+        var gateStart = performance.now();
+
+        var disp = (typeof jsPsych !== 'undefined' && jsPsych.getDisplayElement)
+          ? jsPsych.getDisplayElement() : document.body;
+
+        // Cosmic backdrop matching the "Starting mission" aesthetic.
+        // Uses CSS-only glow particles so no extra assets are needed.
+        disp.innerHTML =
+          '<style>' +
+            '@keyframes gateOrb{' +
+              '0%,100%{transform:translate(-50%,-50%) scale(1);opacity:.55}' +
+              '50%{transform:translate(-50%,-50%) scale(1.18);opacity:.95}' +
+            '}' +
+            '@keyframes gateDrift{' +
+              '0%{transform:translateY(0) translateX(0);opacity:.0}' +
+              '20%{opacity:.55}' +
+              '100%{transform:translateY(-40vh) translateX(var(--dx,0));opacity:0}' +
+            '}' +
+            '@keyframes gatePulse{0%,100%{opacity:.85}50%{opacity:1}}' +
+          '</style>' +
+          '<div id="gate-root" style="' +
+            'position:fixed;inset:0;z-index:9998;overflow:hidden;' +
+            'background:linear-gradient(to bottom,' +
+              'hsl(230,40%,8%) 0%,hsl(230,38%,16%) 45%,hsl(230,36%,24%) 100%);' +
+            'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+            'color:#e2e8f0;">' +
+            // floating glow particles
+            (function () {
+              var s = '';
+              for (var i = 0; i < 14; i++) {
+                var left  = Math.round(Math.random() * 100);
+                var dx    = Math.round((Math.random() - 0.5) * 16);
+                var delay = (Math.random() * 6).toFixed(2);
+                var dur   = (5 + Math.random() * 4).toFixed(2);
+                var size  = (4 + Math.random() * 6).toFixed(1);
+                s += '<div style="position:absolute;left:' + left + '%;bottom:-5%;' +
+                      'width:' + size + 'px;height:' + size + 'px;border-radius:50%;' +
+                      'background:radial-gradient(circle,rgba(140,180,255,.85),rgba(140,180,255,0));' +
+                      '--dx:' + dx + 'vw;' +
+                      'animation:gateDrift ' + dur + 's linear ' + delay + 's infinite;"></div>';
+              }
+              return s;
+            })() +
+            // central glowing orb
+            '<div style="position:absolute;left:50%;top:38%;' +
+              'width:140px;height:140px;transform:translate(-50%,-50%);' +
+              'border-radius:50%;' +
+              'background:radial-gradient(circle,rgba(120,180,255,.45) 0%,' +
+                'rgba(80,120,200,.18) 45%,transparent 70%);' +
+              'animation:gateOrb 2.4s ease-in-out infinite;"></div>' +
+            '<div style="position:absolute;left:50%;top:38%;' +
+              'width:60px;height:60px;transform:translate(-50%,-50%);' +
+              'border-radius:50%;' +
+              'background:radial-gradient(circle,#fff 0%,rgba(180,220,255,.6) 60%,transparent 100%);' +
+              'animation:gateOrb 1.6s ease-in-out infinite;' +
+              'filter:blur(.5px);"></div>' +
+            // text + progress
+            '<div style="position:absolute;left:50%;top:62%;' +
+              'transform:translateX(-50%);text-align:center;width:90%;max-width:520px;">' +
+              '<div style="font-size:26px;font-weight:800;color:#fff;' +
+                'letter-spacing:.02em;animation:gatePulse 2s ease-in-out infinite;">' +
+                'Preparing your mission\u2026' +
+              '</div>' +
+              '<div style="font-size:15px;color:rgba(226,232,240,.65);' +
+                'margin-top:6px;margin-bottom:16px;">' +
+                'Final calibration before liftoff.' +
+              '</div>' +
+              '<div style="height:8px;background:rgba(255,255,255,.12);' +
+                'border-radius:999px;overflow:hidden;' +
+                'border:1px solid rgba(255,255,255,.18);">' +
+                '<div id="gate-bar" style="height:100%;width:0%;' +
+                  'background:linear-gradient(90deg,#7ab6ff,#b794f6);' +
+                  'box-shadow:0 0 12px rgba(122,182,255,.7);' +
+                  'transition:width .25s ease-out;"></div>' +
+              '</div>' +
+              '<div id="gate-count" style="font-size:13px;color:rgba(226,232,240,.55);' +
+                'margin-top:10px;letter-spacing:.04em;">' +
+                status.loaded + ' / ' + status.total +
+              '</div>' +
+            '</div>' +
+          '</div>';
+
+        var bar   = document.getElementById('gate-bar');
+        var count = document.getElementById('gate-count');
+
+        var pollId = setInterval(function () {
+          var s = window.__PRELOAD_STATUS;
+          if (!s) { clearInterval(pollId); done(); return; }
+          var pct = s.total ? Math.round((s.loaded / s.total) * 100) : 100;
+          if (bar)   bar.style.width = pct + '%';
+          if (count) count.textContent = s.loaded + ' / ' + s.total;
+          if (s.done) {
+            clearInterval(pollId);
+            // Brief "ready" beat so the bar visibly hits 100%.
+            if (bar) bar.style.width = '100%';
+            var waited = Math.round(performance.now() - gateStart);
+            console.log('[preload-gate] released after ' + waited + 'ms');
+            try {
+              jsPsych.data.addProperties({ preload_gate_wait_ms: waited });
+            } catch (e) {}
+            setTimeout(done, 450);
+          }
+        }, 120);
+      }
+    };
+  };
 })();
+

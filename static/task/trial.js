@@ -510,13 +510,6 @@ jsPsych.plugins["trial"] = (function () {
           if (imgEl) {
             var stimUrl = trial.stim_img;
 
-            // Just-in-time guarantee: if the image isn't in the cache
-            // yet (background preload still in flight, or it failed
-            // earlier), kick a fetch+decode NOW. Already-cached images
-            // resolve instantly. We give it at most 1500ms so a slow
-            // network can't stall the trial — after that we fall back
-            // to a direct <img src=originalUrl> and let the browser
-            // do its best.
             var showImage = function () {
               var resolvedUrl = (typeof resolvePreloadedUrl === "function")
                 ? resolvePreloadedUrl(stimUrl) : stimUrl;
@@ -534,20 +527,15 @@ jsPsych.plugins["trial"] = (function () {
               }
             };
 
+            // Await ensurePreloaded cleanly — NO race timeout.
+            // The preload-gate trial (inserted right before the
+            // main task) guarantees the background queue is drained
+            // before we get here, so this resolves instantly via
+            // the blob cache. If for any reason it isn't cached,
+            // we wait for the in-flight fetch rather than starting
+            // a duplicate one.
             if (typeof ensurePreloaded === "function") {
-              var raced = false;
-              var jitTimeout = setTimeout(function () {
-                if (raced) return;
-                raced = true;
-                console.warn("[trial] ensurePreloaded slow, displaying anyway:", stimUrl);
-                showImage();
-              }, 1500);
-              ensurePreloaded(stimUrl).then(function () {
-                if (raced) return;
-                raced = true;
-                clearTimeout(jitTimeout);
-                showImage();
-              });
+              ensurePreloaded(stimUrl).then(showImage);
             } else {
               showImage();
             }

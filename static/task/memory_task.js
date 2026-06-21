@@ -277,21 +277,12 @@ jsPsych.plugins['memory-task'] = (function() {
       }
     };
 
-    // Just-in-time guarantee: cache before display if not already cached.
+    // Await ensurePreloaded cleanly. The preload-gate trial before
+    // the main task guarantees the queue is drained, so this is
+    // instant via the blob cache. No race timeout = no duplicate
+    // fetches.
     if (typeof ensurePreloaded === 'function') {
-      var raced = false;
-      var jitTo = setTimeout(function () {
-        if (raced) return;
-        raced = true;
-        console.warn('[memory] ensurePreloaded slow, displaying anyway:', src);
-        showImage();
-      }, 1500);
-      ensurePreloaded(src).then(function () {
-        if (raced) return;
-        raced = true;
-        clearTimeout(jitTo);
-        showImage();
-      });
+      ensurePreloaded(src).then(showImage);
     } else {
       showImage();
     }

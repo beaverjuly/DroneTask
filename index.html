@@ -1068,7 +1068,12 @@
         type: 'memory-task',
         pair_index: p + 1,
         block_num: blockNum,
-        block_index: designIdxForBlock
+        // block_index matches the *display* block this memory test
+        // immediately follows (0-3), not the canonical design index.
+        // Game trials use `j` (display order) for block_index too, so
+        // this keeps the memory test's sky gradient identical to the
+        // game block the participant just finished.
+        block_index: blockNum - 1
       });
     }
 
@@ -1430,12 +1435,23 @@
       }
       var combinedTrials = buildBlockMemoryTrials();
 
+      // Preload-completion gate: skips instantly if background
+      // preload is already done, otherwise shows the cosmic
+      // "Preparing your mission…" screen with progress until the
+      // queue drains. Without this, the first few main-task trials
+      // can race the still-in-flight preload and show empty boxes.
+      var _gateTrial = (typeof buildPreloadGateTrial === 'function')
+        ? buildPreloadGateTrial() : null;
+
       timeline = timeline.concat(
         consent_trial,
         enter_fullscreen,
         welcome,
         feedback0,
-        instructions_loop,
+        instructions_loop
+      );
+      if (_gateTrial) timeline.push(_gateTrial);
+      timeline = timeline.concat(
         combinedTrials,
         survey_demographics,
         feedback1,
