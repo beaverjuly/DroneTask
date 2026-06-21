@@ -41,7 +41,10 @@
   // ── Tunables ──
   var CONCURRENCY        = 6;
   var PER_IMAGE_TIMEOUT  = 30000;
-  var OVERALL_TIMEOUT    = 180000;
+  // 30 minutes. Sized for worst-case Pavlovia latency (~30s/img × 200
+  // images ÷ 6 workers ≈ 17 min). This is a "fundamentally broken,
+  // give up" safety net — per-image timeouts are the primary defense.
+  var OVERALL_TIMEOUT    = 1800000;
 
   function _getCache() {
     if (!window.__PRELOADED_IMAGES) window.__PRELOADED_IMAGES = {};
@@ -294,8 +297,10 @@
 
         var pill = document.createElement('div');
         pill.id = '__preload_pill';
+        // Positioned top-LEFT to avoid the #fs-remind badge which
+        // sits at top:8px right:8px.
         pill.style.cssText =
-          'position:fixed;top:10px;right:10px;z-index:99999;' +
+          'position:fixed;top:10px;left:10px;z-index:99999;' +
           'padding:6px 12px;border-radius:999px;' +
           'background:rgba(0,0,0,.55);color:#fff;' +
           'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
