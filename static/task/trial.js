@@ -508,25 +508,48 @@ jsPsych.plugins["trial"] = (function () {
             emojiEl.style.display = "none";
           }
           if (imgEl) {
-            // Resolve to blob-URL (in-memory: no network request).
-            // Falls back to the original URL on cache miss.
-            var resolvedUrl = (typeof resolvePreloadedUrl === "function")
-              ? resolvePreloadedUrl(trial.stim_img)
-              : trial.stim_img;
+            var stimUrl = trial.stim_img;
 
-            // Hide until decoded so we never paint partial scanlines.
-            imgEl.style.display = "block";
-            imgEl.style.visibility = "hidden";
-            imgEl.src = resolvedUrl;
+            // Just-in-time guarantee: if the image isn't in the cache
+            // yet (background preload still in flight, or it failed
+            // earlier), kick a fetch+decode NOW. Already-cached images
+            // resolve instantly. We give it at most 1500ms so a slow
+            // network can't stall the trial — after that we fall back
+            // to a direct <img src=originalUrl> and let the browser
+            // do its best.
+            var showImage = function () {
+              var resolvedUrl = (typeof resolvePreloadedUrl === "function")
+                ? resolvePreloadedUrl(stimUrl) : stimUrl;
+              imgEl.style.display = "block";
+              imgEl.style.visibility = "hidden";
+              imgEl.src = resolvedUrl;
+              if (typeof imgEl.decode === "function") {
+                imgEl.decode().then(function () {
+                  imgEl.style.visibility = "visible";
+                }, function () {
+                  imgEl.style.visibility = "visible";
+                });
+              } else {
+                imgEl.style.visibility = "visible";
+              }
+            };
 
-            if (typeof imgEl.decode === "function") {
-              imgEl.decode().then(function() {
-                imgEl.style.visibility = "visible";
-              }, function() {
-                imgEl.style.visibility = "visible";
+            if (typeof ensurePreloaded === "function") {
+              var raced = false;
+              var jitTimeout = setTimeout(function () {
+                if (raced) return;
+                raced = true;
+                console.warn("[trial] ensurePreloaded slow, displaying anyway:", stimUrl);
+                showImage();
+              }, 1500);
+              ensurePreloaded(stimUrl).then(function () {
+                if (raced) return;
+                raced = true;
+                clearTimeout(jitTimeout);
+                showImage();
               });
             } else {
-              imgEl.style.visibility = "visible";
+              showImage();
             }
           }
         } else {

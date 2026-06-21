@@ -23,27 +23,53 @@
   <script src="static/js/nivturk-plugins.js" type="text/javascript"></script>
   <script src="static/js/jspsych-survey-template.js" type="text/javascript"></script>
 
-  <!-- Load experiment -->
-  <script src="static/task/trial.js?v=20260623a" type="text/javascript"></script>
-  <script src="static/task/memory_task.js?v=20260623a" type="text/javascript"></script>
+  <!-- Auto cache-buster: injects ?v=<deployment-timestamp> into every
+       task-script src below. Generated once at page load so every script
+       in a single page-view shares the same version string, but every
+       new visit forces a fresh fetch. Place this BEFORE the script tags
+       it parameterises. -->
+  <script>
+    window.__APP_VER = (function () {
+      var d = new Date();
+      var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+      return d.getUTCFullYear() +
+             pad(d.getUTCMonth() + 1) + pad(d.getUTCDate()) +
+             pad(d.getUTCHours()) + pad(d.getUTCMinutes()) +
+             pad(d.getUTCSeconds());
+    })();
+    document.write(
+      '<script src="static/task/trial.js?v='        + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/memory_task.js?v='  + window.__APP_VER + '"><\/script>'
+    );
+  </script>
 
   <link href="static/task/game.min.css" rel="stylesheet" type="text/css"></link>
-  <script src="static/task/stimuli.js?v=20260623a" type="text/javascript"></script>
-  <script src="static/task/stimuli-details.js?v=20260623a" type="text/javascript"></script>
-  <script src="static/task/comprehension1.js?v=20260623a" type="text/javascript"></script>
-  <script src="static/task/comprehension2.js?v=20260623a" type="text/javascript"></script>
-  <script src="static/task/instructions.js?v=20260623a" type="text/javascript"></script>
-
-  <!-- Extracted modules (load after task scripts that define globals they read) -->
-  <script src="static/task/latin_square.js?v=20260623a" type="text/javascript"></script>
-  <script src="static/task/preload.js?v=20260623a" type="text/javascript"></script>
-  <script src="static/task/data_saving.js?v=20260623a" type="text/javascript"></script>
-  <script src="static/task/dev_routes.js?v=20260623a" type="text/javascript"></script>
+  <script>
+    document.write(
+      '<script src="static/task/stimuli.js?v='          + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/stimuli-details.js?v='  + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/comprehension1.js?v='   + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/comprehension2.js?v='   + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/instructions.js?v='     + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/latin_square.js?v='     + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/preload.js?v='          + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/data_saving.js?v='      + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/dev_routes.js?v='       + window.__APP_VER + '"><\/script>'
+    );
+  </script>
 
   <!-- Consent screen (optional — removing consent.js from repo skips consent) -->
-  <script src="static/task/consent.js?v=20260623a" onerror="console.log('[CONSENT] consent.js not found — consent will be skipped')"></script>
+  <script>
+    document.write(
+      '<script src="static/task/consent.js?v=' + window.__APP_VER +
+      '" onerror="console.log(\'[CONSENT] consent.js not found — consent will be skipped\')"><\/script>'
+    );
+  </script>
 
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <style>
     body { margin: 50px; }
     .jspsych-display-element { transition: opacity 0.12s ease-in-out; }
@@ -1467,8 +1493,29 @@
       }
     });
 
-    var _preloadTrial = buildPreloadTrial(_skipPreload, preload_images);
-    if (_preloadTrial) _prefixTrials.push(_preloadTrial);
+    // ── Preload strategy ──
+    // Three cases:
+    //   1. Dev text-only stages (instructions/comprehension):
+    //      skip preload entirely. _skipPreload is true.
+    //   2. Dev image stages (encoding/test/block): images needed
+    //      immediately, no instructions to hide behind, so use the
+    //      FOREGROUND preload with a visible progress bar.
+    //   3. Full experiment: kick off BACKGROUND preload AFTER the
+    //      metadata stamp, so the loading happens while the
+    //      participant goes through instructions, comprehension,
+    //      and practice. trial.js / memory_task.js call
+    //      ensurePreloaded() just-in-time as a safety net.
+    var _isFullExperiment = !DEV_MODE || _stage === 'full';
+
+    if (_skipPreload) {
+      // No preload needed.
+    } else if (_isFullExperiment) {
+      var _bgPreload = buildBackgroundPreloadTrial(preload_images);
+      if (_bgPreload) _prefixTrials.push(_bgPreload);
+    } else {
+      var _fgPreload = buildPreloadTrial(false, preload_images);
+      if (_fgPreload) _prefixTrials.push(_fgPreload);
+    }
 
     timeline = _prefixTrials.concat(timeline);
 

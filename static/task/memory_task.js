@@ -254,27 +254,46 @@ jsPsych.plugins['memory-task'] = (function() {
     }
 
     var img = document.createElement('img');
-    // Resolve to blob-URL so the browser reads from RAM, not network.
-    var resolvedSrc = (typeof resolvePreloadedUrl === 'function')
-      ? resolvePreloadedUrl(src) : src;
     img.style.cssText =
       'max-width:' + boxSize + 'px;height:auto;max-height:' + boxSize + 'px;' +
       'border-radius:8px;background:rgba(255,255,255,.08);visibility:hidden;';
-    img.src = resolvedSrc;
     card.appendChild(img);
 
-    // Decode before revealing to prevent partial-paint glitch.
-    if (typeof img.decode === 'function') {
-      img.decode().then(function() {
-        img.style.visibility = 'visible';
-      }, function() {
-        img.style.visibility = 'visible';
+    var showImage = function () {
+      var resolvedSrc = (typeof resolvePreloadedUrl === 'function')
+        ? resolvePreloadedUrl(src) : src;
+      img.src = resolvedSrc;
+      if (typeof img.decode === 'function') {
+        img.decode().then(function () {
+          img.style.visibility = 'visible';
+        }, function () {
+          img.style.visibility = 'visible';
+        });
+      } else {
+        img.addEventListener('load', function () {
+          img.style.visibility = 'visible';
+        }, { once: true });
+        if (img.complete) img.style.visibility = 'visible';
+      }
+    };
+
+    // Just-in-time guarantee: cache before display if not already cached.
+    if (typeof ensurePreloaded === 'function') {
+      var raced = false;
+      var jitTo = setTimeout(function () {
+        if (raced) return;
+        raced = true;
+        console.warn('[memory] ensurePreloaded slow, displaying anyway:', src);
+        showImage();
+      }, 1500);
+      ensurePreloaded(src).then(function () {
+        if (raced) return;
+        raced = true;
+        clearTimeout(jitTo);
+        showImage();
       });
     } else {
-      img.addEventListener('load', function() {
-        img.style.visibility = 'visible';
-      }, { once: true });
-      if (img.complete) img.style.visibility = 'visible';
+      showImage();
     }
 
     return { card: card, img: img, ready: false };
