@@ -544,11 +544,19 @@
   });
 
   if (DEV_MODE && DEV_NTRIALS > 0) {
-    var _devSubsetSize = Math.max(DEV_NTRIALS * 4, 50);
-    if (stimulus_set_images.length > _devSubsetSize) {
-      stimulus_set_images = stimulus_set_images.slice(0, _devSubsetSize);
-      console.log('[DEV] Restricted stimulus_set to ' + _devSubsetSize + ' items');
+    // Take the first DEV_NTRIALS images from EACH block so every block's
+    // trials have their stimuli preloaded. The old slice(0, N) took only
+    // from block 0, leaving blocks 1-3 un-cached during gameplay.
+    var _devSubset = [];
+    for (var _db = 0; _db < stimulus_block_images.length; _db++) {
+      _devSubset = _devSubset.concat(
+        stimulus_block_images[_db].slice(0, DEV_NTRIALS)
+      );
     }
+    stimulus_set_images = _devSubset;
+    console.log('[DEV] Preload subset: ' + DEV_NTRIALS + ' imgs × ' +
+                stimulus_block_images.length + ' blocks = ' +
+                _devSubset.length + ' stimuli');
   }
 
   // ──────────────────────────────────────────────────────────────
@@ -791,7 +799,7 @@
               { minHeight: '22vh', glowColor: missionGlowColor, density: 5 }
             ),
           choices: jsPsych.NO_KEYS,
-          trial_duration: 3500
+          trial_duration: 2200
         });
       }
 

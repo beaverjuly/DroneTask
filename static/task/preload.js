@@ -51,14 +51,8 @@ function buildPreloadImageList(stimulusSetImages, practiceStimImages) {
     images.push(url);
   }
 
-  // Block-intro drone art — kept in the preload list even if
-  // index.html no longer uses it, so that any straggling ref
-  // still resolves from the cache.  Harmless to include.
-  push('static/img/task_assets/reward/drone0.png');
-  push('static/img/task_assets/reward/drone1.png');
-  push('static/img/task_assets/reward/drone2.png');
-  push('static/img/task_assets/reward/drone3.png');
-  push('static/img/task_assets/reward/drone4.png');
+  // Drone images removed from preload: no longer displayed in block
+  // intros (replaced with CSS animation in index.html).
 
   if (Array.isArray(stimulusSetImages)) {
     for (var i = 0; i < stimulusSetImages.length; i++) push(stimulusSetImages[i]);
