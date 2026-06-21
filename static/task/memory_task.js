@@ -254,11 +254,28 @@ jsPsych.plugins['memory-task'] = (function() {
     }
 
     var img = document.createElement('img');
-    img.src = src;
+    // Resolve to blob-URL so the browser reads from RAM, not network.
+    var resolvedSrc = (typeof resolvePreloadedUrl === 'function')
+      ? resolvePreloadedUrl(src) : src;
     img.style.cssText =
       'max-width:' + boxSize + 'px;height:auto;max-height:' + boxSize + 'px;' +
-      'border-radius:8px;background:rgba(255,255,255,.08);';
+      'border-radius:8px;background:rgba(255,255,255,.08);visibility:hidden;';
+    img.src = resolvedSrc;
     card.appendChild(img);
+
+    // Decode before revealing to prevent partial-paint glitch.
+    if (typeof img.decode === 'function') {
+      img.decode().then(function() {
+        img.style.visibility = 'visible';
+      }, function() {
+        img.style.visibility = 'visible';
+      });
+    } else {
+      img.addEventListener('load', function() {
+        img.style.visibility = 'visible';
+      }, { once: true });
+      if (img.complete) img.style.visibility = 'visible';
+    }
 
     return { card: card, img: img, ready: false };
   }

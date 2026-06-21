@@ -107,6 +107,24 @@ function seedFakeBlockData(blockNum, numTrials) {
 }
 
 /**
+ * Compute per-block trial stride from the full trials array.
+ *
+ * make_trials() builds a flat array with (optionally) block-intro
+ * trials interleaved with encoding trials.  The stride depends on
+ * the ntrials cap and whether block_intro is on, so we derive it
+ * from the actual array length rather than hard-coding 50.
+ *
+ * @param {Array} trials  - full array from make_trials(0, block_order)
+ * @param {number} numBlocks - number of blocks (always 4 for main task)
+ * @returns {number}
+ */
+function _blockStride(trials, numBlocks) {
+  numBlocks = numBlocks || 4;
+  if (!trials || trials.length === 0) return 50; // defensive fallback
+  return Math.ceil(trials.length / numBlocks);
+}
+
+/**
  * Build the dev-route timeline based on ?stage= parameter.
  *
  * @param {Object} cfg
@@ -181,8 +199,12 @@ function buildDevTimeline(cfg) {
                 cfg.devBlock + '</em>. Press any key.</p>',
       choices: jsPsych.ALL_KEYS
     });
-    var encStart = (cfg.devBlockNum - 1) * 50;
-    var encEnd   = cfg.devBlockNum * 50;
+    var stride = _blockStride(cfg.trials);
+    var encStart = (cfg.devBlockNum - 1) * stride;
+    var encEnd   = cfg.devBlockNum * stride;
+    console.log('[DEV] trial stride=' + stride +
+                ', slicing [' + encStart + ', ' + encEnd + ') from ' +
+                cfg.trials.length + ' total trials');
     timeline = timeline.concat(cfg.trials.slice(encStart, encEnd));
     timeline.push({
       type: 'html-keyboard-response',
@@ -219,8 +241,12 @@ function buildDevTimeline(cfg) {
                 cfg.devBlockNum + '. Press any key.</p>',
       choices: jsPsych.ALL_KEYS
     });
-    var bStart = (cfg.devBlockNum - 1) * 50;
-    var bEnd   = cfg.devBlockNum * 50;
+    var bStride = _blockStride(cfg.trials);
+    var bStart = (cfg.devBlockNum - 1) * bStride;
+    var bEnd   = cfg.devBlockNum * bStride;
+    console.log('[DEV] trial stride=' + bStride +
+                ', slicing [' + bStart + ', ' + bEnd + ') from ' +
+                cfg.trials.length + ' total trials');
     timeline = timeline.concat(cfg.trials.slice(bStart, bEnd));
     timeline = timeline.concat(cfg.create_memory_timeline(cfg.devBlockNum));
     timeline.push({
