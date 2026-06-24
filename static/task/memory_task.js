@@ -257,37 +257,66 @@ jsPsych.plugins['memory-task'] = (function() {
     img.style.cssText =
       'max-width:' + boxSize + 'px;height:auto;max-height:' + boxSize + 'px;' +
       'border-radius:8px;background:rgba(255,255,255,.08);visibility:hidden;';
-    card.appendChild(img);
 
-    var showImage = function () {
-      var resolvedSrc = (typeof resolvePreloadedUrl === 'function')
-        ? resolvePreloadedUrl(src) : src;
+    var _failed = typeof isPreloadFailed === 'function' && isPreloadFailed(src);
+
+    if (_failed) {
+      // Preload permanently failed — show deterministic fallback emoji
+      // (same emoji this URL got during encoding, via hash-based mapping).
+      var emoji = typeof getFallbackEmoji === 'function'
+        ? getFallbackEmoji(src) : '\u2753';
+      var span = document.createElement('span');
+      span.textContent = emoji;
+      span.style.cssText =
+        'font-size:' + getStimFontSize(size, boxSize) + 'px;' +
+        'line-height:1;display:flex;align-items:center;justify-content:center;' +
+        'width:100%;height:100%;user-select:none;';
+      card.appendChild(span);
+      if (typeof logDisplayOutcome === 'function')
+        logDisplayOutcome(src, 'fallback_emoji', emoji);
+      return { card: card, img: null, ready: true,
+               preload_failed: true, fallback_emoji: emoji };
+    }
+
+    // Normal path: resolve to blob URL, decode before revealing.
+    card.appendChild(img);
+    var resolvedSrc = (typeof resolvePreloadedUrl === 'function')
+      ? resolvePreloadedUrl(src) : src;
+    var isBlob = resolvedSrc.indexOf('blob:') === 0;
+    var outcome = isBlob ? 'cached' : 'jit_success';
+
+    var showFn = function () {
       img.src = resolvedSrc;
       if (typeof img.decode === 'function') {
-        img.decode().then(function () {
-          img.style.visibility = 'visible';
-        }, function () {
-          img.style.visibility = 'visible';
-        });
+        img.decode().then(function () { img.style.visibility = 'visible'; },
+                          function () { img.style.visibility = 'visible'; });
       } else {
-        img.addEventListener('load', function () {
-          img.style.visibility = 'visible';
-        }, { once: true });
+        img.addEventListener('load', function () { img.style.visibility = 'visible'; }, { once: true });
         if (img.complete) img.style.visibility = 'visible';
       }
     };
 
-    // Await ensurePreloaded cleanly. The preload-gate trial before
-    // the main task guarantees the queue is drained, so this is
-    // instant via the blob cache. No race timeout = no duplicate
-    // fetches.
-    if (typeof ensurePreloaded === 'function') {
-      ensurePreloaded(src).then(showImage);
+    if (isBlob) {
+      showFn();
+      if (typeof logDisplayOutcome === 'function')
+        logDisplayOutcome(src, 'cached', null);
+    } else if (typeof ensurePreloaded === 'function') {
+      ensurePreloaded(src).then(function (entry) {
+        if (entry && entry.blobUrl) resolvedSrc = entry.blobUrl;
+        else outcome = 'direct_load';
+        showFn();
+        if (typeof logDisplayOutcome === 'function')
+          logDisplayOutcome(src, outcome, null);
+      });
     } else {
-      showImage();
+      outcome = 'direct_load';
+      showFn();
+      if (typeof logDisplayOutcome === 'function')
+        logDisplayOutcome(src, 'direct_load', null);
     }
 
-    return { card: card, img: img, ready: false };
+    return { card: card, img: img, ready: false,
+             preload_failed: false, fallback_emoji: null };
   }
 
   function createSubtext(text) {
@@ -519,6 +548,14 @@ jsPsych.plugins['memory-task'] = (function() {
     var order_images = jsPsych.randomization.shuffle([stim1, stim2]);
     var left_img = order_images[0];
     var right_img = order_images[1];
+
+    // Preload-failure tracking for both stimuli in the pair.
+    var _left_preload_failed  = typeof isPreloadFailed === 'function' && isPreloadFailed(left_img);
+    var _right_preload_failed = typeof isPreloadFailed === 'function' && isPreloadFailed(right_img);
+    var _left_fallback_emoji  = _left_preload_failed && typeof getFallbackEmoji === 'function'
+      ? getFallbackEmoji(left_img) : null;
+    var _right_fallback_emoji = _right_preload_failed && typeof getFallbackEmoji === 'function'
+      ? getFallbackEmoji(right_img) : null;
 
     var order_choice_side = null, order_choice_img = null, order_correct = null;
     var order_rt = null, distance_rt = null, placement_rt = null;
@@ -1014,7 +1051,12 @@ jsPsych.plugins['memory-task'] = (function() {
             middle_item_img: middleStim,
             middle_item_is_boundary: middle_item_is_boundary_value,
             placement_true_midpoint_pct: true_position_pct,
-            placement_error_from_true_midpoint: placement_error_from_true_position
+            placement_error_from_true_midpoint: placement_error_from_true_position,
+
+            stim_left_preload_failed:  _left_preload_failed,
+            stim_right_preload_failed: _right_preload_failed,
+            stim_left_fallback_emoji:  _left_fallback_emoji,
+            stim_right_fallback_emoji: _right_fallback_emoji
           };
 
           display_element.innerHTML = '';

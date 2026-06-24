@@ -503,41 +503,60 @@ jsPsych.plugins["trial"] = (function () {
 
       if (card && trial.stim_img && !trial.hide_stimulus) {
         if (isImageStim(trial.stim_img)) {
-          if (emojiEl) {
-            emojiEl.textContent = "";
-            emojiEl.style.display = "none";
-          }
-          if (imgEl) {
-            var stimUrl = trial.stim_img;
+          var _url = trial.stim_img;
+          var _failed = typeof isPreloadFailed === "function" && isPreloadFailed(_url);
+          _stim_preload_failed = _failed;
 
-            var showImage = function () {
-              var resolvedUrl = (typeof resolvePreloadedUrl === "function")
-                ? resolvePreloadedUrl(stimUrl) : stimUrl;
-              imgEl.style.display = "block";
-              imgEl.style.visibility = "hidden";
-              imgEl.src = resolvedUrl;
-              if (typeof imgEl.decode === "function") {
-                imgEl.decode().then(function () {
-                  imgEl.style.visibility = "visible";
-                }, function () {
-                  imgEl.style.visibility = "visible";
+          if (_failed) {
+            // ── Fallback: show deterministic emoji instead of broken image ──
+            var _emoji = typeof getFallbackEmoji === "function"
+              ? getFallbackEmoji(_url) : "\u2753";
+            _stim_display_outcome = "fallback_emoji";
+            _stim_fallback_emoji  = _emoji;
+            if (imgEl)   { imgEl.removeAttribute("src"); imgEl.style.display = "none"; }
+            if (emojiEl) { emojiEl.textContent = _emoji; emojiEl.style.display = "block"; }
+            if (typeof logDisplayOutcome === "function")
+              logDisplayOutcome(_url, "fallback_emoji", _emoji);
+          } else {
+            // ── Normal: resolve from blob cache (instant) or JIT load ──
+            if (emojiEl) { emojiEl.textContent = ""; emojiEl.style.display = "none"; }
+            if (imgEl) {
+              var _resolved = typeof resolvePreloadedUrl === "function"
+                ? resolvePreloadedUrl(_url) : _url;
+              var _isBlob = _resolved.indexOf("blob:") === 0;
+              var _showImg = function () {
+                imgEl.style.display = "block";
+                imgEl.style.visibility = "hidden";
+                imgEl.src = _resolved;
+                if (typeof imgEl.decode === "function") {
+                  imgEl.decode().then(function () { imgEl.style.visibility = "visible"; },
+                                      function () { imgEl.style.visibility = "visible"; });
+                } else { imgEl.style.visibility = "visible"; }
+              };
+
+              if (_isBlob) {
+                _stim_display_outcome = "cached";
+                _showImg();
+                if (typeof logDisplayOutcome === "function")
+                  logDisplayOutcome(_url, "cached", null);
+              } else if (typeof ensurePreloaded === "function") {
+                ensurePreloaded(_url).then(function (entry) {
+                  if (entry && entry.blobUrl) {
+                    _resolved = entry.blobUrl;
+                    _stim_display_outcome = "jit_success";
+                  } else {
+                    _stim_display_outcome = "direct_load";
+                  }
+                  _showImg();
+                  if (typeof logDisplayOutcome === "function")
+                    logDisplayOutcome(_url, _stim_display_outcome, null);
                 });
               } else {
-                imgEl.style.visibility = "visible";
+                _stim_display_outcome = "direct_load";
+                _showImg();
+                if (typeof logDisplayOutcome === "function")
+                  logDisplayOutcome(_url, "direct_load", null);
               }
-            };
-
-            // Await ensurePreloaded cleanly — NO race timeout.
-            // The preload-gate trial (inserted right before the
-            // main task) guarantees the background queue is drained
-            // before we get here, so this resolves instantly via
-            // the blob cache. If for any reason it isn't cached,
-            // we wait for the in-flight fetch rather than starting
-            // a duplicate one.
-            if (typeof ensurePreloaded === "function") {
-              ensurePreloaded(stimUrl).then(showImage);
-            } else {
-              showImage();
             }
           }
         } else {
@@ -591,6 +610,9 @@ plugin.trial = function (display_element, trial) {
 
     var _bucket_start_pos = trial.bucket_position;
     var _bucket_end_pos   = trial.bucket_position;
+    var _stim_display_outcome  = null;   // 'cached'|'jit_success'|'fallback_emoji'|'direct_load'
+    var _stim_preload_failed   = false;
+    var _stim_fallback_emoji   = null;
     var _rt_first_move_ms = null;
     var _rt_last_move_ms  = null;
     var _num_moves        = 0;
@@ -876,7 +898,10 @@ plugin.trial = function (display_element, trial) {
         true_stc_param:
           typeof trial.true_stc_param !== "undefined" ? trial.true_stc_param : null,
         vol_level: typeof trial.vol_level !== "undefined" ? trial.vol_level : null,
-        stc_level: typeof trial.stc_level !== "undefined" ? trial.stc_level : null
+        stc_level: typeof trial.stc_level !== "undefined" ? trial.stc_level : null,
+        stim_display_outcome:  _stim_display_outcome,
+        stim_preload_failed:   _stim_preload_failed,
+        stim_fallback_emoji:   _stim_fallback_emoji
       };
 
       display_element.innerHTML = "";

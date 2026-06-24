@@ -1,5 +1,21 @@
+# ── Pavlovia raw data ──────────────────────────────────────────
+# Real Pavlovia filename: DroneTask_{pid}_SESSION_{date}_{time}.csv
+data/raw/
+data/clean/
+DroneTask_*_SESSION_*.csv
 
-# Local / Pavlovia data files
-/data/
+# Old pattern kept for backward compatibility
 DroneTask_PARTICIPANT_SESSION_*.csv
-*.csv
+
+# ── Local dev data ──────────────────────────────────────────────
+# CSV downloads from ?dev=1 routes land in Downloads, not the repo,
+# but this catches any accidentally placed ones.
+drone_task_*.csv
+
+# ── Python / notebooks ─────────────────────────────────────────
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# ── OS / editor ────────────────────────────────────────────────
+.DS_Store
