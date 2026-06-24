@@ -27,7 +27,7 @@ jsPsych.plugins['comprehension2'] = (function() {
       button_label: {
         type: jsPsych.plugins.parameterType.STRING,
         pretty_name: 'Button label',
-        default: 'Submit',
+        default: 'Check My Answers!',
         description: 'Label of the submit button.'
       }
     }
@@ -35,43 +35,37 @@ jsPsych.plugins['comprehension2'] = (function() {
 
   var PROMPTS = [
     {
-      text: 'In the real mission, the drone is hidden, so you must infer where it is from the supply drops.',
-      hint: 'Hidden drone',
+      text: 'The drone\'s position in the sky can be inferred from where the supply lands.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst3'
     },
     {
-      text: 'The drone stays visible during all four planets in the full mission.',
-      hint: 'Hidden drone',
+      text: 'You can see the drone as well as the supply being dropped.',
       options: ['True', 'False'],
       correct: 'False',
       topic: 'inst3'
     },
     {
-      text: 'The drone may hover around one area for a few supply-drops, then move to a new place.',
-      hint: 'Drone movement',
+      text: 'The drone will shift its position in the sky at any moment.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst3'
     },
     {
       text: 'Your best strategy is to place the collector under where you think the drone currently is.',
-      hint: 'Best strategy',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst3'
     },
     {
-      text: 'How many planets / drone environments are in the full mission?',
-      hint: 'Full mission',
+      text: 'How many planets with different drone trajectories are in the full mission?',
       options: ['1', '2', '3', '4'],
       correct: '4',
       topic: 'inst4'
     },
     {
-      text: 'The object-memory questions do not change your collection score; answer them as best you can.',
-      hint: 'Memory priority',
+      text: 'Questions regarding the recieved objects do not affect your performance score.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst4'
@@ -218,14 +212,10 @@ jsPsych.plugins['comprehension2'] = (function() {
   function renderAll(state, justReviewedTopic) {
     var html = buildStyles();
     html += '<div class="comp-shell"><div class="comp-card">';
-
-    html += '<div class="comp-header">';
-    html +=   '<div class="comp-kicker">Understanding Check</div>';
     html +=   '<p class="comp-subtitle">';
-    html +=     'To confirm understanding of the mission, complete the following questions.<br>';
-    html +=     'For any incorrect question, you must <strong>click the question to review the instructions</strong>, ';
-    html +=     'then revise your answer to continue.<br>';
-    html +=     '<strong>Answer all questions correctly to start the mission!</strong>';
+    html +=     '💯 Answer <strong>all questions correctly</strong> to start the mission! 💯<br>';
+    html +=     'If wrong, click to <strong>review instructions</strong>, ';
+    html +=     'then <strong>revise</strong> your answer to continue.<br>';
     html +=   '</p>';
     html += '</div>';
 
@@ -256,7 +246,7 @@ jsPsych.plugins['comprehension2'] = (function() {
     var btnDisabled = submitShouldBeDisabled(state);
     html += '<div class="submit-wrap">';
     html += '<button type="button" id="comp-submit" class="' +
-              (btnDisabled ? 'disabled' : '') + '">Submit answers</button>';
+              (btnDisabled ? 'disabled' : '') + '">Check My Answers!</button>';
     html += '<div class="comp-toast" id="comp-toast"></div>';
     html += '</div>';
 

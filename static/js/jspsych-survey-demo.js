@@ -1,7 +1,7 @@
 /**
-* jspsych-survey-demo
-* a jspsych plugin for the Niv lab demographics form
-*/
+ * jspsych-survey-demo
+ * A jsPsych plugin for the Niv lab demographics form.
+ */
 
 jsPsych.plugins['survey-demo'] = (function() {
 
@@ -14,111 +14,179 @@ jsPsych.plugins['survey-demo'] = (function() {
       button_label: {
         type: jsPsych.plugins.parameterType.STRING,
         pretty_name: 'Button label',
-        default:  'Continue',
+        default: 'Continue',
         description: 'The text that appears on the button to finish the trial.'
-      },
+      }
     }
-  }
+  };
+
   plugin.trial = function(display_element, trial) {
 
     //---------------------------------------//
     // Define HTML.
     //---------------------------------------//
 
-    // Initialize HTML
     var html = '';
 
-    // Inject CSS
     html += `<style>
-    .survey-demo-wrap {
-      height: 100vh;
-      width: 100vw;
-    }
-    .survey-demo-instructions {
-      margin: auto;
-      width: 75vw;
-      padding: 0 0 0 0;
-      text-align: center;
-      font-size: 1.33vw;
-      line-height: 1.15em;
-    }
-    .survey-demo-container {
-      display: grid;
-      grid-template-columns: 40% 60%;
-      grid-template-rows: auto;
-      width: 75vw;
-      margin: auto;
-      background-color: #F8F8F8;
-      border-radius: 12px;
-    }
-    .survey-demo-row {
-      display: contents;
-      justify-items: center;
-      text-align: left;
-      font-size: 1.33vw;
-      line-height: 1.5em;
-    }
-    .survey-demo-prompt {
-      padding: 12px 0 12px 15px;
-      border-top: 2px solid #ffffff;
-    }
-    .survey-demo-prompt label {
-      padding: 0 8px 0 0;
-      display: inline-block;
-    }
-    .survey-demo-response {
-      padding: 12px 0 12px 0;
-      border-top: 2px solid #ffffff;
-    }
-    .survey-demo-response label {
-      padding: 0 1em 0 0;
-      display: inline-block;
-    }
-    .survey-demo-response input[type='radio'], input[type='checkbox'] {
-      height: 1.05vw;
-      width: 1.05vw;
-      margin: 0 6px 0 0;
-    }
-    .survey-demo-response input[type='number'], input[type='text'] {
-      height: 1.5vw;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-    }
-    .survey-demo-response input[type='number'] {
-      width: 7.5%;
-    }
-    .survey-demo-response input[type='text'] {
-      width: 15%;
-    }
-    .survey-demo-footer {
-      margin: auto;
-      width: 75vw;
-      padding: 0 0 0 0;
-      text-align: right;
-    }
-    .survey-demo-footer input[type=submit] {
-      background-color: #F0F0F0;
-      padding: 8px 20px;
-      border: none;
-      border-radius: 4px;
-      margin-top: 5px;
-      margin-bottom: 20px;
-      margin-right: 0px;
-      font-size: 1.15vw;
-      color: black;
-    }
+      .survey-demo-wrap {
+        min-height: 100vh;
+        width: 100vw;
+        box-sizing: border-box;
+        padding: 32px 0 42px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        color: #111827;
+      }
+
+      .survey-demo-container {
+        display: grid;
+        grid-template-columns: 38% 62%;
+        width: min(78vw, 900px);
+        margin: 0 auto;
+        background: rgba(255, 255, 255, .88);
+        border: 1px solid rgba(148, 163, 184, .28);
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 16px 36px rgba(15, 23, 42, .09);
+      }
+
+      .survey-demo-row {
+        display: contents;
+        text-align: left;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+
+      .survey-demo-prompt {
+        padding: 16px 20px;
+        border-top: 1px solid rgba(226, 232, 240, .92);
+        background: rgba(248, 250, 252, .76);
+        font-weight: 760;
+        color: #111827;
+      }
+
+      .survey-demo-response {
+        padding: 16px 20px;
+        border-top: 1px solid rgba(226, 232, 240, .92);
+        color: #1f2937;
+        background: rgba(255, 255, 255, .70);
+      }
+
+      .survey-demo-row:first-child .survey-demo-prompt,
+      .survey-demo-row:first-child .survey-demo-response {
+        border-top: none;
+      }
+
+      .survey-demo-row:hover .survey-demo-prompt,
+      .survey-demo-row:hover .survey-demo-response {
+        background: rgba(240, 253, 244, .72);
+      }
+
+      .survey-demo-prompt label {
+        display: inline-block;
+        padding: 0;
+      }
+
+      .survey-demo-prompt small {
+        color: #6b7280;
+        font-weight: 650;
+      }
+
+      .survey-demo-response label {
+        display: inline-block;
+        padding: 0 16px 7px 0;
+        cursor: pointer;
+      }
+
+      .survey-demo-response input[type='radio'],
+      .survey-demo-response input[type='checkbox'] {
+        width: 16px;
+        height: 16px;
+        margin: 0 7px 0 0;
+        accent-color: #22c55e;
+        vertical-align: -2px;
+        cursor: pointer;
+      }
+
+      .survey-demo-response input[type='number'],
+      .survey-demo-response input[type='text'] {
+        height: 34px;
+        box-sizing: border-box;
+        border: 1px solid rgba(148, 163, 184, .65);
+        border-radius: 11px;
+        padding: 4px 9px;
+        font-size: 15px;
+        background: #ffffff;
+        color: #111827;
+        outline: none;
+        transition: border-color .14s ease, box-shadow .14s ease, transform .14s ease;
+      }
+
+      .survey-demo-response input[type='number']:focus,
+      .survey-demo-response input[type='text']:focus {
+        border-color: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, .16);
+      }
+
+      .survey-demo-response input[type='number'] {
+        width: 74px;
+        margin-right: 8px;
+      }
+
+      .survey-demo-response input[type='text'] {
+        width: 150px;
+      }
+
+      .survey-demo-footer {
+        margin: 14px auto 0 auto;
+        width: min(78vw, 900px);
+        text-align: right;
+      }
+
+      .survey-demo-footer input[type=submit] {
+        background: linear-gradient(135deg, #86efac, #67e8f9);
+        padding: 12px 26px;
+        border: none;
+        border-radius: 999px;
+        margin-top: 6px;
+        margin-bottom: 20px;
+        font-size: 16px;
+        font-weight: 850;
+        color: #111827;
+        cursor: pointer;
+        box-shadow: 0 10px 24px rgba(34, 197, 94, .22);
+        transition: transform .14s ease, box-shadow .14s ease;
+      }
+
+      .survey-demo-footer input[type=submit]:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 28px rgba(34, 197, 94, .30);
+      }
+
+      @media (max-width: 760px) {
+        .survey-demo-container {
+          grid-template-columns: 1fr;
+          width: min(90vw, 620px);
+        }
+
+        .survey-demo-prompt {
+          padding-bottom: 6px;
+          border-top: 1px solid rgba(226, 232, 240, .92);
+        }
+
+        .survey-demo-response {
+          padding-top: 8px;
+          border-top: none;
+        }
+
+        .survey-demo-footer {
+          width: min(90vw, 620px);
+        }
+      }
     </style>`;
 
-    // Initialize survey.
     html += '<div class="survey-demo-wrap"><form id="jspsych-survey-demo">';
 
-    // Add demoing header.
-    html += '<div class=survey-demo-instructions>';
-    html += '<h2>Demographics Survey</h2>';
-    html += '<p>Please answer the questions below. <font color="#c87606">Your answers will not affect your payment or bonus.</font></p>'
-    html += '</div>';
-
-    // Begin demoing container.
     html += '<div class="survey-demo-container">';
 
     // Item 1: Age
@@ -135,26 +203,26 @@ jsPsych.plugins['survey-demo'] = (function() {
     html += '<label><input type="radio" name="gender-categorical" value="Male" required>Male</label>';
     html += '<label><input type="radio" name="gender-categorical" value="Female" required>Female</label>';
     html += '<label><input type="radio" name="gender-categorical" value="Rather not say" required>Rather not say</label>';
-    html += '<label style="padding: 0 0.5em 0 0;"><input type="radio" name="gender-categorical" value="Other" required>Other</label>';
-    html += '<input type="text" name="gender-free-response" maxlength="24" size="10"></label>';
+    html += '<label><input type="radio" name="gender-categorical" value="Other" required>Other</label>';
+    html += '<input type="text" name="gender-free-response" maxlength="24" size="10">';
     html += '</div></div>';
 
-    // Item: Height (Feet Inches)
+    // Item 3: Height
     html += '<div class="survey-demo-row">';
-    html += '<div class="survey-demo-prompt"><label for="height">What is your height (feet, inches)?</label></div>';
+    html += '<div class="survey-demo-prompt"><label for="height">What is your height? <small>(feet, inches)</small></label></div>';
     html += '<div class="survey-demo-response">';
     html += '<input type="number" name="height_feet" min="1" max="10" size="20" required>';
     html += '<input type="number" name="height_inches" min="0" max="12" size="20" required>';
     html += '</div></div>';
 
-    // Item: Current Weigth (Ibs.)
+    // Item 4: Weight
     html += '<div class="survey-demo-row">';
-    html += '<div class="survey-demo-prompt"><label for="weight">What is your current weight (Ibs.)?</label></div>';
+    html += '<div class="survey-demo-prompt"><label for="weight">What is your current weight? <small>(lbs.)</small></label></div>';
     html += '<div class="survey-demo-response">';
     html += '<input type="number" name="weight" min="0" max="500" size="20" required>';
     html += '</div></div>';
 
-    // Item 3: Ethnicity
+    // Item 5: Ethnicity
     html += '<div class="survey-demo-row">';
     html += '<div class="survey-demo-prompt"><label for="ethnicity">What is your ethnicity?</label></div>';
     html += '<div class="survey-demo-response">';
@@ -164,20 +232,20 @@ jsPsych.plugins['survey-demo'] = (function() {
     html += '<label><input type="radio" name="ethnicity" value="Rather not say" required>Rather not say</label>';
     html += '</div></div>';
 
-    // Item 4: Race
+    // Item 6: Race
     html += '<div class="survey-demo-row">';
-    html += '<div class="survey-demo-prompt"><label for="race">What is your race?<br><small>(Choose all that apply)</small></label></div>';
+    html += '<div class="survey-demo-prompt"><label for="race">What is your race? <small>(Choose all that apply)</small></label></div>';
     html += '<div class="survey-demo-response">';
-    html += '<label><input type="checkbox" name="race" value="American Indian/Alaska Native" >American Indian/Alaska Native</label><br>';
-    html += '<label><input type="checkbox" name="race" value="Asian" >Asian</label><br>';
-    html += '<label><input type="checkbox" name="race" value="Native Hawaiian or other Pacific Islander" >Native Hawaiian or other Pacific Islander</label><br>';
-    html += '<label><input type="checkbox" name="race" value="Black or African American" >Black or African American</label><br>';
-    html += '<label><input type="checkbox" name="race" value="White" >White</label><br>';
-    html += '<label><input type="checkbox" name="race" value="Rather not say" >Rather not say</label>';
-    html += '<label><input type="checkbox" name="race" value="Other" >Other</label>';
+    html += '<label><input type="checkbox" name="race" value="American Indian/Alaska Native">American Indian/Alaska Native</label><br>';
+    html += '<label><input type="checkbox" name="race" value="Asian">Asian</label><br>';
+    html += '<label><input type="checkbox" name="race" value="Native Hawaiian or other Pacific Islander">Native Hawaiian or other Pacific Islander</label><br>';
+    html += '<label><input type="checkbox" name="race" value="Black or African American">Black or African American</label><br>';
+    html += '<label><input type="checkbox" name="race" value="White">White</label><br>';
+    html += '<label><input type="checkbox" name="race" value="Rather not say">Rather not say</label>';
+    html += '<label><input type="checkbox" name="race" value="Other">Other</label>';
     html += '</div></div>';
 
-    // Item 5: English speaking
+    // Item 7: English first language
     html += '<div class="survey-demo-row">';
     html += '<div class="survey-demo-prompt"><label for="language">Is English your first language?</label></div>';
     html += '<div class="survey-demo-response">';
@@ -185,7 +253,7 @@ jsPsych.plugins['survey-demo'] = (function() {
     html += '<label><input type="radio" name="language" value="No" required>No</label>';
     html += '</div></div>';
 
-    // Item 6: Fluency
+    // Item 8: Fluency
     html += '<div class="survey-demo-row">';
     html += '<div class="survey-demo-prompt"><label for="fluency">How well do you speak English?</label></div>';
     html += '<div class="survey-demo-response">';
@@ -195,91 +263,71 @@ jsPsych.plugins['survey-demo'] = (function() {
     html += '<label><input type="radio" name="fluency" value="Not at all" required>Not at all</label>';
     html += '</div></div>';
 
-    // Close container.
     html += '</div>';
 
-    // Add submit button.
     html += '<div class="survey-demo-footer">';
-    html += `<input type="submit" value="${trial.button_label}"></input>`;
+    html += '<input type="submit" value="' + trial.button_label + '">';
     html += '</div>';
 
-    // End survey.
     html += '</form></div>';
 
-    // Display HTML
     display_element.innerHTML = html;
 
     //---------------------------------------//
     // Define functions.
     //---------------------------------------//
 
-    // Scroll to top of screen.
-    window.onbeforeunload = function () {
+    window.onbeforeunload = function() {
       window.scrollTo(0, 0);
-    }
+    };
 
     display_element.querySelector('#jspsych-survey-demo').addEventListener('submit', function(event) {
-
-      // Wait for response
       event.preventDefault();
 
-      // verify that at least one box has been checked for the race question
-      var checkboxes = document.querySelectorAll('input[type="checkbox"]');
-      var checkedOne = Array.prototype.slice.call(checkboxes).some(x => x.checked);
+      var checkboxes = display_element.querySelectorAll('input[name="race"]');
+      var checkedOne = Array.prototype.slice.call(checkboxes).some(function(x) {
+        return x.checked;
+      });
 
-      if(!checkedOne){
-
-        alert("You did not enter a response for the question \"What is your race?\". Please choose at least one option.");
-
+      if (!checkedOne) {
+        alert('Please choose at least one option for the race question.');
       } else {
-
-        // Measure response time
         var endTime = performance.now();
         var response_time = endTime - startTime;
 
         var question_data = serializeArray(this);
         question_data = objectifyForm(question_data);
 
-        // Store data
         var trialdata = {
-          "rt": response_time,
-          "responses": question_data
+          rt: response_time,
+          responses: question_data
         };
 
-        // Update screen
         display_element.innerHTML = '';
-
-        // Move onto next trial
         jsPsych.finishTrial(trialdata);
-
       }
-
     });
 
     var startTime = performance.now();
-
   };
 
-  /*!
-  * Serialize all form data into an array
-  * (c) 2018 Chris Ferdinandi, MIT License, https://gomakethings.com
-  * @param  {Node}   form The form to serialize
-  * @return {String}      The serialized form data
-  */
-  var serializeArray = function (form) {
-    // Setup our serialized data
+  var serializeArray = function(form) {
     var serialized = [];
 
-    // Loop through each field in the form
     for (var i = 0; i < form.elements.length; i++) {
       var field = form.elements[i];
 
+      if (
+        !field.name ||
+        field.disabled ||
+        field.type === 'file' ||
+        field.type === 'reset' ||
+        field.type === 'submit' ||
+        field.type === 'button'
+      ) {
+        continue;
+      }
 
-      console.log(field)
-      // Don't serialize fields without a name, submits, buttons, file and reset inputs, and disabled fields
-      if (!field.name || field.disabled || field.type === 'file' || field.type === 'reset' || field.type === 'submit' || field.type === 'button') continue;
-
-      // If a multi-select, get all selections
       if (field.type === 'select-multiple') {
         for (var n = 0; n < field.options.length; n++) {
           if (!field.options[n].selected) continue;
@@ -288,10 +336,7 @@ jsPsych.plugins['survey-demo'] = (function() {
             value: field.options[n].value
           });
         }
-      }
-
-      // Convert field data to a query string
-      else if ((field.type !== 'checkbox' && field.type !== 'radio') || field.checked) {
+      } else if ((field.type !== 'checkbox' && field.type !== 'radio') || field.checked) {
         serialized.push({
           name: field.name,
           value: field.value
@@ -302,11 +347,10 @@ jsPsych.plugins['survey-demo'] = (function() {
     return serialized;
   };
 
-  // from https://stackoverflow.com/questions/1184624/convert-form-data-to-javascript-object-with-jquery
-  function objectifyForm(formArray) {//serialize data function
+  function objectifyForm(formArray) {
     var returnArray = {};
-    for (var i = 0; i < formArray.length; i++){
-      returnArray[formArray[i]['name']] = formArray[i]['value'];
+    for (var i = 0; i < formArray.length; i++) {
+      returnArray[formArray[i].name] = formArray[i].value;
     }
     return returnArray;
   }

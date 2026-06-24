@@ -242,21 +242,24 @@ jsPsych.plugins['memory-task'] = (function() {
 
   function getStimBoxSize(size) {
     var vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
+    var vh = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0);
+    var base = Math.min(vw, vh * 1.2); // adapts to aspect ratio
+
     if (size === 'large') {
-      return Math.max(120, Math.min(170, Math.floor(vw * 0.19)));
+      return Math.max(130, Math.min(190, Math.floor(base * 0.20)));
     }
     if (size === 'small') {
-      return Math.max(70, Math.min(100, Math.floor(vw * 0.12)));
+      return Math.max(80, Math.min(115, Math.floor(base * 0.13)));
     }
-    return Math.max(100, Math.min(155, Math.floor(vw * 0.18)));
+    // Medium — order/distance pair cards
+    return Math.max(115, Math.min(180, Math.floor(base * 0.20)));
   }
 
   function getStimFontSize(size, boxSize) {
     if (size === 'small') {
-      return Math.max(34, Math.min(46, Math.floor(boxSize * 0.52)));
+      return Math.max(38, Math.min(56, Math.floor(boxSize * 0.55)));
     }
-
-    return Math.max(46, Math.min(72, Math.floor(boxSize * 0.52)));
+    return Math.max(52, Math.min(84, Math.floor(boxSize * 0.55)));
   }
 
   function createStimCard(src, size) {

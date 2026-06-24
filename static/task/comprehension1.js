@@ -27,7 +27,7 @@ jsPsych.plugins['comprehension1'] = (function() {
       button_label: {
         type: jsPsych.plugins.parameterType.STRING,
         pretty_name: 'Button label',
-        default: 'Submit',
+        default: 'Check My Answers!',
         description: 'Label of the submit button.'
       }
     }
@@ -35,50 +35,43 @@ jsPsych.plugins['comprehension1'] = (function() {
 
   var PROMPTS = [
     {
-      text: 'Your main goal is to move the collector to catch as many supply fragments as possible.',
-      hint: 'Goal',
+      text: 'To maximize your score, use the collector to catch as many supply fragments as possible.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst1'
     },
     {
       text: 'When the collector is white, you can move it. When it is grey, it is locked.',
-      hint: 'Collector movement',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst2'
     },
     {
-      text: 'The supply bag always lands exactly under the drone.',
-      hint: 'Air currents',
+      text: 'The supplies will land directly under the drone.',
       options: ['True', 'False'],
       correct: 'False',
       topic: 'inst3'
     },
     {
       text: 'For green supplies, catching more fragments helps you earn more points.',
-      hint: 'Green supply',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst2'
     },
     {
       text: 'For red supplies, catching more fragments makes you lose more points.',
-      hint: 'Red supply',
       options: ['True', 'False'],
       correct: 'False',
       topic: 'inst2'
     },
     {
-      text: 'If you stop moving the collector for a long time, the mission may end early.',
-      hint: 'Keep moving',
+      text: 'If you leave your collector in the same place for a long time, the mission will terminate early.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst2'
     },
     {
-      text: 'You will receive an object with each supply-drop, but your main mission is still supply collection.',
-      hint: 'Objects',
+      text: 'You will be asked about the objects recieved on a planet, but this will not affect your score.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst2'
@@ -225,14 +218,10 @@ jsPsych.plugins['comprehension1'] = (function() {
   function renderAll(state, justReviewedTopic) {
     var html = buildStyles();
     html += '<div class="comp-shell"><div class="comp-card">';
-
-    html += '<div class="comp-header">';
-    html +=   '<div class="comp-kicker">Understanding Check</div>';
     html +=   '<p class="comp-subtitle">';
-    html +=     'To confirm understanding of the mission, complete the following questions.<br>';
-    html +=     'For any incorrect question, you must <strong>click the question to review the instructions</strong>, ';
-    html +=     'then revise your answer to continue.<br>';
-    html +=     '<strong>Answer all questions correctly to start the mission!</strong>';
+    html +=     '💯 Answer <strong>all questions correctly</strong> to start the mission! 💯<br>';
+    html +=     'If wrong, click to <strong>review instructions</strong>, ';
+    html +=     'then <strong>revise</strong> your answer to continue.<br>';
     html +=   '</p>';
     html += '</div>';
 
@@ -240,7 +229,7 @@ jsPsych.plugins['comprehension1'] = (function() {
       html += '<div class="comp-banner">';
       html +=   'You just reviewed <strong>' +
                   (TOPIC_LABEL[justReviewedTopic] || justReviewedTopic) + '</strong>. ';
-      html +=   'Please update your highlighted answer below.';
+      html +=   'Update your answer below!';
       html += '</div>';
     }
 
@@ -263,7 +252,7 @@ jsPsych.plugins['comprehension1'] = (function() {
     var btnDisabled = submitShouldBeDisabled(state);
     html += '<div class="submit-wrap">';
     html += '<button type="button" id="comp-submit" class="' +
-              (btnDisabled ? 'disabled' : '') + '">Submit answers</button>';
+              (btnDisabled ? 'disabled' : '') + '">Check My Answers!</button>';
     html += '<div class="comp-toast" id="comp-toast"></div>';
     html += '</div>';
 
@@ -351,7 +340,7 @@ jsPsych.plugins['comprehension1'] = (function() {
           if (state.responses[b] === null) { hasBlank = true; break; }
         }
         if (hasBlank) {
-          showToast('Oops, some questions are unanswered \u2014 please complete all to submit!', 'unanswered');
+          showToast('Oops, some questions are unanswered!', 'unanswered');
           return;
         }
         var allCorrect = true;

@@ -668,8 +668,8 @@ var inst4_full_game = {
 
 // P2: object questions overview — revised for key-controlled bars
 pageBody('👽 Examine each object carefully',
-  'After each planet mission, we will ask about the objects from that planet.<br><br>' +
-  '🧑‍🚀 <em>No need</em> to remember them, your main mission is supply collection') +
+  'We will ask you about the objects from each planet.<br><br>' +
+  '<em>These questions will not affect your score.</em>') +
   '<div style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:14px;' +
     'width:86vw;max-width:980px;margin:18px auto 8px auto;">' +
 
@@ -704,8 +704,8 @@ pageBody('👽 Examine each object carefully',
     '<div style="max-width:680px;margin:14px auto 0;padding:12px 18px;' +
       'border-radius:10px;background:#f0f5ff;border:1px solid #c8d8f0;text-align:center;' +
       'font-size:14px;color:#4b5563;">' +
-      '🛠️ All questions are answered using <strong>← → arrow keys</strong> ' +
-      'and <strong>Enter</strong> — no mouse or typing needed.' +
+      'Answer all questions with <strong>← → arrow keys</strong> ' +
+      'and <strong>Enter</strong>' +
     '</div>' ,
 
 // P3: placement example — revised for key-controlled bar with larger probe
@@ -765,12 +765,25 @@ var quiz = {
   type: 'instructions',
   pages: [
     HIDE_PREV +
-    pageBody('To ensure your mission is clear, <br><br>' +
-      '<strong>answer the following questions correctly.</strong>')
+    glowSquaresScreen(
+      pageBody(
+        '<div class="glow-title" style="font-size:30px;font-weight:850;margin-bottom:18px;">' +
+          '⚡ Time to Show Your Understanding of Mission ⚡' +
+        '</div>' +
+        '<div style="font-size:18px;line-height:1.65;color:#1f2937;">' +
+          'Before the game, answer a few questions to make sure all rules are clear!' +
+        '</div>'
+      ),
+      {
+        minHeight: '38vh',
+        glowColor: '30,64,175',
+        density: 7
+      }
+    )
   ],
   show_clickable_nav: true,
   button_label_previous: 'Prev',
-  button_label_next: 'Next'
+  button_label_next: 'I am Ready!'
 };
 
 var ready = {
@@ -810,7 +823,7 @@ var ready = {
       '<div class="tp-particle" style="left:90%;animation-duration:2.9s;animation-delay:0.6s;">▪️</div>' +
       '<div class="tp-particle" style="left:44%;animation-duration:3.8s;animation-delay:1.8s;font-size:20px;">▪️</div>' +
       '<div class="tp-title">🌌 You are being teleported now... 🌌</div>' +
-      '<div class="tp-luck"> Good luck! </div>' +
+      '<div class="tp-luck">✨ Good luck ✨</div>' +
     '</div>'
   ],
   show_clickable_nav: true,

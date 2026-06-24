@@ -46,6 +46,7 @@
   <link href="static/task/game.min.css" rel="stylesheet" type="text/css"></link>
   <script>
     document.write(
+      '<script src="static/task/ui-helpers.js?v='     + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/stimuli.js?v='          + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/stimuli-details.js?v='  + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/comprehension1.js?v='   + window.__APP_VER + '"><\/script>' +
@@ -54,7 +55,8 @@
       '<script src="static/task/latin_square.js?v='     + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/preload.js?v='          + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/data_saving.js?v='      + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/dev_routes.js?v='       + window.__APP_VER + '"><\/script>'
+      '<script src="static/task/dev_routes.js?v='       + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/survey.js?v='          + window.__APP_VER + '"><\/script>'
     );
   </script>
 
@@ -323,7 +325,7 @@
 
       '<div style="font-size:44px;margin-bottom:10px;">🖥️</div>' +
 
-      '<div style="font-size:30px;font-weight:850;margin-bottom:14px;">Full-screen mode</div>' +
+      '<div style="font-size:30px;font-weight:850;margin-bottom:14px;">Full-Screen Mode</div>' +
 
       '<p style="font-size:20px;margin:0 0 14px 0;">' +
 
@@ -333,7 +335,7 @@
 
       '<p style="font-size:16px;color:#64748b;margin:0;">' +
 
-        'You can press <strong>Esc</strong> to exit. A small reminder will appear until you return.' +
+        'If you press <strong>Esc</strong> to exit, a reminder will appear until you return.' +
 
       '</p>' +
 
@@ -441,80 +443,19 @@
   })();
 
   // ──────────────────────────────────────────────────────────────
-  // Shared "glow + pop + drifting ▪️" transition-screen animation.
-  // Used by: welcome, feedback0, feedback1, finish, and the
-  // planet-transition ("New planet mission") screens — one visual
-  // language reused everywhere instead of five bespoke style blocks.
-  //
-  // jsPsych replaces display_element's entire innerHTML per trial,
-  // so only one of these is ever in the DOM at a time — fixed
-  // class/keyframe names are safe to reuse across every call site.
-  //
-  // Usage: glowSquaresScreen(innerHtml, opts)
-  //   opts.minHeight  — CSS height for the centered wrap (default 38vh)
-  //   opts.glowColor  — 'r,g,b' triplet for the title's pulsing glow
-  //   opts.density    — number of drifting ▪️ particles (default 7)
-  // Tag any element you want to pulse-glow with class="glow-title".
-  // ──────────────────────────────────────────────────────────────
-  function glowSquaresScreen(innerHTML, opts) {
-    opts = opts || {};
-    var minHeight = opts.minHeight || '38vh';
-    var glowColor = opts.glowColor || '30,64,175'; // indigo default
-    var density   = opts.density   || 7;
-
-    var lefts  = [8, 20, 34, 48, 62, 76, 90, 16, 56, 84];
-    var sizes  = [10, 14, 8, 12, 10, 7, 11, 9, 13, 6];
-    var durs   = [3.4, 2.8, 3.6, 2.5, 3.1, 3.3, 2.7, 3.0, 2.9, 3.5];
-    var delays = [0, .5, 1.2, .3, .9, 1.6, .7, 1.1, .2, 1.4];
-
-    var particles = '';
-    for (var p = 0; p < density; p++) {
-      particles +=
-        '<div class="glow-particle" style="left:' + lefts[p % lefts.length] + '%;' +
-        'animation-duration:' + durs[p % durs.length] + 's;' +
-        'animation-delay:' + delays[p % delays.length] + 's;' +
-        'font-size:' + sizes[p % sizes.length] + 'px;">▪️</div>';
-    }
-
-    return (
-      '<style>' +
-        '@keyframes glow-drift{' +
-          '0%{transform:translateY(0) scale(1);opacity:0}' +
-          '10%{opacity:.55}90%{opacity:.55}' +
-          '100%{transform:translateY(-50vh) scale(0.2);opacity:0}' +
-        '}' +
-        '@keyframes glow-pop{' +
-          '0%{transform:scale(0.86);opacity:0}' +
-          '65%{transform:scale(1.035);opacity:1}' +
-          '100%{transform:scale(1);opacity:1}' +
-        '}' +
-        '@keyframes glow-pulse{' +
-          '0%,100%{text-shadow:0 0 6px rgba(' + glowColor + ',.25)}' +
-          '50%{text-shadow:0 0 20px rgba(' + glowColor + ',.55)}' +
-        '}' +
-        '.glow-wrap{position:relative;overflow:hidden;min-height:' + minHeight + ';' +
-          'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
-          'animation:glow-pop .5s cubic-bezier(.2,.8,.3,1.1) both;}' +
-        '.glow-particle{position:absolute;bottom:-10px;pointer-events:none;' +
-          'animation:glow-drift linear infinite;}' +
-        '.glow-title{animation:glow-pulse 2.2s ease-in-out infinite;}' +
-      '</style>' +
-      '<div class="glow-wrap">' +
-        particles +
-        '<div style="position:relative;z-index:1;width:100%;">' + innerHTML + '</div>' +
-      '</div>'
-    );
-  }
+  // glowSquaresScreen() is now defined in static/task/ui-helpers.js
+  // (loaded before instructions.js so it's available at file-parse time)
 
   var welcome = {
     type: 'instructions',
     pages: [
       glowSquaresScreen(
-        '<div style="max-width:760px;margin:0 auto;text-align:center;font-size:20px;line-height:1.65;color:#1f2937;">' +
-          '<div class="glow-title" style="font-size:32px;font-weight:800;margin-bottom:18px;">🌠 Welcome to the drone game! 🌌</div>' +
-          '<p>You will complete a game, memory tests, and a questionnaire.</p>' +
-          '<p>The study takes about <strong>50 minutes</strong>.</p>' +
-          '<p>Your bonus payment depends on game performance, so please stay attentive and try your best.</p>' +
+        '<div style="max-width:760px;margin:0 auto;text-align:center;font-size:20px;line-height:1.65;color:#e2e8f0;">' +
+          '<div class="glow-title" style="font-size:32px;font-weight:800;margin-bottom:18px;color:#fff;">🌠 Welcome 🌠</div>' +
+          '<p>You will complete a keyboard game and related questions.</p>' +
+          '<p>The study takes about 45 minutes.</p>' +
+          '<p><strong>Bonus payment</strong> depends on game performance.</p>' +
+          '<p><strong>🌟 So Try Your Best 🌟</strong></p>' +
         '</div>',
         { minHeight: '40vh', glowColor: '30,64,175', density: 7 }
       )
@@ -762,7 +703,7 @@
               'background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);' +
               'font-size:13px;font-weight:800;letter-spacing:.04em;' +
               'text-transform:uppercase;margin-bottom:14px;">' +
-              'Planet ' + planetNum + ' of 4' +
+              '🌌 Planet ' + planetNum + ' of 4 🌌' +
             '</div>' +
 
             '<div class="glow-title" style="font-size:30px;font-weight:850;margin-bottom:10px;color:#fff;">' +
@@ -1023,7 +964,7 @@
                 'line-height:1.65;color:#e2e8f0;">' +
 
                 '<div class="glow-title" style="font-size:32px;font-weight:850;margin-bottom:14px;color:#fff;">' +
-                  '🌟 Planet ' + blockNum + ' mission complete! 🌟' +
+                  '🌌 Planet ' + blockNum + ' mission complete 🌌' +
                 '</div>' +
 
                 '<p style="font-size:20px;margin:0 0 14px 0;color:rgba(255,255,255,.9);">' +
@@ -1031,7 +972,7 @@
                 '</p>' +
 
                 '<p style="font-size:18px;margin:0 0 8px 0;color:rgba(255,255,255,.85);">' +
-                  '‼️ Please answer <strong>as quickly and accurately as possible</strong> ‼️' +
+                  '‼️ Answer <strong>as quickly as possible</strong> ‼️' +
                 '</p>' +
 
                 '<p style="font-size:15px;color:rgba(255,255,255,.55);margin:0 0 22px 0;">' +
@@ -1042,13 +983,13 @@
                   'display:inline-block;padding:10px 18px;border-radius:12px;' +
                   'background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);' +
                   'color:rgba(255,255,255,.85);font-weight:750;font-size:16px;">' +
-                  'Press any key to begin!' +
+                  'Press any key to begin.' +
                 '</div>' +
               '</div>',
               { minHeight: '22vh', glowColor: _mcGlowColor, density: 5 }
             )
           : '<div style="text-align:center;padding:40px;color:#fff;font-size:30px;">' +
-              '🌟 Planet ' + blockNum + ' mission complete! 🌟<br>' +
+              '🌌 Planet ' + blockNum + ' mission complete 🌌<br>' +
               '<span style="font-size:18px;">Press any key.</span></div>'
         ),
       choices: jsPsych.ALL_KEYS,
@@ -1269,6 +1210,30 @@
   // Mechanics check (loops until all correct — never terminates)
   instructions_loop.push(comprehension1_loop);
 
+  // Transition between comprehension sets
+  var comp_transition = {
+    type: 'html-keyboard-response',
+    stimulus: glowSquaresScreen(
+      '<div style="max-width:620px;margin:0 auto;text-align:center;color:#1f2937;' +
+        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;">' +
+
+        '<div class="glow-title" style="font-size:36px;font-weight:800;margin-bottom:14px;color:#111827;">' +
+          '⚡ Part 1 Compelete ⚡' +
+        '</div>' +
+
+        '<p style="font-size:15px;color:#4b5563;margin-top:16px;">' +
+          'Press any key to continue with Part 2.' +
+        '</p>' +
+
+      '</div>',
+      { minHeight: '28vh', glowColor: '34,197,94', density: 20 }
+    ),
+    choices: jsPsych.ALL_KEYS,
+    trial_duration: 10000
+  };
+
+  instructions_loop.push(comp_transition);
+
   // Full mission check (loops until all correct — never terminates)
   instructions_loop.push(comprehension2_loop);
 
@@ -1286,6 +1251,7 @@
   var comprehensionOnlyTimeline = [].concat(
     addSmoothTransitions(quiz),
     comprehension1_loop,
+    comp_transition,
     comprehension2_loop,
     ready
   );
@@ -1294,10 +1260,11 @@
     type: 'instructions',
     pages: [
       glowSquaresScreen(
-        '<div style="max-width:680px;margin:0 auto;text-align:center;font-size:20px;line-height:1.7;color:#1f2937;">' +
-          '<div class="glow-title" style="font-size:27px;font-weight:800;margin-bottom:14px;">🛰️ Pre-flight briefing</div>' +
-          '<p>Next: the mission instructions, then a short understanding check.</p>' +
-          '<p>Every answer must be correct before liftoff — read closely!</p>' +
+        '<div style="max-width:680px;margin:0 auto;text-align:center;font-size:20px;line-height:1.7;color:#e2e8f0;">' +
+          '<div class="glow-title" style="font-size:27px;font-weight:800;margin-bottom:14px;color:#fff;">🌌 Pre-Flight Briefing 🌌</div>' +
+          '<p>First: mission instructions, then a short understanding check.</p>' +
+          '<p>You must pass the check before liftoff</p>' +
+          '<p><strong>🌟 So Read Closely 🌟</strong></p>' +
         '</div>',
         { minHeight: '32vh', glowColor: '30,64,175', density: 5 }
       )
@@ -1310,49 +1277,135 @@
   var feedback1 = {
     type: 'instructions',
     pages: [
+      HIDE_PREV +
+      '<style>' +
+        '#jspsych-instructions-next{' +
+          'background:linear-gradient(135deg,#facc15,#fb923c)!important;' +
+          'color:#111827!important;' +
+          'border:0!important;' +
+          'border-radius:999px!important;' +
+          'padding:11px 24px!important;' +
+          'font-size:16px!important;' +
+          'font-weight:850!important;' +
+          'box-shadow:0 8px 20px rgba(251,146,60,.28)!important;' +
+          'opacity:1!important;' +
+        '}' +
+        '#jspsych-instructions-next:hover{' +
+          'transform:translateY(-1px);' +
+          'box-shadow:0 10px 24px rgba(251,146,60,.36)!important;' +
+        '}' +
+      '</style>' +
       glowSquaresScreen(
-        '<div style="max-width:680px;margin:0 auto;text-align:center;font-size:20px;line-height:1.7;color:#1f2937;">' +
-          '<div class="glow-title" style="font-size:27px;font-weight:800;margin-bottom:14px;">🌟 Mission complete</div>' +
-          '<p>You’ve finished the drone mission and questionnaire — thank you!</p>' +
-          '<p>One last screen will save everything and wrap up.</p>' +
+        '<div style="' +
+          'max-width:680px;margin:0 auto;text-align:center;' +
+          'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+          'font-size:20px;line-height:1.7;color:#111827;">' +
+
+          '<div style="' +
+            'display:inline-block;padding:6px 14px;border-radius:999px;' +
+            'background:#fff7d6;color:#92400e;font-size:13px;font-weight:850;' +
+            'letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px;">' +
+            'Final step' +
+          '</div>' +
+
+          '<div class="glow-title" style="' +
+            'font-size:28px;font-weight:900;margin-bottom:12px;color:#111827;">' +
+            '🌟 Mission Accomplished 🌟' +
+          '</div>' +
+
+          '<div style="' +
+            'max-width:500px;margin:0 auto;padding:16px 20px;border-radius:18px;' +
+            'background:rgba(255,255,255,.76);border:1px solid rgba(250,204,21,.45);' +
+            'box-shadow:0 10px 28px rgba(15,23,42,.08);">' +
+            '<p style="margin:0;color:#1f2937;font-size:18px;">' +
+              'You are almost done. Next, we will ask a short set of demographic questions.' +
+            '</p>' +
+          '</div>' +
+
         '</div>',
-        { minHeight: '32vh', glowColor: '180,140,20', density: 5 }
+        { minHeight: '32vh', glowColor: '250,204,21', density: 5 }
       )
     ],
     show_clickable_nav: true,
     button_label_previous: "Prev",
-    button_label_next: "Next"
+    button_label_next: "Continue"
   };
 
   var finish = {
     type: 'instructions',
     pages: [
+      HIDE_PREV +
+      '<style>' +
+        '#jspsych-instructions-next{' +
+          'background:linear-gradient(135deg,#60a5fa,#a78bfa)!important;' +
+          'color:#111827!important;' +
+          'border:0!important;' +
+          'border-radius:999px!important;' +
+          'padding:12px 28px!important;' +
+          'font-size:22px!important;' +
+          'font-weight:900!important;' +
+          'box-shadow:0 10px 24px rgba(96,165,250,.30)!important;' +
+          'opacity:1!important;' +
+        '}' +
+        '#jspsych-instructions-next:hover{' +
+          'transform:translateY(-1px);' +
+          'box-shadow:0 12px 28px rgba(96,165,250,.40)!important;' +
+        '}' +
+      '</style>' +
       glowSquaresScreen(
-        '<div style="max-width:680px;margin:0 auto;text-align:center;font-size:20px;line-height:1.7;color:#1f2937;">' +
-          '<div class="glow-title" style="font-size:28px;font-weight:800;margin-bottom:16px;">Thank you for participating!</div>' +
-          (PILOT_MODE
-            ? '<p>Please click <strong>Finish</strong> to save your data.</p>' +
-              '<p>After the confirmation message appears, you may close this tab.</p>'
-            : '<p>Please click <strong>Finish</strong> to save your data and return to Prolific.</p>' +
-              '<p style="font-size:16px;color:#555;">Do not close this tab until you are redirected.</p>'
-          ) +
+        '<div style="' +
+          'max-width:680px;margin:0 auto;text-align:center;' +
+          'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+          'font-size:20px;line-height:1.7;color:#111827;">' +
+
+          '<div style="' +
+            'display:inline-block;padding:6px 14px;border-radius:999px;' +
+            'background:#eef2ff;color:#3730a3;font-size:13px;font-weight:850;' +
+            'letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px;">' +
+            'Done!' +
+          '</div>' +
+
+          '<div class="glow-title" style="' +
+            'font-size:29px;font-weight:900;margin-bottom:12px;color:#111827;">' +
+            '🌠 Thank You for Playing 🌠' +
+          '</div>' +
+
+          '<div style="' +
+            'max-width:520px;margin:0 auto;padding:18px 22px;border-radius:18px;' +
+            'background:rgba(255,255,255,.78);border:1px solid rgba(96,165,250,.35);' +
+            'box-shadow:0 10px 28px rgba(15,23,42,.08);">' +
+            (PILOT_MODE
+              ? '<p style="margin:0 0 8px 0;color:#1f2937;">' +
+                  '<strong>Thumbs up</strong> to save your record!' +
+                '</p>' +
+                '<p style="margin:0;color:#4b5563;font-size:15px;">' +
+                  'After the confirmation appears, you may close this tab.' +
+                '</p>'
+              : '<p style="margin:0 0 8px 0;color:#1f2937;">' +
+                  '<strong>Thumbs Up</strong> to save your record and return to Prolific!' +
+                '</p>' +
+                '<p style="margin:0;color:#4b5563;font-size:15px;">' +
+                  'Please keep this tab open until you are redirected.' +
+                '</p>'
+            ) +
+          '</div>' +
+
         '</div>',
-        { minHeight: '32vh', glowColor: '30,64,175', density: 5 }
+        { minHeight: '32vh', glowColor: '96,165,250', density: 5 }
       )
     ],
     show_clickable_nav: true,
     allow_backward: false,
-    button_label_next: "Finish"
+    button_label_next: "👍"
   };
 
   // Preload image list (built by static/task/preload.js)
   var preload_images = buildPreloadImageList(stimulus_set_images, practice_stimulus_images);
 
   (async function() {
-    var survey_demographics = {
-      type: 'survey-demo',
-      button_label: 'Continue'
-    };
+    var survey_demographics = (typeof buildSurveyTrial === 'function')
+      ? buildSurveyTrial()
+      : { type: 'survey-demo', button_label: 'Continue' };
 
     function buildBlockMemoryTrials() {
       var num_blocks = block_order.length;
@@ -1395,7 +1448,9 @@
     var _stageMap = {
       'bird': 'encoding', 'memory': 'test',
       'block1': 'block',  'block2': 'block',
-      'encoding-test':  'block',   // ← canonical, recommended
+      'encoding-test':  'block',
+      'survey':          'survey',
+      'demographics':    'survey',   // ← canonical, recommended
       'encoding_test':  'block',
       'encoding test':  'block',   // unencoded '+' decodes to this
       'encoding+test':  'block',   // properly percent-encoded (%2B) decodes to this

@@ -1,8 +1,7 @@
 /* jspsych-survey-template.js
- * a jspsych plugin extension for measuring items on a likert scale
+ * A jsPsych plugin extension for measuring items on a Likert scale.
  *
- * authors: Sam Zorowitz, Dan Bennett
- *
+ * Authors: Sam Zorowitz, Dan Bennett
  */
 
 jsPsych.plugins['survey-template'] = (function() {
@@ -17,18 +16,18 @@ jsPsych.plugins['survey-template'] = (function() {
         type: jsPsych.plugins.parameterType.HTML_STRING,
         array: true,
         pretty_name: 'Items',
-        decription: 'The questions associated with the survey'
+        description: 'The questions associated with the survey'
       },
       scale: {
         type: jsPsych.plugins.parameterType.HTML_STRING,
         array: true,
         pretty_name: 'Scale',
-        decription: 'The response options associated with the survey'
+        description: 'The response options associated with the survey'
       },
       reverse: {
         type: jsPsych.plugins.parameterType.BOOL,
         array: true,
-        pretty_name: 'Randomize Question Order',
+        pretty_name: 'Reverse scoring',
         default: [],
         description: 'If true, the corresponding item will be reverse scored'
       },
@@ -36,17 +35,18 @@ jsPsych.plugins['survey-template'] = (function() {
         type: jsPsych.plugins.parameterType.INT,
         array: true,
         pretty_name: 'Infrequency items',
-        decription: 'Infrequency-check item numbers (0-indexed)',
+        description: 'Infrequency-check item numbers, 0-indexed',
         default: null
       },
       instructions: {
         type: jsPsych.plugins.parameterType.HTML_STRING,
         pretty_name: 'Instructions',
-        decription: 'The instructions associated with the survey'
+        description: 'The instructions associated with the survey',
+        default: ''
       },
       randomize_question_order: {
         type: jsPsych.plugins.parameterType.BOOL,
-        pretty_name: 'Randomize Question Order',
+        pretty_name: 'Randomize question order',
         default: true,
         description: 'If true, the order of the questions will be randomized'
       },
@@ -71,370 +71,412 @@ jsPsych.plugins['survey-template'] = (function() {
       button_label: {
         type: jsPsych.plugins.parameterType.STRING,
         pretty_name: 'Button label',
-        default:  'Continue',
+        default: 'Continue',
         description: 'The text that appears on the button to finish the trial.'
-      },
+      }
     }
-  }
+  };
+
   plugin.trial = function(display_element, trial) {
 
     //---------------------------------------//
     // Define survey HTML.
     //---------------------------------------//
 
-    // Initialize HTML
     var html = '';
 
-    // Define CSS constants
-    const n  = trial.scale.length;              // Number of item responses
-    const x1 = trial.item_width;                // Width of item prompt (percentage)
-    const x2 = (100 - trial.item_width) / n;    // Width of item response (percentage)
+    var n = trial.scale.length;
+    var x1 = trial.item_width;
+    var x2 = (100 - trial.item_width) / n;
+    var widthPx = trial.survey_width;
 
-    // Insert CSS
     html += `<style>
-    .survey-template-wrap {
-      height: 100vh;
-      width: 100vw;
-    }
-    .survey-template-instructions {
-      width: ${trial.survey_width}px;
-      margin: auto;
-      font-size: 16px;
-      line-height: 1.5em;
-    }
-    .survey-template-container {
-      display: grid;
-      grid-template-columns: ${x1}% repeat(${n}, ${x2}%);
-      grid-template-rows: auto;
-      width: ${trial.survey_width}px;
-      margin: auto;
-      background-color: #F8F8F8;
-      border-radius: 8px;
-    }
-    .survey-template-row {
-      display: contents;
-    }
-    .survey-template-row:hover div {
-      background-color: #dee8eb;
-    }
-    .survey-template-header {
-      padding: 18px 0 0px 0;
-      text-align: center;
-      font-size: 14px;
-      line-height: 1.15em;
-    }
-    .survey-template-prompt {
-      padding: 12px 0 12px 15px;
-      text-align: left;
-      font-size: 15px;
-      line-height: 1.15em;
-      justify-items: center;
-    }
-    .survey-template-response {
-      padding: 12px 0 12px 0;
-      font-size: 13px;
-      text-align: center;
-      line-height: 1.15em;
-      justify-items: center;
-    }
-    .survey-template-response input[type='radio'] {
-      position: relative;
-      width: 16px;
-      height: 16px;
-    }
-    .survey-template-response .pseudo-input {
-      position: relative;
-      height: 0px;
-      width: 0px;
-      display: inline-block;
-    }
-    .survey-template-response .pseudo-input:after {
-      position: absolute;
-      left: 6.5px;
-      top: -6px;
-      height: 2px;
-      width: calc(${trial.survey_width}px * ${x2 / 100} - 100%);
-      background: #d8dcd6;
-      content: "";
-    }
-    .survey-template-response:last-child .pseudo-input:after {
-      display: none;
-    }
-    .survey-template-footer {
-      margin: auto;
-      width: ${trial.survey_width}px;
-      padding: 0 0 0 0;
-      text-align: right;
-    }
-    .survey-template-footer input[type=submit] {
-      background-color: #F0F0F0;
-      padding: 8px 20px;
-      border: none;
-      border-radius: 4px;
-      margin-top: 5px;
-      margin-bottom: 20px;
-      margin-right: 0px;
-      font-size: 13px;
-      color: black;
-    }
-    /* honeypot css */
-    .survey-template-block {
-      position: absolute;
-      top: 0%;
-      -webkit-transform: translate3d(0, -100%, 0);
-      transform: translate3d(0, -100%, 0);
-    }
-    </style>`;
-
-    // Initialize survey.
-    html += '<div class="survey-template-wrap">';
-
-    // Initialize form.
-    html += '<form name="survey-template" id="survey-template-submit">';
-
-    // Add instructions.
-    html += '<div class="survey-template-instructions" id="instructions">';
-    html += `<p>${trial.instructions}<p>`;
-    html += '</div>';
-
-    // Randomize question order.
-    var item_order = [];
-    for (var i=0; i < trial.items.length; i++){ item_order.push(i); }
-    if(trial.randomize_question_order){
-
-      // Shuffle item order
-      item_order = jsPsych.randomization.shuffle(item_order);
-
-      // check if the first item is an infrequency item; if so, re-shuffle to avoid this
-      while (!(trial.infrequency_items === null) && trial.infrequency_items.toString().includes([item_order[0]])){
-        item_order = jsPsych.randomization.shuffle(item_order);
+      .survey-template-wrap {
+        min-height: 100vh;
+        width: 100vw;
+        box-sizing: border-box;
+        padding: 32px 0 42px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+        color: #111827;
       }
 
+      .survey-template-instructions {
+        width: min(${widthPx}px, 86vw);
+        margin: 0 auto 14px auto;
+        font-size: 16px;
+        line-height: 1.55;
+        color: #1f2937;
+      }
+
+      .survey-template-instructions:empty {
+        display: none;
+      }
+
+      .survey-template-instructions p {
+        margin: 0 0 10px 0;
+      }
+
+      .survey-template-container {
+        display: grid;
+        grid-template-columns: ${x1}% repeat(${n}, ${x2}%);
+        grid-template-rows: auto;
+        width: min(${widthPx}px, 86vw);
+        margin: 0 auto;
+        background: rgba(255, 255, 255, .88);
+        border: 1px solid rgba(148, 163, 184, .28);
+        border-radius: 24px;
+        overflow: hidden;
+        box-shadow: 0 16px 36px rgba(15, 23, 42, .09);
+      }
+
+      .survey-template-row {
+        display: contents;
+      }
+
+      .survey-template-header {
+        padding: 16px 8px 12px 8px;
+        text-align: center;
+        font-size: 13px;
+        font-weight: 750;
+        line-height: 1.25;
+        color: #334155;
+        background: rgba(248, 250, 252, .86);
+        border-bottom: 1px solid rgba(226, 232, 240, .92);
+      }
+
+      .survey-template-prompt {
+        padding: 15px 18px;
+        text-align: left;
+        font-size: 15px;
+        line-height: 1.35;
+        font-weight: 650;
+        color: #111827;
+        background: rgba(248, 250, 252, .76);
+        border-top: 1px solid rgba(226, 232, 240, .92);
+      }
+
+      .survey-template-response {
+        padding: 15px 0;
+        font-size: 13px;
+        text-align: center;
+        line-height: 1.15;
+        background: rgba(255, 255, 255, .70);
+        border-top: 1px solid rgba(226, 232, 240, .92);
+      }
+
+      .survey-template-row:hover .survey-template-prompt,
+      .survey-template-row:hover .survey-template-response {
+        background: rgba(240, 249, 255, .72);
+      }
+
+      .survey-template-response input[type='radio'] {
+        position: relative;
+        width: 17px;
+        height: 17px;
+        accent-color: #38bdf8;
+        cursor: pointer;
+      }
+
+      .survey-template-response .pseudo-input {
+        position: relative;
+        height: 0;
+        width: 0;
+        display: inline-block;
+      }
+
+      .survey-template-response .pseudo-input:after {
+        position: absolute;
+        left: 8px;
+        top: -6px;
+        height: 2px;
+        width: calc(min(${widthPx}px, 86vw) * ${x2 / 100} - 100%);
+        background: rgba(203, 213, 225, .90);
+        content: "";
+      }
+
+      .survey-template-response:last-child .pseudo-input:after {
+        display: none;
+      }
+
+      .survey-template-footer {
+        margin: 14px auto 0 auto;
+        width: min(${widthPx}px, 86vw);
+        padding: 0;
+        text-align: right;
+      }
+
+      .survey-template-footer input[type=submit] {
+        background: linear-gradient(135deg, #93c5fd, #c4b5fd);
+        padding: 12px 26px;
+        border: none;
+        border-radius: 999px;
+        margin-top: 6px;
+        margin-bottom: 20px;
+        font-size: 16px;
+        font-weight: 850;
+        color: #111827;
+        cursor: pointer;
+        box-shadow: 0 10px 24px rgba(96, 165, 250, .22);
+        transition: transform .14s ease, box-shadow .14s ease;
+      }
+
+      .survey-template-footer input[type=submit]:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 12px 28px rgba(96, 165, 250, .30);
+      }
+
+      .survey-template-block {
+        position: absolute;
+        top: 0%;
+        -webkit-transform: translate3d(0, -100%, 0);
+        transform: translate3d(0, -100%, 0);
+      }
+
+      @media (max-width: 760px) {
+        .survey-template-container {
+          width: 92vw;
+          font-size: 14px;
+        }
+
+        .survey-template-instructions,
+        .survey-template-footer {
+          width: 92vw;
+        }
+
+        .survey-template-header {
+          font-size: 11px;
+          padding-left: 4px;
+          padding-right: 4px;
+        }
+
+        .survey-template-prompt {
+          font-size: 14px;
+          padding: 13px 12px;
+        }
+
+        .survey-template-response {
+          padding: 13px 0;
+        }
+      }
+    </style>`;
+
+    html += '<div class="survey-template-wrap">';
+    html += '<form name="survey-template" id="survey-template-submit">';
+
+    if (trial.instructions && String(trial.instructions).trim() !== '') {
+      html += '<div class="survey-template-instructions" id="instructions">';
+      html += trial.instructions;
+      html += '</div>';
     }
 
-    // Iteratively add items.
+    var item_order = [];
+    for (var i = 0; i < trial.items.length; i++) {
+      item_order.push(i);
+    }
+
+    if (trial.randomize_question_order) {
+      item_order = jsPsych.randomization.shuffle(item_order);
+
+      while (
+        !(trial.infrequency_items === null) &&
+        trial.infrequency_items.toString().includes([item_order[0]])
+      ) {
+        item_order = jsPsych.randomization.shuffle(item_order);
+      }
+    }
+
     html += '<div class="survey-template-container">';
 
-    for (var i = 0; i < trial.items.length; i++) {
+    for (var row = 0; row < trial.items.length; row++) {
+      var qid = ('0' + String(item_order[row] + 1)).slice(-2);
 
-      // Define item ID.
-      const qid = ("0" + `${item_order[i]+1}`).slice(-2);
-
-      // Define response values.
       var values = [];
-      for (var j = 0; j < trial.scale.length; j++){ values.push(j); }
-      if (trial.reverse[item_order[i]]) { values = values.reverse(); }
+      for (var j = 0; j < trial.scale.length; j++) {
+        values.push(j);
+      }
 
-      // Add response headers (every N items).
-      if (i % trial.scale_repeat == 0) {
+      if (trial.reverse[item_order[row]]) {
+        values = values.reverse();
+      }
+
+      if (row % trial.scale_repeat === 0) {
         html += '<div class="survey-template-header"></div>';
-        for (var j = 0; j < trial.scale.length; j++) {
-          html += `<div class="survey-template-header">${trial.scale[j]}</div>`;
+        for (var h = 0; h < trial.scale.length; h++) {
+          html += '<div class="survey-template-header">' + trial.scale[h] + '</div>';
         }
       }
 
-      // Add row.
       html += '<div class="survey-template-row">';
-      html += `<div class='survey-template-prompt'>${trial.items[item_order[i]]}</div>`;
-      for (var j = 0; j < values.length; j++) {
+      html += '<div class="survey-template-prompt">' + trial.items[item_order[row]] + '</div>';
+
+      for (var k = 0; k < values.length; k++) {
         html += '<div class="survey-template-response">';
         html += '<div class="pseudo-input"></div>';
-        html += `<input type="radio" name="Q${qid}" value="${values[j]}" id=${j} tabindex="-1" required>`;
-        html += "</div>";
+        html += '<input type="radio" name="Q' + qid + '" value="' + values[k] + '" id="' + k + '" tabindex="-1" required>';
+        html += '</div>';
       }
+
       html += '</div>';
-
     }
+
     html += '</div>';
 
-    // Add submit button.
     html += '<div class="survey-template-footer">';
-    html += `<input type="submit" value="${trial.button_label}"></input>`;
+    html += '<input type="submit" value="' + trial.button_label + '">';
     html += '</div>';
 
-    // End form.
     html += '</form>';
 
-    // Add honeypot.
     html += '<div class="survey-template-block" tabindex="-1">';
     html += '<form id="survey-template-form">';
-    html += `<input type="radio" name="Q00" value="0" tabindex="-1">`;
-    html += `<input type="radio" name="Q00" value="1" tabindex="-1">`;
-    html += `<input type="radio" name="Q00" value="2" tabindex="-1">`;
+    html += '<input type="radio" name="Q00" value="0" tabindex="-1">';
+    html += '<input type="radio" name="Q00" value="1" tabindex="-1">';
+    html += '<input type="radio" name="Q00" value="2" tabindex="-1">';
     html += '</form>';
     html += '</div>';
 
-    // End survey.
     html += '</div>';
 
-    // Display HTML
     display_element.innerHTML = html;
 
     //---------------------------------------//
     // Response handling.
     //---------------------------------------//
 
-    // Scroll to top of screen.
-    window.onbeforeunload = function () {
+    window.onbeforeunload = function() {
       window.scrollTo(0, 0);
-    }
+    };
 
-    // Preallocate space.
     var key_events = [];
     var mouse_events = [];
     var radio_events = [];
 
-    // Add event listener.
     function log_event(event) {
-      const response_time = performance.now() - startTime;
+      var response_time = performance.now() - startTime;
+
       if (event.screenX > 0) {
-        mouse_events.push( response_time );
+        mouse_events.push(response_time);
       } else {
-        key_events.push( response_time );
+        key_events.push(response_time);
       }
-      if (event.target.type == "radio") {
-        radio_events.push( response_time )
+
+      if (event.target.type === 'radio') {
+        radio_events.push(response_time);
       }
     }
-    document.addEventListener("click", log_event);
+
+    document.addEventListener('click', log_event);
 
     display_element.querySelector('#survey-template-submit').addEventListener('submit', function(event) {
+      event.preventDefault();
 
-        // Wait for response
-        event.preventDefault();
+      var endTime = performance.now();
+      var response_time = endTime - startTime;
 
-        // Measure response time
-        var endTime = performance.now();
-        var response_time = endTime - startTime;
+      var question_data = serializeArray(this);
+      var responses = objectifyForm(question_data);
 
-        // Serialize data
-        var question_data = serializeArray(this);
+      var straightlining = detectStraightLining(question_data);
+      var zigzagging = detectZigZagging(question_data, trial.scale);
 
-        // Extract responses
-        var responses = objectifyForm(question_data);
+      var honeypot = serializeArray(display_element.querySelector('#survey-template-form'));
+      honeypot = (honeypot.length > 0) ? 1 : 0;
 
-        // Detect heuristic responding
-        var straightlining = detectStraightLining(question_data);
-        var zigzagging = detectZigZagging(question_data, trial.scale);
+      var trialdata = {
+        responses: responses,
+        rt: response_time,
+        item_order: item_order,
+        radio_events: radio_events,
+        key_events: key_events,
+        mouse_events: mouse_events,
+        straightlining: straightlining,
+        zigzagging: zigzagging,
+        honeypot: honeypot
+      };
 
-        // Check honeypot.
-        var honeypot = serializeArray(display_element.querySelector('#survey-template-form'));
-        honeypot = (honeypot.length > 0) ? 1 : 0;
+      document.removeEventListener('click', log_event);
 
-        // Store data
-        var trialdata = {
-          "responses": responses,
-          "rt": response_time,
-          "item_order": item_order,
-          "radio_events": radio_events,
-          "key_events": key_events,
-          "mouse_events": mouse_events,
-          "straightlining": straightlining,
-          "zigzagging": zigzagging,
-          "honeypot": honeypot
-        };
-
-        // Remove event listener
-        document.removeEventListener("click", log_event);
-
-        // Update screen
-        display_element.innerHTML = '';
-
-        // Move onto next trial
-        jsPsych.finishTrial(trialdata);
-
+      display_element.innerHTML = '';
+      jsPsych.finishTrial(trialdata);
     });
 
     var startTime = performance.now();
-
   };
 
-  /*!
-   * Serialize all form data into an array
-   * (c) 2018 Chris Ferdinandi, MIT License, https://gomakethings.com
-   * @param  {Node}   form The form to serialize
-   * @return {String}      The serialized form data
-   */
-  var serializeArray = function (form) {
-    // Setup our serialized data
+  var serializeArray = function(form) {
     var serialized = [];
 
-    // Loop through each field in the form
     for (var i = 0; i < form.elements.length; i++) {
       var field = form.elements[i];
 
-      // Don't serialize fields without a name, submits, buttons, file and reset inputs, and disabled fields
-      if (!field.name || field.disabled || field.type === 'file' || field.type === 'reset' || field.type === 'submit' || field.type === 'button') continue;
+      if (
+        !field.name ||
+        field.disabled ||
+        field.type === 'file' ||
+        field.type === 'reset' ||
+        field.type === 'submit' ||
+        field.type === 'button'
+      ) {
+        continue;
+      }
 
-      // Convert field data to a query string
       if ((field.type !== 'checkbox' && field.type !== 'radio') || field.checked) {
         serialized.push({
           name: field.name,
           position: field.id,
-          value: field.value,
+          value: field.value
         });
       }
-
     }
 
     return serialized;
   };
 
-  // from https://stackoverflow.com/questions/1184624/convert-form-data-to-javascript-object-with-jquery
-  function objectifyForm(formArray) {//serialize data function
+  function objectifyForm(formArray) {
     var returnArray = {};
-    for (var i = 0; i < formArray.length; i++){
-      returnArray[formArray[i]['name']] = formArray[i]['value'];
+    for (var i = 0; i < formArray.length; i++) {
+      returnArray[formArray[i].name] = formArray[i].value;
     }
     return returnArray;
   }
 
-  // Straight-lining is defined as choosing the same response option (by position)
-  // across the entire survey. We detect this pattern by identifying the maximum
-  // percentage of responses loading onto the same item position.
   function detectStraightLining(formArray) {
+    if (!formArray || formArray.length === 0) return null;
 
-    // Initialize counts
-    let counts = [];
+    var counts = [];
 
-    // Count number of instances per unique response
-    for (let i = 0; i < formArray.length; i++) {
-      let loc = parseInt(formArray[i]['position']);
-      if ( counts[loc] > 0 ) {
+    for (var i = 0; i < formArray.length; i++) {
+      var loc = parseInt(formArray[i].position, 10);
+      if (counts[loc] > 0) {
         counts[loc]++;
       } else {
         counts[loc] = 1;
       }
     }
 
-    // Error-catching: replace empty with zero.
-    counts = Array.from(counts, item => item || 0);
+    counts = Array.from(counts, function(item) {
+      return item || 0;
+    });
 
-    // Compute and return maximum fraction
-    return Math.max(...counts) / formArray.length;
-
+    return Math.max.apply(null, counts) / formArray.length;
   }
 
-  // Zig-zagging is defined as choosing adjacent response options (by position)
-  // such that a diagonal pattern emerges across responses (i.e. the zig-zag).
-  // We detect this pattern by identifying the fraction of responses that exhibit
-  // response adjacency (including wrapping).
   function detectZigZagging(formArray, scale) {
+    if (!formArray || formArray.length < 2) return null;
 
-    // Initialize score
-    let score = 0;
+    var score = 0;
 
-    // Compute distance between adjacent responses
-    for (let i = 0; i < formArray.length-1; i++) {
-      let a = parseInt(formArray[i]['position']);
-      let b = parseInt(formArray[i+1]['position']);
-      let delta = Math.abs(a - b);
-      if ( delta == 1 || delta == (scale.length-1) ) { score++ };
+    for (var i = 0; i < formArray.length - 1; i++) {
+      var a = parseInt(formArray[i].position, 10);
+      var b = parseInt(formArray[i + 1].position, 10);
+      var delta = Math.abs(a - b);
+
+      if (delta === 1 || delta === (scale.length - 1)) {
+        score++;
+      }
     }
 
-    // Compute and return fraction
-    return score / (formArray.length-1);
-
+    return score / (formArray.length - 1);
   }
 
   return plugin;
