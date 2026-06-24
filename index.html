@@ -999,56 +999,63 @@
 
     console.log('[MEMORY] block=' + blockNum + ', pairCount=' + pairCount, pairList);
 
+    // ── Derive sky gradient for this block's display position ──
+    var _mcThemes = window.BLOCK_THEMES || [];
+    var _mcDisplayIdx = blockNum - 1; // display-order index (0-3)
+    var _mcTheme = (_mcDisplayIdx >= 0 && _mcDisplayIdx < _mcThemes.length)
+      ? _mcThemes[_mcDisplayIdx]
+      : { hue: 210, sat: 38 };
+    var _mcSkyBg = (typeof window.skyGradientCSS === 'function')
+      ? window.skyGradientCSS(_mcTheme.hue, _mcTheme.sat)
+      : 'linear-gradient(to bottom,#1e293b,#475569)';
+    var _mcGlowColor = _mcTheme.hue > 180
+      ? '180,200,255' : (_mcTheme.hue > 300 ? '255,180,200' : '180,230,200');
+
     timeline.push({
       type: 'html-keyboard-response',
       stimulus:
-        '<div style="' +
-          'max-width:720px;margin:8vh auto;padding:34px 42px;border-radius:22px;' +
-          'background:rgba(255,255,255,.90);' +
-          'backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);' +
-          'box-shadow:0 12px 36px rgba(0,0,0,.14);' +
-          'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
-          'text-align:center;line-height:1.65;color:#1f2937;">' +
+        '<div style="position:fixed;inset:0;z-index:-1;background:' + _mcSkyBg + ';"></div>' +
+        (typeof glowSquaresScreen === 'function'
+          ? glowSquaresScreen(
+              '<div style="' +
+                'max-width:680px;margin:0 auto;text-align:center;' +
+                'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+                'line-height:1.65;color:#e2e8f0;">' +
 
-          '<div style="' +
-            'display:inline-block;padding:5px 13px;border-radius:999px;' +
-            'background:#eef2ff;color:#3730a3;font-size:13px;font-weight:800;' +
-            'letter-spacing:.04em;text-transform:uppercase;margin-bottom:16px;">' +
-          '</div>' +
+                '<div class="glow-title" style="font-size:32px;font-weight:850;margin-bottom:14px;color:#fff;">' +
+                  '🌟 Planet ' + blockNum + ' mission complete! 🌟' +
+                '</div>' +
 
-          '<div style="font-size:30px;font-weight:850;margin-bottom:14px;">' +
-            '🌟 Planet ' + blockNum + ' mission complete! 🌟' +
-          '</div>' +
+                '<p style="font-size:20px;margin:0 0 14px 0;color:rgba(255,255,255,.9);">' +
+                  'Now we will ask about the <strong>objects you received</strong> on this planet.' +
+                '</p>' +
 
-          '<p style="font-size:20px;margin:0 0 14px 0;">' +
-            'Now we will ask about the <strong>objects you received</strong> on this planet.' +
-          '</p>' +
+                '<p style="font-size:18px;margin:0 0 8px 0;color:rgba(255,255,255,.85);">' +
+                  '‼️ Please answer <strong>as quickly and accurately as possible</strong> ‼️' +
+                '</p>' +
 
-          '<p style="font-size:18px;margin:0 0 8px 0;">' +
-            '‼️ Please answer <strong>as quickly and accurately as possible</strong> ‼️' +
-          '</p>' +
+                '<p style="font-size:15px;color:rgba(255,255,255,.55);margin:0 0 22px 0;">' +
+                  'Use ← → and Enter · ~ 10 seconds per question.' +
+                '</p>' +
 
-          '<p style="font-size:15px;color:#64748b;margin:0 0 22px 0;">' +
-            'You are given <strong> ~ 7.5 seconds</strong> per question.' +
-          '</p>' +
-
-          '<div style="' +
-            'display:inline-block;padding:10px 18px;border-radius:12px;' +
-            'background:#eff6ff;color:#1e40af;font-weight:750;font-size:16px;">' +
-            'Press any key to begin!' +
-          '</div>' +
-        '</div>',
+                '<div style="' +
+                  'display:inline-block;padding:10px 18px;border-radius:12px;' +
+                  'background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);' +
+                  'color:rgba(255,255,255,.85);font-weight:750;font-size:16px;">' +
+                  'Press any key to begin!' +
+                '</div>' +
+              '</div>',
+              { minHeight: '22vh', glowColor: _mcGlowColor, density: 5 }
+            )
+          : '<div style="text-align:center;padding:40px;color:#fff;font-size:30px;">' +
+              '🌟 Planet ' + blockNum + ' mission complete! 🌟<br>' +
+              '<span style="font-size:18px;">Press any key.</span></div>'
+        ),
       choices: jsPsych.ALL_KEYS,
       trial_duration: 15000,
       on_start: function() {
-        // Apply block-matching gradient to the body
-        var themes = window.BLOCK_THEMES || [];
-        var idx = designIdxForBlock;
-        var theme = (idx >= 0 && idx < themes.length)
-          ? themes[idx]
-          : (window.PRACTICE_THEME || { hue: 220, sat: 15 });
         if (typeof window.skyGradientCSS === 'function') {
-          document.body.style.background = window.skyGradientCSS(theme.hue, theme.sat);
+          document.body.style.background = _mcSkyBg;
           document.body.style.backgroundAttachment = 'fixed';
         }
       }

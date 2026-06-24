@@ -6,8 +6,8 @@
  * Stage 1: Temporal order judgement ("Which came first?")
  * Stage 2: Intervening-item count ("How many items between these two?")
  * Stage 3: Slider placement after every temporal-distance question.
-  For one-intervening-item pairs, the only intervening item is probed.
-  For two-intervening-item pairs, the earlier/later intervening probe is balanced within block.
+ * For one-intervening-item pairs, the only intervening item is probed.
+ * For two-intervening-item pairs, the earlier/later intervening probe is balanced within block.
  *
  * Supports main-task PNG image-path stimuli while keeping
  * practice text-emoji stimuli compatible.
@@ -89,6 +89,7 @@ jsPsych.plugins['memory-task'] = (function() {
     }
     return false;
   }
+
   function pairKey(pair) {
     return pair[0] + '_' + pair[1];
   }
@@ -187,7 +188,35 @@ jsPsych.plugins['memory-task'] = (function() {
   }
 
   function isEmojiStim(src) {
-    return typeof src === 'string' && !src.includes('/') && !src.includes('.');
+    return typeof src === 'string' && src.indexOf('/') === -1 && src.indexOf('.') === -1;
+  }
+
+  function cardBaseShadow() {
+    return '0 0 16px rgba(0,0,0,.3),0 0 6px rgba(255,255,255,.08)';
+  }
+
+  function selectedCardShadow(accentGlow) {
+    return '0 0 22px ' + accentGlow + ',0 0 10px rgba(255,255,255,.18)';
+  }
+
+  function styleSliderRail(rail) {
+    rail.style.height = '6px';
+    rail.style.background = 'rgba(255,255,255,.22)';
+    rail.style.borderRadius = '999px';
+    rail.style.boxShadow = 'inset 0 0 8px rgba(0,0,0,.25)';
+  }
+
+  function styleSliderThumb(thumb, active, accentFull, accentBorder, accentGlow) {
+    thumb.style.width = active ? '22px' : '20px';
+    thumb.style.height = active ? '22px' : '20px';
+    thumb.style.borderRadius = '50%';
+    thumb.style.background = active ? accentFull : 'rgba(255,255,255,.42)';
+    thumb.style.border = active
+      ? '2px solid ' + accentBorder
+      : '2px solid rgba(255,255,255,.55)';
+    thumb.style.boxShadow = active
+      ? '0 0 18px ' + accentGlow + ',0 0 8px rgba(255,255,255,.18)'
+      : '0 0 8px rgba(0,0,0,.25)';
   }
 
   function createBlock3Wrapper() {
@@ -196,10 +225,7 @@ jsPsych.plugins['memory-task'] = (function() {
     wrap.style.cssText =
       'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
       'min-height:78vh;width:min(96vw,980px);max-width:980px;margin:0 auto;padding:20px;' +
-      'box-sizing:border-box;border-radius:16px;' +
-      'background:rgba(255,255,255,.85);' +
-      'backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);' +
-      'box-shadow:0 8px 32px rgba(0,0,0,.12);';
+      'box-sizing:border-box;';
     return wrap;
   }
 
@@ -207,21 +233,22 @@ jsPsych.plugins['memory-task'] = (function() {
     var label = document.createElement('div');
     label.className = 'step-label padded-text prominent-text';
     label.style.cssText =
-      'font-size:28px;text-align:center;margin-bottom:20px;min-height:42px;font-weight:bold;';
+      'font-size:32px;text-align:center;margin-bottom:22px;min-height:42px;' +
+      'font-weight:bold;color:#fff;' +
+      'text-shadow:0 2px 12px rgba(0,0,0,.5),0 0 24px rgba(0,0,0,.25);';
     label.textContent = text;
     return label;
   }
 
   function getStimBoxSize(size) {
     var vw = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0);
-
-    if (size === 'small') {
-      return Math.max(58, Math.min(88, Math.floor(vw * 0.10)));
+    if (size === 'large') {
+      return Math.max(120, Math.min(170, Math.floor(vw * 0.19)));
     }
-
-    // Medium cards for temporal-order and distance questions.
-    // Keep them large enough to read, but small enough to stay horizontal.
-    return Math.max(82, Math.min(132, Math.floor(vw * 0.16)));
+    if (size === 'small') {
+      return Math.max(70, Math.min(100, Math.floor(vw * 0.12)));
+    }
+    return Math.max(100, Math.min(155, Math.floor(vw * 0.18)));
   }
 
   function getStimFontSize(size, boxSize) {
@@ -239,8 +266,9 @@ jsPsych.plugins['memory-task'] = (function() {
     card.style.cssText =
       'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
       'width:' + boxSize + 'px;height:' + boxSize + 'px;' +
-      'border:2px solid rgba(255,255,255,.18);border-radius:12px;' +
-      'background:rgba(255,255,255,.08);box-shadow:0 6px 18px rgba(0,0,0,.18);';
+      'border:2px solid rgba(255,255,255,.25);border-radius:14px;' +
+      'background:rgba(0,0,0,.18);' +
+      'box-shadow:' + cardBaseShadow() + ';';
 
     if (isEmojiStim(src)) {
       var span = document.createElement('span');
@@ -261,67 +289,90 @@ jsPsych.plugins['memory-task'] = (function() {
     var _failed = typeof isPreloadFailed === 'function' && isPreloadFailed(src);
 
     if (_failed) {
-      // Preload permanently failed — show deterministic fallback emoji
-      // (same emoji this URL got during encoding, via hash-based mapping).
       var emoji = typeof getFallbackEmoji === 'function'
         ? getFallbackEmoji(src) : '\u2753';
-      var span = document.createElement('span');
-      span.textContent = emoji;
-      span.style.cssText =
+      var fallbackSpan = document.createElement('span');
+      fallbackSpan.textContent = emoji;
+      fallbackSpan.style.cssText =
         'font-size:' + getStimFontSize(size, boxSize) + 'px;' +
         'line-height:1;display:flex;align-items:center;justify-content:center;' +
         'width:100%;height:100%;user-select:none;';
-      card.appendChild(span);
-      if (typeof logDisplayOutcome === 'function')
+      card.appendChild(fallbackSpan);
+      if (typeof logDisplayOutcome === 'function') {
         logDisplayOutcome(src, 'fallback_emoji', emoji);
-      return { card: card, img: null, ready: true,
-               preload_failed: true, fallback_emoji: emoji };
+      }
+      return {
+        card: card,
+        img: null,
+        ready: true,
+        preload_failed: true,
+        fallback_emoji: emoji
+      };
     }
 
-    // Normal path: resolve to blob URL, decode before revealing.
     card.appendChild(img);
     var resolvedSrc = (typeof resolvePreloadedUrl === 'function')
       ? resolvePreloadedUrl(src) : src;
     var isBlob = resolvedSrc.indexOf('blob:') === 0;
     var outcome = isBlob ? 'cached' : 'jit_success';
 
-    var showFn = function () {
+    var showFn = function() {
       img.src = resolvedSrc;
       if (typeof img.decode === 'function') {
-        img.decode().then(function () { img.style.visibility = 'visible'; },
-                          function () { img.style.visibility = 'visible'; });
+        img.decode().then(
+          function() { img.style.visibility = 'visible'; },
+          function() { img.style.visibility = 'visible'; }
+        );
       } else {
-        img.addEventListener('load', function () { img.style.visibility = 'visible'; }, { once: true });
-        if (img.complete) img.style.visibility = 'visible';
+        img.addEventListener('load', function() {
+          img.style.visibility = 'visible';
+        }, { once: true });
+
+        if (img.complete) {
+          img.style.visibility = 'visible';
+        }
       }
     };
 
     if (isBlob) {
       showFn();
-      if (typeof logDisplayOutcome === 'function')
+      if (typeof logDisplayOutcome === 'function') {
         logDisplayOutcome(src, 'cached', null);
+      }
     } else if (typeof ensurePreloaded === 'function') {
-      ensurePreloaded(src).then(function (entry) {
-        if (entry && entry.blobUrl) resolvedSrc = entry.blobUrl;
-        else outcome = 'direct_load';
+      ensurePreloaded(src).then(function(entry) {
+        if (entry && entry.blobUrl) {
+          resolvedSrc = entry.blobUrl;
+        } else {
+          outcome = 'direct_load';
+        }
         showFn();
-        if (typeof logDisplayOutcome === 'function')
+        if (typeof logDisplayOutcome === 'function') {
           logDisplayOutcome(src, outcome, null);
+        }
       });
     } else {
       outcome = 'direct_load';
       showFn();
-      if (typeof logDisplayOutcome === 'function')
+      if (typeof logDisplayOutcome === 'function') {
         logDisplayOutcome(src, 'direct_load', null);
+      }
     }
 
-    return { card: card, img: img, ready: false,
-             preload_failed: false, fallback_emoji: null };
+    return {
+      card: card,
+      img: img,
+      ready: false,
+      preload_failed: false,
+      fallback_emoji: null
+    };
   }
 
   function createSubtext(text) {
     var p = document.createElement('p');
-    p.style.cssText = 'font-size:16px;text-align:center;color:#555;margin:0;';
+    p.style.cssText =
+      'font-size:17px;text-align:center;color:rgba(255,255,255,.7);margin:0;' +
+      'text-shadow:0 1px 6px rgba(0,0,0,.4);';
     p.textContent = text;
     return p;
   }
@@ -335,7 +386,8 @@ jsPsych.plugins['memory-task'] = (function() {
 
     var label = document.createElement('div');
     label.style.cssText =
-      'font-size:24px;font-weight:bold;color:#333;';
+      'font-size:26px;font-weight:bold;color:rgba(255,255,255,.85);' +
+      'text-shadow:0 2px 8px rgba(0,0,0,.4);';
     label.textContent = labelText;
 
     col.appendChild(stimCard.card);
@@ -368,19 +420,38 @@ jsPsych.plugins['memory-task'] = (function() {
   }
 
   plugin.trial = function(display_element, trial) {
-    // ── Apply the same sky gradient as the corresponding trial block ──
-    // BLOCK_THEMES and skyGradientCSS are exported by trial.js.
     var _themes = window.BLOCK_THEMES || [];
     var _blockIdx = (typeof trial.block_index === 'number') ? trial.block_index : 0;
     var _theme = (_blockIdx >= 0 && _blockIdx < _themes.length)
       ? _themes[_blockIdx]
       : (window.PRACTICE_THEME || { hue: 220, sat: 15 });
 
+    var _hue = _theme.hue || 210;
+    var _accentFull = 'hsla(' + _hue + ',72%,56%,.9)';
+    var _accentBorder = 'hsla(' + _hue + ',72%,56%,1)';
+    var _accentGlow = 'hsla(' + _hue + ',72%,56%,.5)';
+    var _accentSoft = 'hsla(' + _hue + ',55%,56%,.55)';
+    var _accentFrame = 'hsla(' + _hue + ',72%,56%,.55)';
+    var _accentFrameGlow = '0 0 16px hsla(' + _hue + ',72%,56%,.25)';
+    var _accentText = 'hsl(' + _hue + ',65%,45%)';
+
+    function _fadeTransition(renderFn) {
+      var de = display_element;
+      de.style.transition = 'opacity .18s ease-out';
+      de.style.opacity = '0';
+      setTimeout(function() {
+        renderFn();
+        de.style.opacity = '0';
+        void de.offsetHeight;
+        de.style.transition = 'opacity .22s ease-in';
+        de.style.opacity = '1';
+      }, 200);
+    }
+
     if (typeof window.skyGradientCSS === 'function') {
       document.body.style.background = window.skyGradientCSS(_theme.hue, _theme.sat);
       document.body.style.backgroundAttachment = 'fixed';
     } else {
-      // Fallback: clear to neutral
       document.body.style.backgroundImage = '';
     }
     document.body.style.backgroundSize = '';
@@ -432,7 +503,7 @@ jsPsych.plugins['memory-task'] = (function() {
         skipped_pair: true,
         pair_index: trial.pair_index,
         order_layout_mode: ORDER_LAYOUT_MODE,
-        order_keymap_mode: 'visual_fixed_1_left_2_right',
+        order_keymap_mode: ORDER_KEYMAP_MODE,
         trial1_index: null,
         trial2_index: null,
         stim_left_img: null,
@@ -450,8 +521,6 @@ jsPsych.plugins['memory-task'] = (function() {
         timed_out: null,
         placement_slider_value: null,
         placement_rt: null,
-
-        // New clearer probe fields
         was_legacy_slider_pair: null,
         placement_probe_index: null,
         placement_probe_img: null,
@@ -461,8 +530,6 @@ jsPsych.plugins['memory-task'] = (function() {
         placement_trial_type: 'none',
         placement_true_position_pct: null,
         placement_error_from_true_position: null,
-
-        // Legacy compatibility fields
         middle_item_index: null,
         middle_item_img: null,
         middle_item_is_boundary: null,
@@ -475,9 +542,6 @@ jsPsych.plugins['memory-task'] = (function() {
     var idx1 = pair[0];
     var idx2 = pair[1];
 
-    // Pragmatic revision:
-    // Every temporal-distance pair now receives a slider placement question.
-    // isSliderPair(pair) is retained only as a legacy/special-pair label.
     var hasSlider = true;
     var wasLegacySliderPair = isSliderPair(pair);
     var probeCandidates = getInterveningIndices(pair);
@@ -494,8 +558,6 @@ jsPsych.plugins['memory-task'] = (function() {
         ? null
         : probeCandidates.indexOf(placementProbeIndex) + 1;
 
-    // Keep older variable name for compatibility with existing rendering,
-    // scoring, and analysis code.
     var middleItemIndex = placementProbeIndex;
 
     var placementTrialType = getPlacementTrialType(
@@ -506,21 +568,21 @@ jsPsych.plugins['memory-task'] = (function() {
 
     var block_trials = jsPsych.data.get()
       .filter({ trial_type: 'trial', block: block })
-      .filterCustom(function(t) { return t.true_vol_param !== null && t.true_vol_param !== undefined; })
+      .filterCustom(function(t) {
+        return t.true_vol_param !== null && t.true_vol_param !== undefined;
+      })
       .values();
 
-    // ── Dev-only fallback ──────────────────────────────────────────
-    // jsPsych 6.3.1's data.write() overrides trial_type with the
-    // current plugin name, so seeded rows from seedFakeBirdData end
-    // up as trial_type:'call-function' and the filter above misses
-    // them.  When running a dev test route, the seeded data is stored
-    // in window.DEV_FAKE_BLOCK_DATA instead.
-    if (block_trials.length === 0 &&
-        typeof window.DEV_FAKE_BLOCK_DATA !== 'undefined' &&
-        Array.isArray(window.DEV_FAKE_BLOCK_DATA[block])) {
+    if (
+      block_trials.length === 0 &&
+      typeof window.DEV_FAKE_BLOCK_DATA !== 'undefined' &&
+      Array.isArray(window.DEV_FAKE_BLOCK_DATA[block])
+    ) {
       block_trials = window.DEV_FAKE_BLOCK_DATA[block].slice();
-      console.log('[memory-task] Using DEV_FAKE_BLOCK_DATA fallback (' +
-                  block_trials.length + ' trials for block ' + block + ')');
+      console.log(
+        '[memory-task] Using DEV_FAKE_BLOCK_DATA fallback (' +
+        block_trials.length + ' trials for block ' + block + ')'
+      );
     }
 
     block_trials.sort(function(a, b) {
@@ -530,17 +592,18 @@ jsPsych.plugins['memory-task'] = (function() {
     var stim1 = block_trials[idx1 - 1] ? block_trials[idx1 - 1].stim_img : undefined;
     var stim2 = block_trials[idx2 - 1] ? block_trials[idx2 - 1].stim_img : undefined;
     var middleStim =
-        (middleItemIndex && block_trials[middleItemIndex - 1])
-          ? block_trials[middleItemIndex - 1].stim_img
-          : null;
-          if (middleItemIndex !== null && middleStim === null) {
-            console.warn('[memory-task] Missing placement probe stimulus', {
-              block: block,
-              pair: pair,
-              middleItemIndex: middleItemIndex,
-              block_trials_length: block_trials.length
-            });
-          }
+      (middleItemIndex && block_trials[middleItemIndex - 1])
+        ? block_trials[middleItemIndex - 1].stim_img
+        : null;
+
+    if (middleItemIndex !== null && middleStim === null) {
+      console.warn('[memory-task] Missing placement probe stimulus', {
+        block: block,
+        pair: pair,
+        middleItemIndex: middleItemIndex,
+        block_trials_length: block_trials.length
+      });
+    }
 
     var true_first_idx = Math.min(idx1, idx2);
     var true_first_img = (true_first_idx === idx1) ? stim1 : stim2;
@@ -549,21 +612,44 @@ jsPsych.plugins['memory-task'] = (function() {
     var left_img = order_images[0];
     var right_img = order_images[1];
 
-    // Preload-failure tracking for both stimuli in the pair.
-    var _left_preload_failed  = typeof isPreloadFailed === 'function' && isPreloadFailed(left_img);
+    var _left_preload_failed = typeof isPreloadFailed === 'function' && isPreloadFailed(left_img);
     var _right_preload_failed = typeof isPreloadFailed === 'function' && isPreloadFailed(right_img);
-    var _left_fallback_emoji  = _left_preload_failed && typeof getFallbackEmoji === 'function'
+    var _left_fallback_emoji = _left_preload_failed && typeof getFallbackEmoji === 'function'
       ? getFallbackEmoji(left_img) : null;
     var _right_fallback_emoji = _right_preload_failed && typeof getFallbackEmoji === 'function'
       ? getFallbackEmoji(right_img) : null;
 
-    var order_choice_side = null, order_choice_img = null, order_correct = null;
-    var order_rt = null, distance_rt = null, placement_rt = null;
+    var order_choice_side = null;
+    var order_choice_img = null;
+    var order_correct = null;
+    var order_rt = null;
+    var distance_rt = null;
+    var placement_rt = null;
     var placement_slider_value = null;
-    var attempt_number = 1, distance_attempt_number = 1;
-    var timed_out = false, responded = false;
+    var attempt_number = 1;
+    var distance_attempt_number = 1;
+    var timed_out = false;
+    var responded = false;
     var orderTimeoutID = null;
     var distancePromptShown = false;
+
+    function _showTimeoutBadge(parentEl) {
+      var badge = document.createElement('div');
+      badge.style.cssText =
+        'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;' +
+        'padding:10px 22px;border-radius:999px;' +
+        'background:rgba(217,83,79,.92);color:#fff;' +
+        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+        'font-size:14px;font-weight:600;letter-spacing:.02em;' +
+        'box-shadow:0 4px 16px rgba(217,83,79,.35);' +
+        'transition:opacity .4s;pointer-events:none;';
+      badge.textContent = 'Please respond within the allowed time';
+      document.body.appendChild(badge);
+      setTimeout(function() { badge.style.opacity = '0'; }, 2500);
+      setTimeout(function() {
+        if (badge.parentNode) badge.parentNode.removeChild(badge);
+      }, 3000);
+    }
 
     function renderOrderScreen() {
       responded = false;
@@ -574,21 +660,13 @@ jsPsych.plugins['memory-task'] = (function() {
       wrap.appendChild(createStepLabel('Which came first?'));
 
       var pairWrap = document.createElement('div');
-      // Always horizontal
-      pairWrap.className = 'b3-pair-horizontal';
       var orderGap = Math.max(18, Math.min(48, Math.floor(window.innerWidth * 0.045)));
       pairWrap.style.cssText =
         'display:flex;flex-direction:row;justify-content:center;align-items:flex-start;' +
-        'gap:' + orderGap + 'px;margin-bottom:20px;flex-wrap:nowrap;width:100%;' +
-        'max-width:720px;';
+        'gap:' + orderGap + 'px;margin-bottom:20px;flex-wrap:nowrap;width:100%;max-width:720px;';
 
-      // Keep response labels visually intuitive.
-      // Object positions are already randomized, so 1 can always mean left and 2 can always mean right.
-      var leftLabel  = '1';
-      var rightLabel = '2';
-
-      var leftChoice  = makeChoiceColumn(left_img, leftLabel);
-      var rightChoice = makeChoiceColumn(right_img, rightLabel);
+      var leftChoice = makeChoiceColumn(left_img, '←');
+      var rightChoice = makeChoiceColumn(right_img, '→');
 
       pairWrap.appendChild(leftChoice.col);
       pairWrap.appendChild(rightChoice.col);
@@ -596,18 +674,56 @@ jsPsych.plugins['memory-task'] = (function() {
 
       var instrWrap = document.createElement('div');
       instrWrap.style.cssText =
-        'display:flex;flex-direction:column;align-items:center;min-height:110px;';
-      instrWrap.appendChild(createSubtext('Press 1 or 2 to select.'));
+        'display:flex;flex-direction:column;align-items:center;min-height:60px;';
+      instrWrap.appendChild(createSubtext('← → to select, Enter to confirm'));
       wrap.appendChild(instrWrap);
 
       display_element.innerHTML = '';
       display_element.appendChild(wrap);
 
       var start_time = performance.now();
+      var hasInteracted = false;
+      var currentSide = null;
 
-    waitForCardAssets([leftChoice.cardObj, rightChoice.cardObj], function() {
-      wrap.style.visibility = 'visible';
-    });
+      waitForCardAssets([leftChoice.cardObj, rightChoice.cardObj], function() {
+        wrap.style.visibility = 'visible';
+      });
+
+      function resetChoiceFrame(choice) {
+        choice.cardObj.card.style.border = '2px solid rgba(255,255,255,.38)';
+        choice.cardObj.card.style.boxShadow = cardBaseShadow();
+        choice.cardObj.card.style.transform = 'none';
+      }
+
+      function applyChoiceFrame(choice) {
+        choice.cardObj.card.style.border = '3px solid ' + _accentBorder;
+        choice.cardObj.card.style.boxShadow = selectedCardShadow(_accentGlow);
+        choice.cardObj.card.style.transform = 'translateY(-2px)';
+      }
+
+      function highlightSide(side) {
+        resetChoiceFrame(leftChoice);
+        resetChoiceFrame(rightChoice);
+
+        if (side === 'left') {
+          applyChoiceFrame(leftChoice);
+        } else {
+          applyChoiceFrame(rightChoice);
+        }
+      }
+
+      function submitOrder() {
+        if (responded) return;
+        responded = true;
+        clearTimeout(orderTimeoutID);
+        document.removeEventListener('keydown', keyHandler);
+        order_rt = Math.round(performance.now() - start_time);
+        order_choice_side = currentSide;
+        order_choice_img = (currentSide === 'left') ? left_img : right_img;
+        order_correct = (order_choice_img === true_first_img);
+        window.__memorySuppressKeysUntil = performance.now() + 350;
+        _fadeTransition(function() { renderDistancePrompt(); });
+      }
 
       function keyHandler(e) {
         if (e.repeat) return;
@@ -617,45 +733,42 @@ jsPsych.plugins['memory-task'] = (function() {
         }
         if (responded) return;
 
-        if (e.key === '1' || e.key === '2') {
-          e.preventDefault();
-          responded = true;
-          clearTimeout(orderTimeoutID);
-          order_rt = Math.round(performance.now() - start_time);
-          var keySide = (e.key === '1') ? 'left' : 'right';
+        var side = null;
+        if (e.key === 'ArrowLeft' || e.key === '1') side = 'left';
+        if (e.key === 'ArrowRight' || e.key === '2') side = 'right';
 
-          order_choice_side = keySide;
-          order_choice_img  = (keySide === 'left') ? left_img : right_img;
-          order_correct = (order_choice_img === true_first_img);
-          document.removeEventListener('keydown', keyHandler);
-          renderDistancePrompt();
+        if (side) {
+          e.preventDefault();
+          hasInteracted = true;
+          currentSide = side;
+          highlightSide(side);
+        } else if ((e.key === 'Enter' || e.key === ' ') && hasInteracted) {
+          e.preventDefault();
+          submitOrder();
         }
       }
 
       document.addEventListener('keydown', keyHandler);
 
       orderTimeoutID = setTimeout(function() {
-        if (!responded) {
+        if (responded) return;
+        if (hasInteracted) {
+          submitOrder();
+        } else {
           responded = true;
           timed_out = true;
           document.removeEventListener('keydown', keyHandler);
-          wrap.style.border = '4px solid red';
-
-          var msg = document.createElement('p');
-          msg.style.cssText = 'font-size:24px;margin-top:20px;color:#d9534f;';
-          msg.textContent = 'No selection made. Please make a selection within the allowed time.';
-          wrap.appendChild(msg);
-
+          _showTimeoutBadge(wrap);
           setTimeout(function() {
             if (attempt_number < 2) {
               attempt_number++;
-              renderOrderScreen();
+              _fadeTransition(function() { renderOrderScreen(); });
             } else {
               finishTrial(null, Math.abs(idx2 - idx1) - 1, true);
             }
-          }, 5000);
+          }, 3000);
         }
-      }, 7500);
+      }, 10000);
     }
 
     function renderDistancePrompt(forceRerender) {
@@ -663,310 +776,333 @@ jsPsych.plugins['memory-task'] = (function() {
       distancePromptShown = true;
 
       var true_distance = Math.abs(idx2 - idx1) - 1;
+      var STEP = 5;
+      var FINE_STEP = 1;
+      var curVal = 50;
+      var hasPlaced = false;
 
       var wrap = createBlock3Wrapper();
       wrap.id = 'distance-container';
       wrap.style.visibility = 'hidden';
 
-      wrap.appendChild(createStepLabel('How many items were shown between these two?'));
+      wrap.appendChild(createStepLabel('How far apart in time did these two feel?'));
 
       var pairWrap = document.createElement('div');
-      var distanceGap = Math.max(22, Math.min(64, Math.floor(window.innerWidth * 0.055)));
-
+      var gapPx = Math.max(22, Math.min(64, Math.floor(window.innerWidth * 0.055)));
       pairWrap.style.cssText =
-        'display:flex;flex-direction:row;justify-content:center;align-items:center;' +
-        'gap:' + distanceGap + 'px;margin-bottom:20px;flex-wrap:nowrap;width:100%;max-width:760px;';
-
+        'display:flex;justify-content:center;align-items:center;' +
+        'gap:' + gapPx + 'px;margin-bottom:22px;width:100%;max-width:760px;';
       var l = createStimCard(left_img, 'medium');
       var r = createStimCard(right_img, 'medium');
       pairWrap.appendChild(l.card);
       pairWrap.appendChild(r.card);
       wrap.appendChild(pairWrap);
 
-      var inputWrap = document.createElement('div');
-      inputWrap.style.cssText = 'display:flex;flex-direction:column;align-items:center;min-height:110px;';
-      var input = document.createElement('input');
-      input.type = 'number';
-      input.min = '0';
-      input.max = '9';
-      input.id = 'distance-input';
-      input.maxLength = 1;
-      input.style.cssText =
-        'font-size:22px;padding:8px;width:200px;text-align:center;margin-top:18px;-moz-appearance:textfield;appearance:textfield;';
-      inputWrap.appendChild(input);
-      inputWrap.appendChild(createSubtext('Press 0-9 to submit your answer.'));
+      var barOuter = document.createElement('div');
+      barOuter.style.cssText =
+        'position:relative;width:80%;max-width:520px;height:40px;margin:0 auto;';
 
-      var errorEl = document.createElement('p');
-      errorEl.id = 'distance-error';
-      errorEl.style.cssText = 'color:#d9534f;font-size:18px;margin-top:10px;display:none;';
-      inputWrap.appendChild(errorEl);
-      wrap.appendChild(inputWrap);
+      var rail = document.createElement('div');
+      rail.style.cssText =
+        'position:absolute;left:0;right:0;top:50%;' +
+        'transform:translateY(-50%);';
+      styleSliderRail(rail);
+      barOuter.appendChild(rail);
+
+      for (var tk = 0; tk <= 10; tk++) {
+        var tick = document.createElement('div');
+        tick.style.cssText =
+          'position:absolute;top:50%;width:1px;height:' + (tk % 5 === 0 ? '16' : '10') + 'px;' +
+          'transform:translate(-50%,-50%);background:rgba(255,255,255,.15);left:' + (tk * 10) + '%;';
+        barOuter.appendChild(tick);
+      }
+
+      var thumb = document.createElement('div');
+      thumb.style.cssText =
+        'position:absolute;top:50%;width:20px;height:20px;border-radius:50%;' +
+        'transform:translate(-50%,-50%);transition:left .08s,background .15s,box-shadow .15s;' +
+        'background:rgba(255,255,255,.4);border:2px solid rgba(255,255,255,.5);' +
+        'left:50%;z-index:2;';
+      barOuter.appendChild(thumb);
+      wrap.appendChild(barOuter);
+
+      var labelRow = document.createElement('div');
+      labelRow.style.cssText =
+        'display:flex;justify-content:space-between;width:80%;max-width:520px;margin:4px auto 0;';
+      var lbl1 = document.createElement('span');
+      lbl1.textContent = 'Very close';
+      lbl1.style.cssText = 'font-size:15px;color:rgba(255,255,255,.7);font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.4);';
+      var lbl2 = document.createElement('span');
+      lbl2.textContent = 'Very far';
+      lbl2.style.cssText = 'font-size:15px;color:rgba(255,255,255,.7);font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.4);';
+      labelRow.appendChild(lbl1);
+      labelRow.appendChild(lbl2);
+      wrap.appendChild(labelRow);
+
+      var instrEl = document.createElement('div');
+      instrEl.style.cssText =
+        'font-size:16px;color:rgba(255,200,200,.95);font-weight:600;text-align:center;margin-top:14px;text-shadow:0 1px 6px rgba(0,0,0,.5);';
+      instrEl.textContent = '← → to move, Enter to confirm';
+      wrap.appendChild(instrEl);
 
       display_element.innerHTML = '';
       display_element.appendChild(wrap);
 
-      if (!document.getElementById('memory-distance-input-style')) {
-        var style = document.createElement('style');
-        style.id = 'memory-distance-input-style';
-        style.innerHTML =
-          '#distance-input::-webkit-outer-spin-button,#distance-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}';
-        document.head.appendChild(style);
+      var start_time = performance.now();
+      var submitted = false;
+      var distTimeoutID = null;
+
+      function updateThumb() {
+        thumb.style.left = curVal + '%';
+
+        if (hasPlaced) {
+          styleSliderThumb(thumb, true, _accentFull, _accentBorder, _accentGlow);
+          instrEl.textContent = '← → to adjust, Enter to confirm';
+          instrEl.style.color = 'rgba(255,255,255,.65)';
+          instrEl.style.fontWeight = '400';
+        } else {
+          styleSliderThumb(thumb, false, _accentFull, _accentBorder, _accentGlow);
+        }
       }
 
-      var start_time = performance.now();
-      var submitted = false, locked = false;
+      updateThumb();
 
       waitForCardAssets([l, r], function() {
         wrap.style.visibility = 'visible';
-        input.focus();
       });
 
-      function showError(msg) {
-        errorEl.textContent = msg;
-        errorEl.style.display = 'block';
+      function handleKey(e) {
+        if (submitted) return;
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          hasPlaced = true;
+          curVal = Math.max(0, curVal - (e.shiftKey ? FINE_STEP : STEP));
+          updateThumb();
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          hasPlaced = true;
+          curVal = Math.min(100, curVal + (e.shiftKey ? FINE_STEP : STEP));
+          updateThumb();
+        } else if ((e.key === 'Enter' || e.key === ' ') && hasPlaced) {
+          e.preventDefault();
+          submitted = true;
+          clearTimeout(distTimeoutID);
+          document.removeEventListener('keydown', handleKey);
+          distance_rt = Math.round(performance.now() - start_time);
+          window.__memorySuppressKeysUntil = performance.now() + 350;
+          _fadeTransition(function() { renderSliderScreen(curVal, true_distance); });
+        }
       }
 
-      function handleSubmit() {
-        if (submitted || locked) return;
-        var v = parseFloat(input.value);
-        if (isNaN(v) || input.value === '') return;
-        if (v < 0) v = 0;
-        if (v > 9) {
-          showError('Value must be 9 or below.');
-          return;
-        }
+      document.addEventListener('keydown', handleKey);
 
+      distTimeoutID = setTimeout(function() {
+        if (submitted) return;
         submitted = true;
-        clearTimeout(distTimeoutID);
-
-        if (window._memoryDistanceKeyHandler) {
-          document.removeEventListener('keydown', window._memoryDistanceKeyHandler);
-          delete window._memoryDistanceKeyHandler;
-        }
-
-        window.__memorySuppressKeysUntil = performance.now() + 350;
+        document.removeEventListener('keydown', handleKey);
         distance_rt = Math.round(performance.now() - start_time);
+        window.__memorySuppressKeysUntil = performance.now() + 350;
 
-        renderSliderScreen(v, true_distance);
-      }
-
-      input.addEventListener('keydown', function(e) {
-        if (locked) { e.preventDefault(); return; }
-        if (e.key === 'Backspace' || e.key === 'Delete' || e.key === 'Tab') return;
-        if (e.ctrlKey || e.metaKey) return;
-        if (/^[0-9]$/.test(e.key)) {
-          e.preventDefault();
-          input.value = e.key;
-          handleSubmit();
-          return;
-        }
-        e.preventDefault();
-      });
-
-      input.addEventListener('wheel', function(e) { e.preventDefault(); });
-      input.addEventListener('paste', function(e) { e.preventDefault(); });
-
-      window._memoryDistanceKeyHandler = function(e) {
-        if (submitted || locked) return;
-        if (/^[0-9]$/.test(e.key)) {
-          e.preventDefault();
-          input.value = e.key;
-          handleSubmit();
-        }
-      };
-
-      document.addEventListener('keydown', window._memoryDistanceKeyHandler);
-
-      var distTimeoutID = setTimeout(function() {
-        if (!submitted) {
+        if (!hasPlaced) {
           timed_out = true;
-          locked = true;
-          wrap.style.border = '4px solid red';
-          input.disabled = true;
-
-          var msg = document.createElement('p');
-          msg.style.cssText = 'font-size:24px;margin-top:20px;color:#d9534f;';
-          msg.textContent = 'No selection made. Please make a selection within the allowed time.';
-          wrap.appendChild(msg);
-
-          if (window._memoryDistanceKeyHandler) {
-            document.removeEventListener('keydown', window._memoryDistanceKeyHandler);
-            delete window._memoryDistanceKeyHandler;
-          }
-
+          _showTimeoutBadge(wrap);
           setTimeout(function() {
             if (distance_attempt_number < 2) {
               distance_attempt_number++;
               distancePromptShown = false;
-              renderDistancePrompt(true);
+              _fadeTransition(function() { renderDistancePrompt(true); });
             } else {
-              renderSliderScreen(null, true_distance);
+              _fadeTransition(function() { renderSliderScreen(null, true_distance); });
             }
-          }, 5000);
+          }, 3000);
+        } else {
+          _fadeTransition(function() { renderSliderScreen(curVal, true_distance); });
         }
-      }, 7500);
+      }, 10000);
     }
 
     function renderSliderScreen(dist_est_value, true_distance) {
       if (!middleStim) {
-        console.warn('[memory-task] Skipping slider because placement probe stimulus is missing', {
+        console.warn('[memory-task] Skipping slider — no probe stimulus', {
           block: block,
           pair: pair,
-          middleItemIndex: middleItemIndex,
-          block_trials_length: block_trials.length
+          middleItemIndex: middleItemIndex
         });
-
         finishTrial(dist_est_value, true_distance, true);
         return;
       }
 
-      // ── Inject slider-unset styles once per page load ───────────────
-      if (!document.getElementById('b3-slider-unset-style')) {
-        var st = document.createElement('style');
-        st.id = 'b3-slider-unset-style';
-        st.textContent = [
-          // While unset: hide thumb, thicken track to be an obvious click target
-          '.b3-slider.unset-thumb{cursor:crosshair;height:14px;}',
-          '.b3-slider.unset-thumb::-webkit-slider-runnable-track{',
-            'height:14px;background:rgba(80,80,80,.22);border-radius:7px;}',
-          '.b3-slider.unset-thumb::-webkit-slider-thumb{',
-            'opacity:0;width:1px;height:1px;pointer-events:none;}',
-          '.b3-slider.unset-thumb::-moz-range-track{',
-            'height:14px;background:rgba(80,80,80,.22);border-radius:7px;}',
-          '.b3-slider.unset-thumb::-moz-range-thumb{',
-            'opacity:0;width:1px;height:1px;}',
-          // After placement: normal thumb
-          '.b3-slider{cursor:pointer;height:6px;transition:height .12s;}',
-        ].join('');
-        document.head.appendChild(st);
-      }
+      var STEP = 5;
+      var FINE_STEP = 1;
+      var curVal = 50;
+      var hasPlaced = false;
 
       var wrap = createBlock3Wrapper();
       wrap.id = 'slider-container';
 
-      wrap.appendChild(createStepLabel('Where was this object shown between the two objects?'));
+      wrap.appendChild(createStepLabel('Where was this object shown between the two?'));
 
-      var boundaryWrap = document.createElement('div');
-      boundaryWrap.className = 'b3-boundary-card-wrap';
-      boundaryWrap.style.cssText = 'margin-bottom:20px;';
+      var probeWrap = document.createElement('div');
+      probeWrap.style.cssText = 'text-align:center;margin-bottom:16px;';
+      var probeCard = createStimCard(middleStim, 'large');
 
-      var middleCard = createStimCard(middleStim, 'small');
-      boundaryWrap.appendChild(middleCard.card);
-      wrap.appendChild(boundaryWrap);
+      probeCard.card.style.width = 'fit-content';
+      probeCard.card.style.height = 'fit-content';
+      probeCard.card.style.minWidth = '0';
+      probeCard.card.style.minHeight = '0';
+      probeCard.card.style.padding = '10px';
+      probeCard.card.style.display = 'inline-flex';
+      probeCard.card.style.border = '3px solid ' + _accentBorder;
+      probeCard.card.style.borderRadius = '18px';
+      probeCard.card.style.background = 'rgba(0,0,0,.20)';
+      probeCard.card.style.boxShadow = selectedCardShadow(_accentGlow);
 
-      var lineShell = document.createElement('div');
-      lineShell.className = 'b3-line-shell slider-shell';
-      lineShell.style.cssText = 'position:relative;width:80%;margin:0 auto 12px;';
+      if (probeCard.img) {
+        probeCard.img.style.maxWidth = '150px';
+        probeCard.img.style.maxHeight = '150px';
+        probeCard.img.style.width = 'auto';
+        probeCard.img.style.height = 'auto';
+        probeCard.img.style.display = 'block';
+        probeCard.img.style.borderRadius = '10px';
+      }
 
-      var line = document.createElement('div');
-      line.className = 'b3-line slider-line';
-      line.style.cssText =
-        'position:relative;display:flex;align-items:center;justify-content:space-between;';
+      probeWrap.appendChild(probeCard.card);
+      wrap.appendChild(probeWrap);
 
-      var firstImg  = (true_first_idx === idx1) ? stim1 : stim2;
+      var barRow = document.createElement('div');
+      barRow.style.cssText =
+        'display:flex;align-items:center;width:86%;max-width:680px;margin:0 auto;gap:12px;';
+
+      var firstImg = (true_first_idx === idx1) ? stim1 : stim2;
       var secondImg = (true_first_idx === idx1) ? stim2 : stim1;
 
       var leftAnchor = createStimCard(firstImg, 'small');
-      leftAnchor.card.classList.add('b3-anchor-card', 'left-anchor');
-      leftAnchor.card.style.cssText += 'flex-shrink:0;';
-      line.appendChild(leftAnchor.card);
-
-      // ── Slider wrapper ──────────────────────────────────────────────
-      var sliderWrap = document.createElement('div');
-      sliderWrap.className = 'b3-slider-wrap';
-      sliderWrap.style.cssText = 'flex:1;margin:0 16px;position:relative;';
-
-      var slider = document.createElement('input');
-      slider.className = 'b3-slider unset-thumb';
-      slider.type  = 'range';
-      slider.min   = '0';
-      slider.max   = '100';
-      slider.step  = '1';
-      slider.value = '50';          // internal value; hidden until first touch
-      slider.style.cssText = 'width:100%;display:block;';
-
-      sliderWrap.appendChild(slider);
-      line.appendChild(sliderWrap);
-
+      leftAnchor.card.style.flexShrink = '0';
       var rightAnchor = createStimCard(secondImg, 'small');
-      rightAnchor.card.classList.add('b3-anchor-card', 'right-anchor');
-      rightAnchor.card.style.cssText += 'flex-shrink:0;';
-      line.appendChild(rightAnchor.card);
+      rightAnchor.card.style.flexShrink = '0';
 
-      lineShell.appendChild(line);
-      wrap.appendChild(lineShell);
+      var trackOuter = document.createElement('div');
+      trackOuter.style.cssText = 'flex:1;position:relative;height:40px;';
 
-      // ── Placement instruction (changes after first touch) ───────────
-      var instrText = document.createElement('div');
-      instrText.className = 'instruction-text padded-text prominent-subtext';
-      instrText.style.cssText =
-        'font-size:16px;text-align:center;margin-bottom:16px;font-weight:600;' +
-        'color:#c0392b;';
-      instrText.textContent =
-        '↑ Click on the bar to place your estimate, then drag to adjust.';
-      wrap.appendChild(instrText);
+      var rail = document.createElement('div');
+      rail.style.cssText =
+        'position:absolute;left:0;right:0;top:50%;height:6px;' +
+        'transform:translateY(-50%);background:rgba(255,255,255,.2);border-radius:3px;';
+      trackOuter.appendChild(rail);
 
-      // ── Submit button (disabled until participant places the slider) ─
-      var submitBtn = document.createElement('button');
-      submitBtn.style.cssText =
-        'font-size:18px;padding:10px 32px;border:2px solid #333;border-radius:8px;' +
-        'background:#fff;opacity:.4;cursor:not-allowed;';
-      submitBtn.textContent = 'Submit';
-      submitBtn.disabled = true;
-      wrap.appendChild(submitBtn);
+      for (var tk = 0; tk <= 10; tk++) {
+        var tick = document.createElement('div');
+        tick.style.cssText =
+          'position:absolute;top:50%;width:1px;height:' + (tk % 5 === 0 ? '16' : '10') + 'px;' +
+          'transform:translate(-50%,-50%);background:rgba(0,0,0,.1);' +
+          'left:' + (tk * 10) + '%;';
+        trackOuter.appendChild(tick);
+      }
+
+      var thumb = document.createElement('div');
+      thumb.style.cssText =
+        'position:absolute;top:50%;' +
+        'transform:translate(-50%,-50%);' +
+        'transition:left .08s,background .15s,box-shadow .15s,border .15s;' +
+        'left:50%;z-index:2;';
+      styleSliderThumb(thumb, false, _accentFull, _accentBorder, _accentGlow);
+      trackOuter.appendChild(thumb);
+
+      barRow.appendChild(leftAnchor.card);
+      barRow.appendChild(trackOuter);
+      barRow.appendChild(rightAnchor.card);
+      wrap.appendChild(barRow);
+
+      var labelRow = document.createElement('div');
+      labelRow.style.cssText =
+        'display:flex;justify-content:space-between;width:86%;max-width:680px;' +
+        'margin:4px auto 0;padding:0 80px;';
+      var lblL = document.createElement('span');
+      lblL.textContent = 'Closer to left';
+      lblL.style.cssText = 'font-size:13px;color:rgba(255,255,255,.55);text-shadow:0 1px 4px rgba(0,0,0,.3);';
+      var lblR = document.createElement('span');
+      lblR.textContent = 'Closer to right';
+      lblR.style.cssText = 'font-size:13px;color:rgba(255,255,255,.55);text-shadow:0 1px 4px rgba(0,0,0,.3);';
+      labelRow.appendChild(lblL);
+      labelRow.appendChild(lblR);
+      wrap.appendChild(labelRow);
+
+      var instrEl = document.createElement('div');
+      instrEl.style.cssText =
+        'font-size:16px;color:rgba(255,200,200,.95);font-weight:600;text-align:center;margin-top:14px;text-shadow:0 1px 6px rgba(0,0,0,.5);';
+      instrEl.textContent = '← → to place, Enter to confirm';
+      wrap.appendChild(instrEl);
 
       display_element.innerHTML = '';
       display_element.appendChild(wrap);
 
       var start_time = performance.now();
-      var hasPlaced  = false;
+      var sliderTimeoutID = null;
 
-      // ── First-placement handler ─────────────────────────────────────
-      // Uses mousedown/touchstart so the thumb snaps to the exact click
-      // position before the browser fires any input event, and works even
-      // if the participant clicks at the current internal value (50).
-      function handleFirstPlacement(clientX) {
-        if (hasPlaced) return;
-        var rect  = slider.getBoundingClientRect();
-        var frac  = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        var val   = Math.round(frac * 100);
-        slider.value = val;
-        hasPlaced = true;
-        slider.classList.remove('unset-thumb');
-        instrText.textContent  = 'Drag to adjust, then click Submit.';
-        instrText.style.color  = '#555';
-        instrText.style.fontWeight = '400';
-        submitBtn.disabled     = false;
-        submitBtn.style.opacity   = '1';
-        submitBtn.style.cursor    = 'pointer';
+      function updateThumb() {
+        thumb.style.left = curVal + '%';
+
+        if (hasPlaced) {
+          styleSliderThumb(thumb, true, _accentFull, _accentBorder, _accentGlow);
+          instrEl.textContent = '← → to adjust, Enter to confirm';
+          instrEl.style.color = 'rgba(255,255,255,.65)';
+          instrEl.style.fontWeight = '400';
+        } else {
+          styleSliderThumb(thumb, false, _accentFull, _accentBorder, _accentGlow);
+        }
       }
 
-      slider.addEventListener('mousedown', function(e) {
-        handleFirstPlacement(e.clientX);
-      });
-      slider.addEventListener('touchstart', function(e) {
-        if (e.touches.length > 0) handleFirstPlacement(e.touches[0].clientX);
-      }, { passive: true });
+      updateThumb();
 
-      // Track value changes after placement (for the CSS fill trick)
-      slider.addEventListener('input', function() {
-        slider.style.setProperty('--slider-value', slider.value + '%');
+      waitForCardAssets([probeCard, leftAnchor, rightAnchor], function() {
+        wrap.style.visibility = 'visible';
       });
 
-      submitBtn.addEventListener('click', function() {
-        if (!hasPlaced) return;
-        placement_slider_value = parseInt(slider.value, 10);
-        placement_rt = Math.round(performance.now() - start_time);
-        finishTrial(dist_est_value, true_distance, false);
-      });
+      function handleKey(e) {
+        if (placement_slider_value !== null) return;
 
-      // Timeout: record whatever is on the slider (or null if never placed)
-      setTimeout(function() {
-        if (placement_slider_value === null) {
-          placement_slider_value = hasPlaced ? parseInt(slider.value, 10) : null;
+        if (e.key === 'ArrowLeft') {
+          e.preventDefault();
+          hasPlaced = true;
+          var step = e.shiftKey ? FINE_STEP : STEP;
+          curVal = Math.max(0, curVal - step);
+          updateThumb();
+        } else if (e.key === 'ArrowRight') {
+          e.preventDefault();
+          hasPlaced = true;
+          var step2 = e.shiftKey ? FINE_STEP : STEP;
+          curVal = Math.min(100, curVal + step2);
+          updateThumb();
+        } else if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          if (!hasPlaced) return;
+          placement_slider_value = curVal;
           placement_rt = Math.round(performance.now() - start_time);
-          timed_out = true;
+          clearTimeout(sliderTimeoutID);
+          document.removeEventListener('keydown', handleKey);
+          window.__memorySuppressKeysUntil = performance.now() + 350;
           finishTrial(dist_est_value, true_distance, false);
+        }
+      }
+
+      document.addEventListener('keydown', handleKey);
+
+      sliderTimeoutID = setTimeout(function() {
+        if (placement_slider_value === null) {
+          placement_rt = Math.round(performance.now() - start_time);
+          document.removeEventListener('keydown', handleKey);
+
+          if (hasPlaced) {
+            placement_slider_value = curVal;
+            finishTrial(dist_est_value, true_distance, false);
+          } else {
+            timed_out = true;
+            _showTimeoutBadge(wrap);
+            placement_slider_value = null;
+            setTimeout(function() {
+              finishTrial(dist_est_value, true_distance, false);
+            }, 3000);
+          }
         }
       }, 15000);
     }
@@ -976,17 +1112,10 @@ jsPsych.plugins['memory-task'] = (function() {
       var true_position_pct = null;
 
       if (placement_slider_value !== null && middleItemIndex !== null) {
-        // General formula:
-        // [2,4], probe 3 → 50%
-        // [6,9], probe 7 → 33.33%
-        // [6,9], probe 8 → 66.67%
         true_position_pct = 100 * (middleItemIndex - idx1) / (idx2 - idx1);
         placement_error_from_true_position = placement_slider_value - true_position_pct;
       }
 
-      // Use the new placementTrialType computed earlier:
-      // e.g., legacy_boundary_middle_pair_distance1,
-      // new_all_pair_slider_distance2_earlier_probe, etc.
       var placement_type = placementTrialType || 'none';
 
       var middle_item_is_boundary_value = null;
@@ -997,76 +1126,73 @@ jsPsych.plugins['memory-task'] = (function() {
       }
 
       var trial_data = {
-            task_phase: 'memory',
-            block: block,
-            true_vol_param: _trueVolParam,
-            true_stc_param: _trueStcParam,
-            valence: _valence,
-            vol_level: _volLevel,
-            stc_level: _stcLevel,
-            condition: _condition,
+        task_phase: 'memory',
+        block: block,
+        true_vol_param: _trueVolParam,
+        true_stc_param: _trueStcParam,
+        valence: _valence,
+        vol_level: _volLevel,
+        stc_level: _stcLevel,
+        condition: _condition,
 
-            order_keymap_mode: 'visual_fixed_1_left_2_right',
-            order_layout_mode: ORDER_LAYOUT_MODE,
+        order_keymap_mode: ORDER_KEYMAP_MODE,
+        order_layout_mode: ORDER_LAYOUT_MODE,
 
-            pair_index: trial.pair_index,
-            trial1_index: idx1,
-            trial2_index: idx2,
+        pair_index: trial.pair_index,
+        trial1_index: idx1,
+        trial2_index: idx2,
 
-            stim_left_img: left_img,
-            stim_right_img: right_img,
-            stim_first_actual: true_first_img,
+        stim_left_img: left_img,
+        stim_right_img: right_img,
+        stim_first_actual: true_first_img,
 
-            order_choice_side: order_choice_side,
-            order_choice_img: order_choice_img,
-            order_correct: order_correct,
-            order_correct_bin: (order_correct === null ? null : (order_correct ? 1 : 0)),
-            order_rt: order_rt,
+        order_choice_side: order_choice_side,
+        order_choice_img: order_choice_img,
+        order_correct: order_correct,
+        order_correct_bin: (order_correct === null ? null : (order_correct ? 1 : 0)),
+        order_rt: order_rt,
 
-            distance_estimate: dist_est,
-            distance_rt: distance_rt,
-            pair_true_distance: true_distance,
+        distance_estimate: dist_est,
+        distance_rt: distance_rt,
+        pair_true_distance: true_distance,
 
-            attempt_number: attempt_number,
-            timed_out: timed_out,
-            skipped_pair: skipped || false,
+        attempt_number: attempt_number,
+        distance_attempt_number: distance_attempt_number,
+        timed_out: timed_out,
+        skipped_pair: skipped || false,
 
-            // Slider response
-            placement_slider_value: placement_slider_value,
-            placement_rt: placement_rt,
+        placement_slider_value: placement_slider_value,
+        placement_rt: placement_rt,
 
-            // New clearer probe fields
-            was_legacy_slider_pair: wasLegacySliderPair,
-            placement_probe_index: placementProbeIndex,
-            placement_probe_img: middleStim,
-            placement_probe_position: placementProbePosition,
-            placement_candidate_indices: probeCandidates.join(','),
-            placement_num_candidate_items: probeCandidates.length,
-            placement_trial_type: placement_type,
-            placement_true_position_pct: true_position_pct,
-            placement_error_from_true_position: placement_error_from_true_position,
+        was_legacy_slider_pair: wasLegacySliderPair,
+        placement_probe_index: placementProbeIndex,
+        placement_probe_img: middleStim,
+        placement_probe_position: placementProbePosition,
+        placement_candidate_indices: probeCandidates.join(','),
+        placement_num_candidate_items: probeCandidates.length,
+        placement_trial_type: placement_type,
+        placement_true_position_pct: true_position_pct,
+        placement_error_from_true_position: placement_error_from_true_position,
 
-            // Legacy compatibility fields
-            middle_item_index: middleItemIndex,
-            middle_item_img: middleStim,
-            middle_item_is_boundary: middle_item_is_boundary_value,
-            placement_true_midpoint_pct: true_position_pct,
-            placement_error_from_true_midpoint: placement_error_from_true_position,
+        middle_item_index: middleItemIndex,
+        middle_item_img: middleStim,
+        middle_item_is_boundary: middle_item_is_boundary_value,
+        placement_true_midpoint_pct: true_position_pct,
+        placement_error_from_true_midpoint: placement_error_from_true_position,
 
-            stim_left_preload_failed:  _left_preload_failed,
-            stim_right_preload_failed: _right_preload_failed,
-            stim_left_fallback_emoji:  _left_fallback_emoji,
-            stim_right_fallback_emoji: _right_fallback_emoji
-          };
+        stim_left_preload_failed: _left_preload_failed,
+        stim_right_preload_failed: _right_preload_failed,
+        stim_left_fallback_emoji: _left_fallback_emoji,
+        stim_right_fallback_emoji: _right_fallback_emoji
+      };
 
-          display_element.innerHTML = '';
+      display_element.innerHTML = '';
 
-          // Clear block gradient so it doesn't leak into non-memory screens.
-          document.body.style.background = '';
-          document.body.style.backgroundAttachment = '';
+      document.body.style.background = '';
+      document.body.style.backgroundAttachment = '';
 
-          jsPsych.finishTrial(trial_data);
-        }
+      jsPsych.finishTrial(trial_data);
+    }
 
     renderOrderScreen();
   };

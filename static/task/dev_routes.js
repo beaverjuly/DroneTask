@@ -215,17 +215,18 @@ function buildDevTimeline(cfg) {
   // ── memory test only (seeded data) ──
   } else if (stage === 'test' || stage === 'recognition') {
     console.log('[DEV] stage: ' + stage + ', block=' + cfg.devBlock);
-    timeline.push({
-      type: 'html-keyboard-response',
-      stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Memory test — block <em>' +
-                cfg.devBlock + '</em>. Press any key.</p>',
-      choices: jsPsych.ALL_KEYS
-    });
+
     timeline.push({
       type: 'call-function',
-      func: function () { seedFakeBlockData(cfg.devBlockNum, 50); }
+      func: function () {
+        seedFakeBlockData(cfg.devBlockNum, 50);
+      }
     });
+
+    // Use the real updated memory-stage intro from index.html.
+    // Do not add a separate old [DEV] Memory test intro screen here.
     timeline = timeline.concat(cfg.create_memory_timeline(cfg.devBlockNum));
+
     timeline.push({
       type: 'html-keyboard-response',
       stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Memory test complete. Press any key.</p>',

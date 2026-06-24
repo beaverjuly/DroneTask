@@ -180,7 +180,7 @@ jsPsych.plugins['comprehension2'] = (function() {
     html +=   '<div class="q-num">' + (idx + 1) + '</div>';
     html +=   '<div class="q-body">';
     html +=     '<div class="q-meta">';
-    html +=       '<span class="q-hint">' + prompt.hint + '</span>';
+    // hint label removed
     html +=       statusEl;
     html +=     '</div>';
     html +=     '<p class="q-text">' + prompt.text + '</p>';

@@ -1,459 +1,182 @@
-/* ═══════════════════════════════════════════════════════════════
-   game.min.css — Revised visual design
-   CSS-only backgrounds, simplified collector/bag, PE line, emoji items
-   ═══════════════════════════════════════════════════════════════ */
-
-/* ── Block-specific gradient backgrounds ── */
-/* Block hues are set via CSS custom properties --block-hue / --block-sat
-   injected inline by trial.js */
+/* game.min.css — Revised visual design with score closer to stimulus card */
 
 .game-container {
-  height: 80vh;
-  width: 80vw;
-  max-width: 1400px;
-  position: relative;
-  transform: translate(-50%, 0%);
-  border: 2px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  overflow: hidden;
-  left: 50%;
-  top: 5%;
-  /* fallback; overridden by inline style from trial.js */
-  background: linear-gradient(
-    to bottom,
-    hsl(210, 38%, 18%) 0%,
-    hsl(210, 38%, 28%) 30%,
-    hsl(210, 38%, 42%) 55%,
-    hsl(210, 44%, 58%) 72%,
-    hsl(210, 48%, 72%) 85%,
-    hsl(210, 46%, 80%) 100%
-  );
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-  user-select: none;
+  height: 80vh; width: 80vw; max-width: 1400px;
+  position: relative; transform: translate(-50%, 0%);
+  border: 2px solid rgba(255,255,255,0.08); border-radius: 12px;
+  overflow: hidden; left: 50%; top: 5%;
+  background: linear-gradient(to bottom,
+    hsl(210,38%,18%) 0%, hsl(210,38%,28%) 30%, hsl(210,38%,42%) 55%,
+    hsl(210,44%,58%) 72%, hsl(210,48%,72%) 85%, hsl(210,46%,80%) 100%);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5); user-select: none;
 }
-
 .main-container {
-  height: 68.5vh;
-  width: 80vw;
-  max-width: 1400px;
-  position: absolute;
-  top: 0%;
-  left: 50%;
-  transform: translate(-50%, 0%);
-  z-index: 3;
+  height: 68.5vh; width: 80vw; max-width: 1400px;
+  position: absolute; top: 0%; left: 50%; transform: translate(-50%, 0%); z-index: 3;
 }
-
-/* ── Ground strip (bottom 22%) ── */
 .bg-ground {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  height: 22%;
-  /* overridden inline per block */
-  background: linear-gradient(
-    to bottom,
-    hsl(210, 46%, 80%) 0%,
-    hsl(210, 42%, 74%) 100%
-  );
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  z-index: 1;
+  position: absolute; bottom: 0; left: 0; width: 100%; height: 22%;
+  background: linear-gradient(to bottom, hsl(210,46%,80%) 0%, hsl(210,42%,74%) 100%);
+  border-top: 1px solid rgba(255,255,255,0.2); z-index: 1;
 }
-
-/* ── Shared rail ── */
 .slider-rail {
-  position: absolute;
-  left: 8%;
-  width: 84%;
-  height: 3px;
-  top: 78%;
-  transform: translateY(-50%);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.55);
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.15);
-  z-index: 8;
-  pointer-events: none;
+  position: absolute; left: 8%; width: 84%; height: 3px; top: 78%;
+  transform: translateY(-50%); border-radius: 999px;
+  background: rgba(255,255,255,0.55); box-shadow: 0 0 8px rgba(255,255,255,0.15);
+  z-index: 8; pointer-events: none;
 }
-
-/* ── Collector box ── */
 .collector-wrap {
-  position: absolute;
-  top: 78%;
-  width: 12%;
-  min-width: 90px;
-  height: 20px;
-  transform: translate(-50%, -50%);
-  z-index: 12;
-  pointer-events: none;
+  position: absolute; top: 78%; width: 12%; min-width: 90px; height: 20px;
+  transform: translate(-50%, -50%); z-index: 12; pointer-events: none;
   transition: left 0.06s linear;
 }
-
 .collector-box {
-  position: absolute;
-  inset: 0;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-  border: 2px solid rgba(255, 255, 255, 0.65);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.15),
-    0 3px 10px rgba(0, 0, 0, 0.25);
+  position: absolute; inset: 0; border-radius: 999px;
+  background: rgba(255,255,255,0.88); border: 2px solid rgba(255,255,255,0.65);
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.15), 0 3px 10px rgba(0,0,0,0.25);
   transition: background 0.25s, border-color 0.25s, box-shadow 0.25s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
 }
-
 .collector-label {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 1px;
-  color: rgba(0, 0, 0, 0.35);
-  text-transform: uppercase;
+  font-size: 9px; font-weight: 700; letter-spacing: 1px;
+  color: rgba(0,0,0,0.35); text-transform: uppercase;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   transition: color 0.25s;
 }
-
-/* Locked state */
 .collector-box.locked {
-  background: rgba(100, 100, 120, 0.7);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  background: rgba(100,100,120,0.7); border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
+.collector-box.locked .collector-label { color: rgba(255,255,255,0.3); }
 
-.collector-box.locked .collector-label {
-  color: rgba(255, 255, 255, 0.3);
-}
-
-/* ── Prediction-error dashed line ── */
 .pe-line {
-  position: absolute;
-  top: 78%;
-  height: 2px;
-  transform: translateY(-1px);
-  z-index: 10;
-  opacity: 0.7;
-  pointer-events: none;
+  position: absolute; top: 78%; height: 2px; transform: translateY(-1px);
+  z-index: 10; opacity: 0.7; pointer-events: none;
 }
-
 .pe-line.reward {
-  background: repeating-linear-gradient(
-    90deg,
-    #39ff14 0 4px,
-    transparent 4px 8px
-  );
+  background: repeating-linear-gradient(90deg, #39ff14 0 4px, transparent 4px 8px);
 }
-
 .pe-line.loss {
-  background: repeating-linear-gradient(
-    90deg,
-    #ff4444 0 4px,
-    transparent 4px 8px
-  );
+  background: repeating-linear-gradient(90deg, #ff4444 0 4px, transparent 4px 8px);
 }
 
-/* ── Bag dot (drops from top of game area to landing point above rail) ── */
 .bag-dot {
-  position: absolute;
-  top: var(--bag-start-top, 6%);
-  left: 50%;
+  position: absolute; top: var(--bag-start-top, 6%); left: 50%;
   transform: translate(-50%, -50%) scale(0.65);
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.55);
-  box-shadow:
-    0 0 12px rgba(255, 255, 255, 0.22),
-    0 3px 8px rgba(0, 0, 0, 0.4);
-  z-index: 11;
-  pointer-events: none;
-  opacity: 0;
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.55);
+  box-shadow: 0 0 12px rgba(255,255,255,0.22), 0 3px 8px rgba(0,0,0,0.4);
+  z-index: 11; pointer-events: none; opacity: 0;
 }
-
 .bag-dot.reward {
-  background: radial-gradient(
-    circle,
-    hsl(130, 60%, 55%) 0%,
-    hsl(130, 45%, 38%) 100%
-  );
+  background: radial-gradient(circle, hsl(130,60%,55%) 0%, hsl(130,45%,38%) 100%);
 }
-
 .bag-dot.loss {
-  background: radial-gradient(
-    circle,
-    hsl(0, 65%, 55%) 0%,
-    hsl(0, 50%, 40%) 100%
-  );
+  background: radial-gradient(circle, hsl(0,65%,55%) 0%, hsl(0,50%,40%) 100%);
 }
-
-/* Drop animation: bag falls from top of game area to just above the rail. */
 .bag-dot.dropping {
-  animation: bagDropDown 720ms cubic-bezier(0.35, 0, 0.65, 1) forwards;
+  animation: bagDropDown 720ms cubic-bezier(0.35,0,0.65,1) forwards;
 }
-
-/* Landed pulse: brief expanding ring marks the landing point, then fades.
-   Defined AFTER .dropping so that when both classes are present the
-   landingPulse animation takes precedence. JS removes .dropping when adding
-   .landed, but the cascade order is the safety net. */
 .bag-dot.landed {
-  top: var(--bag-land-top, 71%);
-  opacity: 1;
+  top: var(--bag-land-top, 71%); opacity: 1;
   animation: landingPulse 380ms ease-out forwards;
 }
 
-/* ── Fragment layer + fragments ── */
 .fragment-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9; /* above rail (8), below bag-dot (11) and collector (12) */
-  overflow: visible;
+  position: absolute; inset: 0; pointer-events: none; z-index: 9; overflow: visible;
 }
-
 .bag-fragment {
-  position: absolute;
-  top: var(--bag-land-top, 71%);
-  width: 7px;
-  height: 7px;
-  border-radius: 2px;
-  transform: translate(-50%, -50%) scale(0.4);
-  --dx: 0vw;
-  --dy: -0.6vh;
-  --fall: 5.6vh;          /* was 13vh, and unit was a % at runtime */
-  --dx-mid: 0vw;
-  --fall-mid: 2vh;
-  --rot: 90deg;
-  opacity: 0;
-  pointer-events: none;
-  animation: fragmentBurst 700ms ease-out forwards;
+  position: absolute; top: var(--bag-land-top, 71%);
+  width: 7px; height: 7px; border-radius: 2px;
+  transform: translate(-50%,-50%) scale(0.4);
+  --dx: 0vw; --dy: -0.6vh; --fall: 5.6vh; --dx-mid: 0vw; --fall-mid: 2vh; --rot: 90deg;
+  opacity: 0; pointer-events: none; animation: fragmentBurst 700ms ease-out forwards;
 }
-
-
-/* Reward fragments: all green. */
 .bag-fragment.reward {
-  background: linear-gradient(180deg, hsl(130, 75%, 62%), hsl(130, 62%, 42%));
-  box-shadow: 0 0 4px rgba(120, 255, 130, 0.55);
+  background: linear-gradient(180deg, hsl(130,75%,62%), hsl(130,62%,42%));
+  box-shadow: 0 0 4px rgba(120,255,130,0.55);
 }
-
-/* Loss fragments: all red. */
 .bag-fragment.loss {
-  background: linear-gradient(180deg, hsl(0, 78%, 62%), hsl(0, 62%, 42%));
-  box-shadow: 0 0 4px rgba(255, 100, 100, 0.55);
+  background: linear-gradient(180deg, hsl(0,78%,62%), hsl(0,62%,42%));
+  box-shadow: 0 0 4px rgba(255,100,100,0.55);
 }
 
-/* ── Keyframes ── */
-
-/* Vertical bag drop. Uses CSS custom properties so the start/land tops
-   stay tunable without editing keyframes. */
 @keyframes bagDropDown {
-  0% {
-    top: var(--bag-start-top, 6%);
-    transform: translate(-50%, -50%) scale(0.65);
-    opacity: 0;
-  }
-  15% {
-    opacity: 1;
-  }
-  100% {
-    top: var(--bag-land-top, 71%);
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-  }
+  0%   { top: var(--bag-start-top, 6%); transform: translate(-50%,-50%) scale(0.65); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { top: var(--bag-land-top, 71%); transform: translate(-50%,-50%) scale(1); opacity: 1; }
 }
-
-/* Brief expanding ring at the landing point, then the bag dot fades out
-   so the fragments can take over the visual space. */
 @keyframes landingPulse {
-  0% {
-    transform: translate(-50%, -50%) scale(1);
-    box-shadow:
-      0 0 0 0 rgba(255, 255, 255, 0.7),
-      0 3px 8px rgba(0, 0, 0, 0.35);
-    opacity: 1;
-  }
-  60% {
-    transform: translate(-50%, -50%) scale(1.7);
-    box-shadow:
-      0 0 0 14px rgba(255, 255, 255, 0),
-      0 3px 8px rgba(0, 0, 0, 0);
-    opacity: 0.55;
-  }
-  100% {
-    transform: translate(-50%, -50%) scale(0.2);
-    opacity: 0;
-  }
+  0%   { transform: translate(-50%,-50%) scale(1);
+         box-shadow: 0 0 0 0 rgba(255,255,255,0.7), 0 3px 8px rgba(0,0,0,0.35); opacity: 1; }
+  60%  { transform: translate(-50%,-50%) scale(1.7);
+         box-shadow: 0 0 0 14px rgba(255,255,255,0), 0 3px 8px rgba(0,0,0,0); opacity: 0.55; }
+  100% { transform: translate(-50%,-50%) scale(0.2); opacity: 0; }
 }
-
-/* Fragment burst: small initial pop outward and slightly upward, then a
-   gravity-style fall to the final (--dx, --fall) offset. */
-/* Fragment burst: small initial pop outward and slightly upward, then a
-   vertical drop exactly to the rail, vanishing on impact. */
 @keyframes fragmentBurst {
-  0% {
-    transform: translate(-50%, -50%) scale(0.45) rotate(0deg);
-    opacity: 0;
-  }
-
-  6% {
-    opacity: 1;
-  }
-
-  /* quick outward/upward pop */
-  30% {
-    transform:
-      translate(calc(-50% + var(--dx-mid)), calc(-50% + var(--dy)))
-      scale(1)
-      rotate(calc(var(--rot) * 0.25));
-    opacity: 1;
-  }
-
-  /* falling already; gives a curved/parabolic feel */
-  55% {
-    transform:
-      translate(calc(-50% + var(--dx)), calc(-50% + var(--fall-mid)))
-      scale(0.95)
-      rotate(calc(var(--rot) * 0.7));
-    opacity: 1;
-  }
-
-  /* rail/plate impact */
-  82% {
-    transform:
-      translate(calc(-50% + var(--dx)), calc(-50% + var(--fall)))
-      scale(0.85)
-      rotate(var(--rot));
-    opacity: 1;
-  }
-
-  /* rail/plate impact */
-  88% {
-    transform:
-      translate(calc(-50% + var(--dx)), calc(-50% + var(--fall)))
-      scale(0.55)
-      rotate(var(--rot));
-    opacity: 1;
-  }
-
-  100% {
-    transform:
-      translate(calc(-50% + var(--dx)), calc(-50% + var(--fall)))
-      scale(0.55)
-      rotate(var(--rot));
-    opacity: 0;
-  }
+  0%   { transform: translate(-50%,-50%) scale(0.45) rotate(0deg); opacity: 0; }
+  6%   { opacity: 1; }
+  30%  { transform: translate(calc(-50% + var(--dx-mid)), calc(-50% + var(--dy))) scale(1) rotate(calc(var(--rot)*0.25)); opacity: 1; }
+  55%  { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--fall-mid))) scale(0.95) rotate(calc(var(--rot)*0.7)); opacity: 1; }
+  82%  { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--fall))) scale(0.85) rotate(var(--rot)); opacity: 1; }
+  88%  { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--fall))) scale(0.55) rotate(var(--rot)); opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--fall))) scale(0.55) rotate(var(--rot)); opacity: 0; }
 }
 
-
-/* ── Feedback value text ── */
+/* ── Feedback value — CLOSER to stimulus card & slightly larger ── */
 .fb-value {
   position: absolute;
-  top: 63%;
+  top: 48%;                  /* was 63% — now ~5% below the bottom of the stimulus card */
   transform: translateX(-50%);
   z-index: 15;
-  font-size: clamp(30px, 3.5vw, 46px);
+  font-size: clamp(36px, 4.2vw, 54px);   /* was clamp(30px, 3.5vw, 46px) */
   font-weight: 800;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  text-shadow:
-    0 2px 10px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 10px rgba(0,0,0,0.5), 0 0 20px rgba(0,0,0,0.3);
   pointer-events: none;
   animation: valueAppear 0.2s ease-out;
 }
 
-/* ── Stimulus emoji card ── */
 .stimulus-card {
-  position: absolute;
-  top: clamp(3%, 15vh, 10%);
-  transform: translateX(-50%);
-  z-index: 14;
-  width: 250px;
-  height: 250px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 2px solid rgba(255, 255, 255, 0.22);
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  pointer-events: none;
-  animation: itemFadeIn 0.35s ease-out;
+  position: absolute; top: clamp(3%, 15vh, 10%);
+  transform: translateX(-50%); z-index: 14;
+  width: 250px; height: 250px;
+  background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.22);
+  border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  pointer-events: none; animation: itemFadeIn 0.35s ease-out;
 }
-
 .stimulus-card .emoji-stim {
-  font-size: 125px;
-  line-height: 1;
+  font-size: 125px; line-height: 1;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  display: block;
+}
+.stimulus-card .stimulus-img {
+  max-width: 82%; max-height: 82%; object-fit: contain;
+  display: block; user-select: none; pointer-events: none; image-rendering: auto;
 }
 
-/* ── Drone (practice only) ── */
 .drone-el {
-  position: absolute;
-  top: 6%;
-  font-size: 32px;
-  transform: translateX(-50%);
-  z-index: 6;
-  visibility: hidden;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
-  user-select: none;
-  pointer-events: none;
-  opacity: 0.3;
-  transition: opacity 0.3s;
+  position: absolute; top: 6%; font-size: 32px;
+  transform: translateX(-50%); z-index: 6;
+  visibility: hidden; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4));
+  user-select: none; pointer-events: none; opacity: 0.3; transition: opacity 0.3s;
 }
-
-.drone-el.visible {
-  visibility: visible;
-}
-
-.drone-el.outcome-phase {
-  opacity: 0.9;
-}
-
-/* ── Legacy bird class (kept for block-intro screens) ── */
+.drone-el.visible { visibility: visible; }
+.drone-el.outcome-phase { opacity: 0.9; }
 .bird {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  left: 35%;
-  top: 5%;
-  height: 10%;
-  width: 10%;
-  overflow: visible;
-  visibility: hidden;
+  position: absolute; transform: translate(-50%,-50%);
+  left: 35%; top: 5%; height: 10%; width: 10%;
+  overflow: visible; visibility: hidden;
 }
-
 
 @keyframes valueAppear {
-  from {
-    transform: translateX(-50%) translateY(8px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
-  }
+  from { transform: translateX(-50%) translateY(8px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
-
 @keyframes itemFadeIn {
-  from {
-    transform: translateX(-50%) translateY(6px);
-    opacity: 0;
-  }
-  to {
-    transform: translateX(-50%) translateY(0);
-    opacity: 1;
-  }
-}
-/* ── Main-task PNG stimulus support; practice emoji support kept ── */
-.stimulus-card .stimulus-img {
-  max-width: 82%;
-  max-height: 82%;
-  object-fit: contain;
-  display: block;
-  user-select: none;
-  pointer-events: none;
-  image-rendering: auto;
-}
-
-.stimulus-card .emoji-stim {
-  display: block;
+  from { transform: translateX(-50%) translateY(6px); opacity: 0; }
+  to   { transform: translateX(-50%) translateY(0); opacity: 1; }
 }

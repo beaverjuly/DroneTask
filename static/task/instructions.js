@@ -666,7 +666,7 @@ var inst4_full_game = {
         '</div>' +
       '</div>' ,
 
-// P2: object questions overview
+// P2: object questions overview — revised for key-controlled bars
 pageBody('👽 Examine each object carefully',
   'After each planet mission, we will ask about the objects from that planet.<br><br>' +
   '🧑‍🚀 <em>No need</em> to remember them, your main mission is supply collection') +
@@ -676,49 +676,77 @@ pageBody('👽 Examine each object carefully',
     '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
       'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
       '<div style="font-size:34px;margin-bottom:8px;">🍤 ⇄ 🧩</div>' +
-      '<div style="font-size:15px;line-height:1.45;color:#4b5563;">Which object came <strong>first</strong>?</div>' +
+      '<div style="font-size:15px;line-height:1.45;color:#4b5563;">Which object came <strong>first</strong>?<br>' +
+        '<span style="font-size:13px;color:#888;">← → to select, Enter to confirm</span></div>' +
     '</div>' +
 
     '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
       'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
-      '<div style="font-size:34px;margin-bottom:8px;">🌲 ··· 🎤</div>' +
-      '<div style="font-size:15px;line-height:1.45;color:#4b5563;"><strong>How many</strong> objects came between them?</div>' +
+      '<div style="margin-bottom:8px;position:relative;height:18px;">' +
+        '<div style="position:absolute;left:10%;right:10%;top:50%;height:4px;transform:translateY(-50%);' +
+          'background:rgba(0,0,0,.12);border-radius:2px;"></div>' +
+        '<div style="position:absolute;left:35%;top:50%;width:12px;height:12px;border-radius:50%;' +
+          'transform:translate(-50%,-50%);background:rgba(59,130,246,.8);border:2px solid rgba(59,130,246,1);"></div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:6px;padding:0 8%;">' +
+        '<span>Very close</span><span>Very far</span></div>' +
+      '<div style="font-size:15px;line-height:1.45;color:#4b5563;">How <strong>far apart</strong> in time did these feel?<br>' +
+        '<span style="font-size:13px;color:#888;">← → to move, Enter to confirm</span></div>' +
     '</div>' +
 
     '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
       'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
       '<div style="font-size:34px;margin-bottom:8px;">🌲 ⇠ 🎤 ⇢ 🍤</div>' +
-      '<div style="font-size:15px;line-height:1.45;color:#4b5563;"><strong>When</strong> did one object appear between the other two?</div>' +
+      '<div style="font-size:15px;line-height:1.45;color:#4b5563;"><strong>Where</strong> in time did one appear between the other two?<br>' +
+        '<span style="font-size:13px;color:#888;">← → to place on the bar</span></div>' +
     '</div>' +
+    '</div>' +
+    '<div style="max-width:680px;margin:14px auto 0;padding:12px 18px;' +
+      'border-radius:10px;background:#f0f5ff;border:1px solid #c8d8f0;text-align:center;' +
+      'font-size:14px;color:#4b5563;">' +
+      '🛠️ All questions are answered using <strong>← → arrow keys</strong> ' +
+      'and <strong>Enter</strong> — no mouse or typing needed.' +
     '</div>' ,
 
-// P3: slider example + priority
-pageBody('Example question',
-  'Move the slider to show <strong>when this object appeared</strong> between the other two.') +
+// P3: placement example — revised for key-controlled bar with larger probe
+pageBody('Example placement question',
+  'Use <strong>← →</strong> to place the highlighted object on the bar between the other two, ' +
+  'then press <strong>Enter</strong> to confirm.') +
   '<div style="max-width:760px;margin:20px auto 10px auto;padding:20px 24px;' +
     'border-radius:18px;background:#f8fafc;border:1px solid #d6dee8;' +
     'box-shadow:0 8px 24px rgba(15,23,42,.08);">' +
 
-    '<div style="display:flex;align-items:flex-end;gap:18px;width:100%;">' +
+    '<div style="text-align:center;margin-bottom:14px;">' +
+      '<div style="display:inline-flex;width:110px;height:110px;border-radius:14px;' +
+        'background:white;border:3px solid rgba(59,130,246,.55);' +
+        'align-items:center;justify-content:center;font-size:56px;' +
+        'box-shadow:0 0 16px rgba(59,130,246,.25),0 4px 12px rgba(0,0,0,.08);">🎤</div>' +
+      '<div style="font-size:13px;color:#3b82f6;font-weight:600;margin-top:6px;">Place this object</div>' +
+    '</div>' +
 
-      '<div style="width:92px;text-align:center;flex-shrink:0;">' +
-        '<div style="width:84px;height:84px;margin:0 auto;border-radius:14px;background:white;' +
+    '<div style="display:flex;align-items:center;gap:14px;width:100%;">' +
+
+      '<div style="width:80px;text-align:center;flex-shrink:0;">' +
+        '<div style="width:72px;height:72px;margin:0 auto;border-radius:12px;background:white;' +
           'border:2px solid #c2c8d0;display:flex;align-items:center;justify-content:center;' +
-          'font-size:42px;box-shadow:0 4px 12px rgba(0,0,0,.08);">🌲</div>' +
+          'font-size:36px;box-shadow:0 3px 10px rgba(0,0,0,.06);">🌲</div>' +
       '</div>' +
 
-      '<div style="flex:1;text-align:center;min-width:220px;">' +
-        '<div style="font-size:44px;margin-bottom:12px;">🎤</div>' +
-        '<input type="range" min="0" max="100" value="50" style="width:100%;">' +
-        '<div style="display:flex;justify-content:space-between;font-size:13px;color:#64748b;margin-top:6px;">' +
-          '<span>Closer to 🌲?</span><span>Closer to 🍤?</span>' +
+      '<div style="flex:1;text-align:center;min-width:200px;position:relative;">' +
+        '<div style="height:6px;background:rgba(0,0,0,.12);border-radius:3px;position:relative;margin:14px 0;">' +
+          '<div style="position:absolute;left:38%;top:50%;width:18px;height:18px;border-radius:50%;' +
+            'transform:translate(-50%,-50%);background:rgba(59,130,246,.9);' +
+            'border:2px solid rgba(59,130,246,1);box-shadow:0 0 10px rgba(59,130,246,.5);"></div>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:2px;">' +
+          '<span>Closer to 🌲</span><span>Closer to 🍤</span>' +
         '</div>' +
       '</div>' +
 
-      '<div style="width:92px;text-align:center;flex-shrink:0;">' +
-        '<div style="width:84px;height:84px;margin:0 auto;border-radius:14px;background:white;' +
+      '<div style="width:80px;text-align:center;flex-shrink:0;">' +
+        '<div style="width:72px;height:72px;margin:0 auto;border-radius:12px;background:white;' +
           'border:2px solid #c2c8d0;display:flex;align-items:center;justify-content:center;' +
-          'font-size:42px;box-shadow:0 4px 12px rgba(0,0,0,.08);">🍤</div>' +
+          'font-size:36px;box-shadow:0 3px 10px rgba(0,0,0,.06);">🍤</div>' +
       '</div>' +
 
     '</div>' +

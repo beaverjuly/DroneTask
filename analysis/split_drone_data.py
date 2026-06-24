@@ -76,6 +76,8 @@ MEMORY_COLS = [
     'middle_item_index', 'middle_item_img', 'middle_item_is_boundary',
     'placement_true_midpoint_pct', 'placement_error_from_true_midpoint',
     'attempt_number', 'timed_out', 'skipped_pair',
+    # Layout metadata
+    'order_keymap_mode', 'order_layout_mode', 'was_legacy_slider_pair',
     # Preload failure tracking
     'stim_left_preload_failed',    # true/false
     'stim_right_preload_failed',   # true/false
