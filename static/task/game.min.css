@@ -123,13 +123,13 @@
   100% { transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--fall))) scale(0.55) rotate(var(--rot)); opacity: 0; }
 }
 
-/* ── Feedback value — CLOSER to stimulus card & slightly larger ── */
+/* ── Feedback value — just above the bag drop zone ── */
 .fb-value {
   position: absolute;
-  top: 48%;                  /* was 63% — now ~5% below the bottom of the stimulus card */
+  top: 58%;
   transform: translateX(-50%);
   z-index: 15;
-  font-size: clamp(36px, 4.2vw, 54px);   /* was clamp(30px, 3.5vw, 46px) */
+  font-size: clamp(36px, 4.2vw, 54px);
   font-weight: 800;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   text-shadow: 0 2px 10px rgba(0,0,0,0.5), 0 0 20px rgba(0,0,0,0.3);
@@ -138,7 +138,7 @@
 }
 
 .stimulus-card {
-  position: absolute; top: clamp(3%, 15vh, 10%);
+  position: absolute; top: clamp(22%, 24vh, 30%);
   transform: translateX(-50%); z-index: 14;
   width: 250px; height: 250px;
   background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.22);
