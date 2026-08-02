@@ -47,6 +47,11 @@
   background: rgba(100,100,120,0.7); border-color: rgba(255,255,255,0.12);
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
+.game-container.practice-theme .collector-box.locked {
+  background: rgba(52,56,64,0.82); border-color: rgba(255,255,255,0.72);
+  box-shadow: 0 0 0 2px rgba(20,24,30,0.22),
+    0 4px 12px rgba(0,0,0,0.48), 0 0 12px rgba(255,255,255,0.14);
+}
 .collector-box.locked .collector-label { color: rgba(255,255,255,0.3); }
 
 .pe-line {
@@ -126,10 +131,10 @@
 /* ── Feedback value — just above the bag drop zone ── */
 .fb-value {
   position: absolute;
-  top: 58%;
+  top: 56%;              /* just BELOW the stimulus card (card ends ~52%) */
   transform: translateX(-50%);
   z-index: 15;
-  font-size: clamp(36px, 4.2vw, 54px);
+  font-size: clamp(34px, 3.8vw, 48px);
   font-weight: 800;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   text-shadow: 0 2px 10px rgba(0,0,0,0.5), 0 0 20px rgba(0,0,0,0.3);
@@ -138,9 +143,9 @@
 }
 
 .stimulus-card {
-  position: absolute; top: clamp(22%, 24vh, 30%);
+  position: absolute; top: clamp(14%, 16vh, 20%);
   transform: translateX(-50%); z-index: 14;
-  width: 250px; height: 250px;
+  width: 210px; height: 210px;
   background: rgba(255,255,255,0.12); border: 2px solid rgba(255,255,255,0.22);
   border-radius: 14px; display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 24px rgba(0,0,0,0.3);

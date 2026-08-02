@@ -60,16 +60,16 @@ function buildDevTimeline(cfg) {
 
   } else if (stage === 'comprehension') {
     skipPreload = true;
-    console.log('[DEV] stage: comprehension checks only');
+    console.log('[DEV] stage: combined comprehension check only');
     timeline.push({
       type: 'html-keyboard-response',
-      stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Comprehension checks only. Press any key.</p>',
+      stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Comprehension check (13 questions). Press any key.</p>',
       choices: jsPsych.ALL_KEYS
     });
     timeline = timeline.concat(cfg.comprehensionTimeline);
     timeline.push({
       type: 'html-keyboard-response',
-      stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Comprehension checks complete. Press any key.</p>',
+      stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Comprehension check complete. Press any key.</p>',
       choices: jsPsych.ALL_KEYS
     });
 
@@ -152,7 +152,7 @@ function buildDevTimeline(cfg) {
     }
     timeline = timeline.concat(
       cfg.enter_fullscreen, cfg.welcome, cfg.feedback0, cfg.instructions_loop,
-      combinedTrials, cfg.survey_demographics, cfg.feedback1, cfg.finish
+      combinedTrials, cfg.feedback1, cfg.survey_demographics, cfg.finish
     );
   }
 

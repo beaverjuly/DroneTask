@@ -173,8 +173,16 @@ jsPsych.plugins["trial"] = (function () {
     { hue: 340, sat: 28, label: "Block 4" }  // rose
   ];
 
-  // Practice uses a neutral grey-blue
-  var PRACTICE_THEME = { hue: 220, sat: 15 };
+  // Practice uses a fully neutral grey gradient.
+  var PRACTICE_THEME = {
+    hue: 210,
+    sat: 0,
+    skyGradient:
+      "linear-gradient(to bottom," +
+      "#2b2f35 0%,#3b4047 30%,#565c65 55%," +
+      "#747c86 72%,#969da5 85%,#b3b8bd 100%)",
+    groundGradient: "linear-gradient(to bottom,#b3b8bd 0%,#a2a8ae 100%)"
+  };
 
   // Expose for memory_task.js to use matching backgrounds
   window.BLOCK_THEMES = BLOCK_THEMES;
@@ -239,15 +247,20 @@ jsPsych.plugins["trial"] = (function () {
     var theme = getBlockTheme(trial);
     var h = theme.hue;
     var s = theme.sat;
+    var skyBackground = theme.skyGradient || skyGradientCSS(h, s);
+    var groundBackground = theme.groundGradient || groundGradientCSS(h, s);
+    var gameContainerClass = theme.skyGradient
+      ? "game-container practice-theme"
+      : "game-container";
 
     var html = "";
     html +=
-      '<div class="game-container" style="background:' +
-      skyGradientCSS(h, s) +
+      '<div class="' + gameContainerClass + '" style="background:' +
+      skyBackground +
       ';">';
     html +=
       '<div class="bg-ground" style="background:' +
-      groundGradientCSS(h, s) +
+      groundBackground +
       ';"></div>';
     html += '<div class="main-container">';
 
@@ -675,10 +688,10 @@ plugin.trial = function (display_element, trial) {
       tipEl.textContent = '← Try sliding with the arrow keys first! →';
       tipEl.style.cssText =
         'position:fixed;bottom:90px;right:40px;' +
-        'background:#fff3cd;color:#7a5500;' +
-        'font-size:14px;font-weight:600;' +
-        'padding:8px 14px;border-radius:8px;' +
-        'box-shadow:0 2px 8px rgba(0,0,0,.2);' +
+        'background:#fffbeb;border:1px solid #fde68a;color:#854d0e;' +
+        'font-size:15px;font-weight:600;' +
+        'padding:10px 18px;border-radius:10px;' +
+        'box-shadow:0 6px 18px rgba(133,77,14,.14);' +
         'opacity:0;transition:opacity 0.3s;' +
         'pointer-events:none;z-index:998;';
       display_element.appendChild(tipEl);

@@ -21,8 +21,7 @@ DroneTask/
 │   │   ├── memory_task.js      # memory test plugin
 │   │   ├── survey.js           # demographics survey builder
 │   │   ├── instructions.js     # instruction decks
-│   │   ├── comprehension1.js   # mechanics check
-│   │   ├── comprehension2.js   # mission check
+│   │   ├── comprehension.js    # combined mechanics and mission check
 │   │   ├── preload.js          # blob-URL image preloader
 │   │   ├── stimuli.js          # stimulus pool & pairs
 │   │   ├── stimuli-details.js  # valence config, drop constants

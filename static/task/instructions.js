@@ -23,12 +23,12 @@ function mockFrame(innerHTML, frameStyle, scale) {
       'box-shadow:0 12px 30px rgba(0,0,0,.28);' +
       'border:2px solid rgba(255,255,255,.08);' +
       'background:linear-gradient(to bottom,' +
-        'hsl(210,38%,18%) 0%,hsl(210,38%,28%) 30%,hsl(210,38%,42%) 55%,' +
-        'hsl(210,44%,58%) 72%,hsl(210,48%,72%) 85%,hsl(210,46%,80%) 100%);' +
+        '#2b2f35 0%,#3b4047 30%,#565c65 55%,' +
+        '#747c86 72%,#969da5 85%,#b3b8bd 100%);' +
       (frameStyle || '') +
     '">' +
       '<div style="position:absolute;left:0;right:0;bottom:0;height:22%;' +
-        'background:linear-gradient(to bottom,hsl(210,46%,80%) 0%,hsl(210,42%,74%) 100%);' +
+        'background:linear-gradient(to bottom,#b3b8bd 0%,#a2a8ae 100%);' +
         'border-top:1px solid rgba(255,255,255,.2);"></div>' +
       innerHTML +
     '</div>'
@@ -37,6 +37,8 @@ function mockFrame(innerHTML, frameStyle, scale) {
 
 function buildScene(opts) {
   opts = opts || {};
+  var realTrialLayout = !!opts.realTrialLayout;
+  var sceneScale      = (typeof opts.sceneScale === 'number') ? opts.sceneScale : 1;
   var droneX     = opts.droneX;
   var collectorX = (typeof opts.collectorX === 'number') ? opts.collectorX : 50;
   var bagX       = opts.bagX;
@@ -46,16 +48,23 @@ function buildScene(opts) {
   var itemEmoji  = opts.itemEmoji;
   var itemTop  = (typeof opts.itemTop === 'number') ? opts.itemTop : 30;
   var scoreTop = (typeof opts.scoreTop === 'number') ? opts.scoreTop : 40;
+  var railTop  = realTrialLayout ? 67 : 78;
+  var bagTop   = realTrialLayout ? 61 : 71;
+  var fragTop  = realTrialLayout ? 64 : 74;
   var pieces     = [];
 
   if (itemEmoji) {
     var itemX = (typeof opts.itemX === 'number') ? opts.itemX : 50;
-    var itemSize = (typeof opts.itemSize === 'number') ? opts.itemSize : 110;
-    var itemFontSize = (typeof opts.itemFontSize === 'number') ? opts.itemFontSize : 58;
+    var itemSize = (typeof opts.itemSize === 'number')
+      ? opts.itemSize : (realTrialLayout ? Math.round(210 * sceneScale) : 110);
+    var itemFontSize = (typeof opts.itemFontSize === 'number')
+      ? opts.itemFontSize : (realTrialLayout ? Math.round(125 * sceneScale) : 58);
+    var itemPosition = realTrialLayout
+      ? 'transform:translateX(-50%);top:13%;'
+      : 'transform:translate(-50%,-50%);top:' + itemTop + '%;';
 
     pieces.push(
-      '<div style="position:absolute;left:' + itemX + '%;top:' + itemTop + '%;' +
-        'transform:translate(-50%,-50%);' +
+      '<div style="position:absolute;left:' + itemX + '%;' + itemPosition +
         'width:' + itemSize + 'px;height:' + itemSize + 'px;' +
         'background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.22);' +
         'border-radius:14px;display:flex;align-items:center;justify-content:center;' +
@@ -88,18 +97,18 @@ function buildScene(opts) {
   }
 
   pieces.push(
-    '<div style="position:absolute;left:8%;width:84%;top:78%;height:3px;' +
+    '<div style="position:absolute;left:8%;width:84%;top:' + railTop + '%;height:3px;' +
       'transform:translateY(-50%);border-radius:999px;' +
       'background:rgba(255,255,255,.55);box-shadow:0 0 8px rgba(255,255,255,.15);"></div>'
   );
 
-  var boxBg     = locked ? 'rgba(100,100,120,.7)'  : 'rgba(255,255,255,.88)';
-  var boxBorder = locked ? 'rgba(255,255,255,.12)' : 'rgba(255,255,255,.65)';
+  var boxBg     = locked ? 'rgba(52,56,64,.82)'     : 'rgba(255,255,255,.88)';
+  var boxBorder = locked ? 'rgba(255,255,255,.72)'  : 'rgba(255,255,255,.65)';
   var boxShadow = locked
-    ? '0 2px 6px rgba(0,0,0,.3)'
+    ? '0 0 0 2px rgba(20,24,30,.22),0 4px 12px rgba(0,0,0,.48),0 0 12px rgba(255,255,255,.14)'
     : '0 0 0 1px rgba(255,255,255,.15),0 3px 10px rgba(0,0,0,.25)';
   pieces.push(
-    '<div style="position:absolute;left:' + collectorX + '%;top:78%;' +
+    '<div style="position:absolute;left:' + collectorX + '%;top:' + railTop + '%;' +
       'transform:translate(-50%,-50%);width:12%;min-width:60px;max-width:120px;height:22px;">' +
       '<div style="position:absolute;inset:0;border-radius:999px;background:' + boxBg + ';' +
         'border:2px solid ' + boxBorder + ';box-shadow:' + boxShadow + ';"></div>' +
@@ -111,7 +120,7 @@ function buildScene(opts) {
       ? 'radial-gradient(circle,hsl(0,65%,55%) 0%,hsl(0,50%,40%) 100%)'
       : 'radial-gradient(circle,hsl(130,60%,55%) 0%,hsl(130,45%,38%) 100%)';
     pieces.push(
-      '<div style="position:absolute;left:' + bagX + '%;top:71%;' +
+      '<div style="position:absolute;left:' + bagX + '%;top:' + bagTop + '%;' +
         'transform:translate(-50%,-50%);width:24px;height:24px;' +
         'border-radius:50%;background:' + bagBg + ';' +
         'border:2px solid rgba(255,255,255,.55);z-index:11;' +
@@ -126,7 +135,7 @@ function buildScene(opts) {
     [-3.5, -2, -0.7, 0.7, 2, 3.5].forEach(function (off, i) {
       pieces.push(
         '<div style="position:absolute;left:calc(' + bagX + '% + ' + off + 'vw);' +
-          'top:74%;transform:translate(-50%,-50%) scale(.9) rotate(' + (i * 35) + 'deg);' +
+          'top:' + fragTop + '%;transform:translate(-50%,-50%) scale(.9) rotate(' + (i * 35) + 'deg);' +
           'width:10px;height:10px;border-radius:2px;background:' + fragColor + ';' +
           'box-shadow:0 0 4px rgba(255,255,255,.35);"></div>'
       );
@@ -158,6 +167,8 @@ function callout(labelXPct, labelYPct, targetXPct, targetYPct, text, accent) {
 }
 
 function mockGame(opts, callouts, scale) {
+  opts = opts || {};
+  opts.sceneScale = scale || 1;
   var inner = buildScene(opts);
   if (callouts && callouts.length) inner += callouts.join('');
   return mockFrame(inner, null, scale);
@@ -213,8 +224,8 @@ function mockPlanet(hue, sat, planetNum, droneX, collectorX, scale) {
 function pageBody(headline, body, opts) {
   opts = opts || {};
   return (
-    '<div style="font-size:20px;line-height:1.7;text-align:center;max-width:800px;margin:0 auto;">' +
-      '<div style="font-size:25px;font-weight:800;color:' + (opts.headColor || '#1f2937') + ';margin-bottom:14px;">' +
+    '<div style="font-size:20px;line-height:1.7;text-align:center;max-width:800px;margin:0 auto;color:#111827;">' +
+      '<div style="font-size:25px;font-weight:800;color:' + (opts.headColor || '#0f172a') + ';margin-bottom:14px;">' +
         headline + '</div>' +
       (body ? '<div>' + body + '</div>' : '') +
     '</div>'
@@ -252,10 +263,95 @@ function pill(text, bg, fg) {
   );
 }
 
-// Colour helpers for inline text.
+// Text helpers. Red and green are reserved for supply-condition cues.
 function green(text) { return '<span style="color:#0a7f2e;font-weight:700;">' + text + '</span>'; }
 function red(text)   { return '<span style="color:#b00020;font-weight:700;">' + text + '</span>'; }
 function gold(text)  { return '<span style="color:#b58a00;font-weight:700;">' + text + '</span>'; }
+function emphasis(text) { return '<span class="instruction-emphasis">' + text + '</span>'; }
+
+function memoryExampleStim(emoji, size, highlighted, neutral) {
+  var boxSize = size || 72;
+  var border = highlighted
+    ? (neutral ? '3px solid rgba(255,255,255,.95)' : '3px solid hsla(210,72%,56%,1)')
+    : '2px solid rgba(255,255,255,.25)';
+  var shadow = highlighted
+    ? (neutral
+      ? '0 0 18px rgba(255,255,255,.48),0 0 8px rgba(255,255,255,.2)'
+      : '0 0 18px hsla(210,72%,56%,.5),0 0 8px rgba(255,255,255,.18)')
+    : '0 0 16px rgba(0,0,0,.3),0 0 6px rgba(255,255,255,.08)';
+  return (
+    '<div style="display:inline-flex;align-items:center;justify-content:center;' +
+      'width:' + boxSize + 'px;height:' + boxSize + 'px;border:' + border + ';' +
+      'border-radius:14px;background:rgba(0,0,0,.18);box-shadow:' + shadow + ';' +
+      'font-size:' + Math.round(boxSize * 0.55) + 'px;line-height:1;flex-shrink:0;">' +
+      emoji +
+    '</div>'
+  );
+}
+
+function memoryExampleTrack(position, leftEmoji, rightEmoji, leftLabel, rightLabel, neutral, options) {
+  options = options || {};
+  var ticks = '';
+  for (var i = 0; i <= 10; i++) {
+    ticks +=
+      '<span style="position:absolute;left:' + (i * 10) + '%;top:50%;width:1px;' +
+        'height:' + (i % 5 === 0 ? 16 : 10) + 'px;transform:translate(-50%,-50%);' +
+        'background:rgba(0,0,0,.1);"></span>';
+  }
+
+  var trackId = options.id || '';
+  var trackIdAttr = trackId ? ' id="' + trackId + '"' : '';
+  var knobIdAttr = trackId ? ' id="' + trackId + '-knob"' : '';
+  var track =
+    '<div' + trackIdAttr + ' style="flex:1;position:relative;height:40px;min-width:90px;">' +
+      '<div style="position:absolute;left:0;right:0;top:50%;height:6px;' +
+        'transform:translateY(-50%);background:rgba(255,255,255,.22);' +
+        'border-radius:999px;box-shadow:inset 0 0 8px rgba(0,0,0,.25);"></div>' +
+      ticks +
+      '<div' + knobIdAttr + ' style="position:absolute;left:' + position + '%;top:50%;width:22px;height:22px;' +
+        'transform:translate(-50%,-50%);border-radius:50%;' +
+        'transition:left .08s ease,box-shadow .15s ease;' +
+        'background:' + (neutral ? 'rgba(255,255,255,.92)' : 'hsla(210,72%,56%,.9)') + ';' +
+        'border:2px solid ' + (neutral ? '#fff' : 'hsla(210,72%,56%,1)') + ';' +
+        'box-shadow:' + (neutral
+          ? '0 0 18px rgba(255,255,255,.52),0 0 8px rgba(255,255,255,.2)'
+          : '0 0 18px hsla(210,72%,56%,.5),0 0 8px rgba(255,255,255,.18)') + ';"></div>' +
+    '</div>';
+
+  var hasAnchors = !!leftEmoji && !!rightEmoji;
+  var bar = hasAnchors
+    ? '<div style="display:flex;align-items:center;gap:12px;width:100%;">' +
+        memoryExampleStim(leftEmoji, 58, false, neutral) + track +
+        memoryExampleStim(rightEmoji, 58, false, neutral) +
+      '</div>'
+    : '<div style="width:100%;">' + track + '</div>';
+
+  var labelInset = hasAnchors ? (options.labelInset || '70px') : '0';
+  var labelFontSize = options.labelFontSize || 12;
+  return (
+    bar +
+    '<div style="display:flex;justify-content:space-between;margin-top:2px;' +
+      'padding-left:' + labelInset + ';padding-right:' + labelInset + ';' +
+      'gap:8px;font-size:' + labelFontSize + 'px;white-space:nowrap;' +
+      'color:rgba(255,255,255,.68);text-shadow:0 1px 4px rgba(0,0,0,.3);">' +
+      '<span>' + leftLabel + '</span><span>' + rightLabel + '</span>' +
+    '</div>'
+  );
+}
+
+function memoryExamplePanel(innerHTML, compact, neutral) {
+  var background = neutral
+    ? 'linear-gradient(to bottom,#30343b 0%,#505761 52%,#747c86 100%)'
+    : 'linear-gradient(to bottom,hsl(210,38%,20%),hsl(210,38%,37%),hsl(210,44%,58%))';
+  return (
+    '<div style="box-sizing:border-box;height:100%;padding:' + (compact ? '16px 14px' : '22px 26px') + ';' +
+      'border-radius:16px;color:#fff;' +
+      'background:' + background + ';' +
+      'border:2px solid rgba(255,255,255,.16);box-shadow:0 8px 24px rgba(15,23,42,.18);">' +
+      innerHTML +
+    '</div>'
+  );
+}
 
 // Injected into page-1 HTML of every instruction node so jsPsych's back
 // button is cleanly hidden when there is nothing to go back to.
@@ -272,10 +368,11 @@ var inst1 = {
   type: 'instructions',
   pages: [
     HIDE_PREV +
-    pageBody('🧑‍🚀 Your mission',
-      'A drone drops <strong>supplies</strong> to a rail. Use a <strong>collector</strong> to catch them.<br><br>'),
+    pageBody('Your task',
+      'A drone drops <strong>supplies</strong> toward a rail. Use your ' +
+      emphasis('collector') + ' to catch them.<br><br>'),
 
-    pageBody('Here is the scene.') +
+    pageBody('Here is your game screen.') +
       mockGame(
         { droneX: 50, collectorX: 50 },
         [
@@ -289,11 +386,11 @@ var inst1 = {
         ]
       ) +
       '<div style="font-size:13px;color:#888;text-align:center;margin-top:-6px;">' +
-        'Labels are tutorial-only' +
+        'These labels only appear during instructions.' +
       '</div>',
 
     pageBody('How to move',
-      'Press <strong>⬅️ Left</strong> and <strong>➡️ Right</strong> on keyboard to move the collector.<br>'),
+      'Press <strong>Left (←)</strong> and <strong>Right (→)</strong> arrow keys to move your collector.<br>'),
 
   ],
   show_clickable_nav: true,
@@ -306,8 +403,8 @@ var block_intro_practice1 = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      'Let us warm up!',
-      'Try sliding ↔️ the collector along the rail.'
+      '<strong>Practice moving your collector.</strong>',
+      'Use <strong>Left (←)</strong> and <strong>Right (→)</strong> arrow keys.'
     ], '#3b6db8')
   ],
   show_clickable_nav: true,
@@ -322,48 +419,48 @@ var inst2_locking_and_bag = {
 
     // P1: locking
     HIDE_PREV +
-    pageBody('The collector <strong>is locked ⏹️</strong> just before each bag drops',
-      'It turns grey, you cannot move it until the next turn.') +
+    pageBody('Your collector is <strong style="color:#475569;">locked</strong> just before each supply drops',
+      'It turns grey. You cannot move it until next turn.') +
       '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:16px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         '<div style="flex:1;min-width:280px;">' +
-          '<div style="text-align:center;font-size:14px;font-weight:700;color:#0a7f2e;margin-bottom:4px;">' +
-            '✅ movable (white)</div>' +
+          '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
+            '<span class="instruction-emphasis">MOVABLE · white</span></div>' +
           mockGame({ droneX: 50, collectorX: 50, collectorLocked: false },
             [callout(78, 75, 56, 78, 'movable', '#fff3a3')], 0.45) +
         '</div>' +
         '<div style="flex:1;min-width:280px;">' +
-          '<div style="text-align:center;font-size:14px;font-weight:700;color:#444;margin-bottom:4px;">' +
-            '⏹️ locked (grey)</div>' +
+          '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
+            '<span class="instruction-emphasis">LOCKED · grey</span></div>' +
           mockGame({ droneX: 50, collectorX: 50, collectorLocked: true },
             [callout(78, 75, 56, 78, 'locked', '#cccccc')], 0.45) +
         '</div>' +
       '</div>',
 
     // P2: bag drops + score
-    pageBody('Supply bags disintegrate 💥 just before hitting the rail',
-      'Your score is based on how many bag fragments you catch.<br>' +
-      '<strong> Catch more ➡ Better score</strong>') +
+    pageBody('Supplies <strong>break into pieces</strong> just before reaching the rail',
+      'Your score is based on how many pieces you catch.<br>' +
+      emphasis('Catch more pieces = a better score')) +
       '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         '<div style="flex:1;min-width:280px;">' +
-          '<div style="text-align:center;font-size:14px;font-weight:700;color:#0a7f2e;margin-bottom:4px;">' +
-            'Catch all fragments</div>' +
+          '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
+            '<span class="instruction-emphasis">Catch all pieces</span></div>' +
           mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
             bagX: 50, valence: 'reward', showFragments: true, scoreText: '+10' }, null, 0.45) +
         '</div>' +
         '<div style="flex:1;min-width:280px;">' +
-          '<div style="text-align:center;font-size:14px;font-weight:700;color:#666;margin-bottom:4px;">' +
-            'Catch fewer fragments</div>' +
+          '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
+            '<span class="instruction-emphasis">Catch fewer pieces</span></div>' +
           mockGame({ droneX: 60, collectorX: 35, collectorLocked: true,
             bagX: 60, valence: 'reward', showFragments: true, scoreText: '+3' }, null, 0.45) +
         '</div>' +
       '</div>',
 
     // P3: bag colour rule
-    pageBody('🟢🔴 Two kinds of supply',
-      'Your mission is <strong>always the same</strong>: ' +
-      'Catch as <strong>many</strong> fragments as possible!') +
+    pageBody('Two kinds of supply',
+      'Your goal <strong>never changes</strong>: ' +
+      emphasis('catch as many pieces as possible') + '.') +
       '<div style="display:flex;gap:18px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:16px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
 
@@ -373,7 +470,7 @@ var inst2_locking_and_bag = {
             pill('Green supply', '#0a7f2e', '#fff') + '</div>' +
           '<div style="font-size:17px;line-height:1.6;color:#1f2937;">' +
             'Catch more = ' + green('earn more points') + '<br>' +
-            '<span style="font-size:14px;color:#555;">Perfect: ' + green('+10') + ' &nbsp;·&nbsp; Worst: ' + gold('0') + '</span>' +
+            '<span style="font-size:14px;color:#555;">Best: ' + green('+10') + ' &nbsp;·&nbsp; Worst: ' + gold('0') + '</span>' +
           '</div>' +
           mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
             bagX: 50, valence: 'reward', showFragments: true, scoreText: '+10' }, null, 0.45) +
@@ -385,23 +482,23 @@ var inst2_locking_and_bag = {
             pill('Red supply', '#b00020', '#fff') + '</div>' +
           '<div style="font-size:17px;line-height:1.6;color:#1f2937;">' +
             'Catch more = ' + red('lose fewer points') + '<br>' +
-            '<span style="font-size:14px;color:#555;">Perfect: ' + gold('0') + ' &nbsp;·&nbsp; Worst: ' + red('−10') + '</span>' +
+            '<span style="font-size:14px;color:#555;">Best: ' + gold('0') + ' &nbsp;·&nbsp; Worst: ' + red('−10') + '</span>' +
           '</div>' +
           mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
             bagX: 50, valence: 'loss', showFragments: true, scoreText: '0' }, null, 0.45) +
         '</div>' +
 
       '</div>' +
-      '<div style="font-size:17px;text-align:center;margin-top:16px;color:#333;">' +
-        '<strong> Final score ➡ bonus pay 💰</strong>' +
+      '<div style="font-size:17px;text-align:center;margin-top:16px;">' +
+        emphasis('Your final score affects your bonus pay.') +
       '</div>',
 
     // P4: items + keep responding
-    pageBody('You also receive an object with each bag dropped',
+    pageBody('You also receive an object with each supply',
       'We may ask about objects you received, ' +
-      'but <em>no need</em> to remember them.<br><br>' +
-      '⚠️ <strong style="color:#b00020;">Keep moving your collector.</strong><br>' +
-      'If you do not move the collector for a long time, the mission will be <em>aborted early</em>.') +
+      'but you do <strong>not</strong> need to remember them.<br><br>' +
+      emphasis('Keep moving your collector.') + '<br>' +
+      'If you leave it in one place for too long, your mission will <strong>end early</strong>.') +
       mockGame({
         droneX: 50,
         collectorX: 50,
@@ -410,13 +507,11 @@ var inst2_locking_and_bag = {
         valence: 'reward',
         showFragments: true,
         scoreText: '+10',
-        scoreTop: 47,
-        itemEmoji: '🧩',
-        itemTop: 31,
-        itemSize: 100,
-        itemFontSize: 56
+        scoreTop: 48,
+        itemEmoji: '🍪', // tutorial-only; not in main, practice, or fallback pools
+        realTrialLayout: true
       },
-      [callout(80, 24, 53, 31, 'object received')],0.6),
+      [callout(82, 25, 55, 30, 'object received')], 0.65),
 
   ],
   show_clickable_nav: true,
@@ -429,8 +524,9 @@ var block_intro_green_seen = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      ' <strong>3 practice turns.</strong>',
-      '🟢 Catch more = ' + green('earn more') + ' (+0 to +10 per turn).',
+      '<strong>3 practice turns.</strong>',
+      pill('Green supply', '#0a7f2e', '#fff') +
+        ' Catch more = ' + green('earn more') + ' (0 to +10 per turn).'
     ], '#0a7f2e', 'Practice · green supply')
   ],
   show_clickable_nav: true,
@@ -443,8 +539,9 @@ var block_intro_red_seen = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      ' <strong> Now a different kind of supply!</strong> 3 practice turns.',
-      '🔴 Catch more = ' + red('lose less') + ' (−10 to 0 per turn).'
+      '<strong>Now try a different kind of supply.</strong> 3 practice turns.',
+      pill('Red supply', '#b00020', '#fff') +
+        ' Catch more = ' + red('lose fewer points') + ' (−10 to 0 per turn).'
     ], '#b00020', 'Practice · red supply')
   ],
   show_clickable_nav: true,
@@ -459,14 +556,14 @@ var inst3_drone_disappears = {
 
     // P1a: air currents / bag shift
     HIDE_PREV +
-    pageBody('🤔 Noticed something?',
-      'The bag lands <strong>near</strong> the drone, but unpredictable air currents 💨 can <strong>shift</strong> it slightly.<br>' +
-      'So the bag may land a little left or right of the drone.') +
+    pageBody('Wind moves each supply',
+      'Each supply lands <strong>near</strong> drone position, but wind can move it a little.<br>' +
+      'It may land on either side of that position.') +
       '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         (function () {
           var bags = [44, 50, 56];
-          var labels = ['shifted left', 'near the drone', 'shifted right'];
+          var labels = ['shifted left', 'near drone position', 'shifted right'];
           return labels.map(function (label, i) {
             return (
               '<div style="flex:1;min-width:200px;">' +
@@ -485,16 +582,17 @@ var inst3_drone_disappears = {
       '</div>',
 
     // P1b: drone hovers, then moves farther
-    pageBody('🤔 Noticed something?',
-      'The drone <strong>hovers in one area</strong> for several drops, then <strong>jumps</strong> to a new area.') +
+    pageBody('Drone position changes',
+      'It <strong>stays in one area</strong> for several drops, then ' +
+      emphasis('moves to a new area') + '.') +
       '<div style="display:flex;align-items:flex-start;gap:12px;justify-content:center;' +
         'margin-top:14px;width:86vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
 
         '<!-- Group 1: hovering phase -->' +
         '<div style="flex:3;min-width:0;background:rgba(255,255,255,.07);' +
           'border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px 8px 6px;">' +
-          '<div style="text-align:center;font-size:16px;font-weight:700;color:hsl(224, 58%, 48%);' +
-            'letter-spacing:.3px;margin-bottom:6px;">🔁 Hovering nearby</div>' +
+          '<div style="text-align:center;font-size:16px;letter-spacing:.3px;margin-bottom:6px;">' +
+            '<span class="instruction-emphasis">STAYS NEARBY</span></div>' +
           '<div style="display:flex;gap:6px;justify-content:center;">' +
             (function () {
               return [
@@ -516,13 +614,13 @@ var inst3_drone_disappears = {
 
         '<!-- Arrow divider -->' +
         '<div style="display:flex;align-items:center;padding-top:38px;' +
-          'font-size:26px;color:#ccc;flex-shrink:0;">➜</div>' +
+          'font-size:14px;font-weight:800;color:#64748b;flex-shrink:0;">THEN</div>' +
 
         '<!-- Group 2: jump phase -->' +
         '<div style="flex:2;min-width:0;background:rgba(255,220,100,.08);' +
           'border:1px solid rgba(255,220,100,.25);border-radius:12px;padding:10px 8px 6px;">' +
-          '<div style="text-align:center;font-size:16px;font-weight:700;color:hsl(38, 100%, 45%);' +
-            'letter-spacing:.3px;margin-bottom:6px;">⏩ Jumps to new area</div>' +
+          '<div style="text-align:center;font-size:16px;letter-spacing:.3px;margin-bottom:6px;">' +
+            '<span class="instruction-emphasis">MOVES TO A NEW AREA</span></div>' +
           '<div style="display:flex;gap:6px;justify-content:center;">' +
             (function () {
               return [
@@ -544,9 +642,10 @@ var inst3_drone_disappears = {
       '</div>',
 
     // P1c: strategy tip
-    pageBody('🤫 Want to catch more?',
-      'Place your collector <strong>right under where the drone is</strong>.<br><br>' +
-      '👉 This gives you the <em>best chance</em> to catch fragments, even when air currents shift the bag.') +
+    pageBody(emphasis('Best Strategy: Aim for the Drone.'),
+      'Supplies drift because of wind.<br><br>' +
+      emphasis('Placing your collector directly under the drone') +
+      '<br> gives you the best chance to catch more pieces over time.') +
       mockGame({
         droneX: 50,
         collectorX: 50,
@@ -554,28 +653,29 @@ var inst3_drone_disappears = {
         bagX: 55,
         valence: 'reward',
         showFragments: true,
-        scoreText: '+8'
+        scoreText: '+8',
+        realTrialLayout: true,
+        scoreTop: 48
       },
-      [callout(74, 24, 50, 10, 'estimate drone location'),
-      callout(72, 70, 50, 60, 'place collector nearby')],
+      [callout(74, 22, 50, 7, 'guess drone position'),
+      callout(20, 62, 50, 67, 'put collector here')],
       0.65),
 
     // P2: drone disappears
-    pageBody('⚠️ In the real mission, you cannot see the drone',
-      'You can only see the supply being dropped, <br>' + 
-      '🧐 So you must <strong>infer</strong> where the drone is from where the bag lands.',
-      { headColor: '#b00020' }) +
+    pageBody(emphasis('During the game, drone will be hidden'),
+      'You only see where each supply lands.<br>' +
+      'Use those landings to <strong>guess where the drone is</strong>.') +
       '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         '<div style="flex:1;min-width:280px;">' +
-          '<div style="text-align:center;font-size:14px;font-weight:700;color:#0a7f2e;margin-bottom:4px;">' +
-            '✔️ drone visible</div>' +
+          '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
+            '<span class="instruction-emphasis">DRONE SHOWN</span></div>' +
           mockGame({ droneX: 55, collectorX: 50, collectorLocked: true,
             bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
         '</div>' +
         '<div style="flex:1;min-width:280px;">' +
-          '<div style="text-align:center;font-size:14px;font-weight:700;color:#b00020;margin-bottom:4px;">' +
-            '❔ drone hidden</div>' +
+          '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
+            '<span class="instruction-emphasis">DRONE HIDDEN</span></div>' +
           mockGame({ collectorX: 50, collectorLocked: true,
             bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
         '</div>' +
@@ -592,8 +692,9 @@ var block_intro_green_hidden = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      ' <strong>3 turns.</strong> Drone <strong>invisible</strong>.',
-      '🟢 Catch more = ' + green('earn more') + ' (+0 to +10).'
+      '<strong>3 turns.</strong> Drone is <strong>hidden</strong>.',
+      pill('Green supply', '#0a7f2e', '#fff') +
+        ' Catch more = ' + green('earn more') + ' (0 to +10).'
     ], '#0a7f2e', 'Practice · green supply · no drone')
   ],
   show_clickable_nav: true,
@@ -606,14 +707,100 @@ var block_intro_red_hidden = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      ' <strong>3 practice turns.</strong> Drone <strong>invisible</strong>.',
-      '🔴 Catch more = ' + red('lose fewer points') + ' (−10 to 0).'
+      '<strong>3 practice turns.</strong> Drone is <strong>hidden</strong>.',
+      pill('Red supply', '#b00020', '#fff') +
+        ' Catch more = ' + red('lose fewer points') + ' (−10 to 0).'
     ], '#b00020', 'Practice · red supply · no drone')
   ],
   show_clickable_nav: true,
   button_label_previous: 'Prev',
   button_label_next: 'Next'
 };
+
+var inst4PlacementCleanup = null;
+
+function setupInst4PlacementInteraction() {
+  if (typeof inst4PlacementCleanup === 'function') {
+    inst4PlacementCleanup();
+  }
+
+  var triedSlider = false;
+  var badgeTimeout = null;
+
+  function removeBadge() {
+    var badge = document.getElementById('placement-example-try-badge');
+    if (badge && badge.parentNode) badge.parentNode.removeChild(badge);
+  }
+
+  function showTryBadge() {
+    removeBadge();
+    if (badgeTimeout !== null) clearTimeout(badgeTimeout);
+
+    var badge = document.createElement('div');
+    badge.id = 'placement-example-try-badge';
+    badge.textContent = 'Try sliding with arrow keys first!';
+    badge.style.cssText =
+      'position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:99999;' +
+      'padding:10px 18px;border-radius:10px;background:#fffbeb;' +
+      'border:1px solid #fde68a;color:#854d0e;font-size:15px;font-weight:600;' +
+      'box-shadow:0 6px 18px rgba(133,77,14,.14);' +
+      'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+      'transition:opacity .35s ease;pointer-events:none;';
+    document.body.appendChild(badge);
+
+    badgeTimeout = setTimeout(function() {
+      badge.style.opacity = '0';
+      setTimeout(removeBadge, 400);
+    }, 2200);
+  }
+
+  function keyHandler(event) {
+    var knob = document.getElementById('placement-example-slider-knob');
+    if (!knob) return;
+    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    var current = parseFloat(knob.getAttribute('data-position'));
+    if (!isFinite(current)) current = 38;
+    current += event.key === 'ArrowLeft' ? -5 : 5;
+    current = Math.max(0, Math.min(100, current));
+    knob.setAttribute('data-position', String(current));
+    knob.style.left = current + '%';
+    triedSlider = true;
+    removeBadge();
+  }
+
+  function clickGuard(event) {
+    var button = event.target.closest
+      ? event.target.closest('#jspsych-instructions-next')
+      : null;
+    if (!button || !document.getElementById('placement-example-slider') || triedSlider) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
+    showTryBadge();
+  }
+
+  document.addEventListener('keydown', keyHandler, true);
+  document.addEventListener('click', clickGuard, true);
+
+  inst4PlacementCleanup = function() {
+    document.removeEventListener('keydown', keyHandler, true);
+    document.removeEventListener('click', clickGuard, true);
+    if (badgeTimeout !== null) clearTimeout(badgeTimeout);
+    removeBadge();
+    inst4PlacementCleanup = null;
+  };
+}
+
+function cleanupInst4PlacementInteraction() {
+  if (typeof inst4PlacementCleanup === 'function') {
+    inst4PlacementCleanup();
+  }
+}
 
 // ── inst4: Full game + memory ──────────────────────────────────────
 var inst4_full_game = {
@@ -622,11 +809,11 @@ var inst4_full_game = {
 
     // P1: 4 planets, each with a unique drone
     HIDE_PREV +
-    pageBody('🧑‍🚀 You will visit <strong>4 planets</strong>.',
-      'Each has a <strong>unique drone</strong> that moves differently.<br>' +
-      'On each planet, the supply will be <em>all</em> ' + green('green') +
+    pageBody('You will visit <strong>4 planets</strong>',
+      'Each planet has a <strong>different drone</strong> with a <strong>different flight path</strong>.<br>' +
+      'On each planet, supplies are <em>all</em> ' + green('green') +
       ', or <em>all</em> ' + red('red') + '.<br>' +
-      '<strong>Always catch as many fragments as possible.</strong>') +
+      '<strong>Always catch as many pieces as possible.</strong>') +
 
       '<div style="display:flex;gap:14px;justify-content:center;align-items:flex-start;' +
         'margin-top:20px;width:90vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
@@ -642,7 +829,7 @@ var inst4_full_game = {
               '<div style="flex:1;min-width:0;text-align:center;">' +
                 mockPlanet(p.hue, p.sat, i + 1, p.droneX, p.collectorX, 0.22) +
                 '<div style="font-size:12px;color:#666;margin-top:6px;font-style:italic;">' +
-                  'unique movement' +
+                  'different movement' +
                 '</div>' +
               '</div>'
             );
@@ -666,95 +853,89 @@ var inst4_full_game = {
         '</div>' +
       '</div>' ,
 
-// P2: object questions overview — revised for key-controlled bars
-pageBody('👽 Examine each object carefully',
-  'We will ask you about the objects from each planet.<br><br>' +
+// P2: object questions overview
+pageBody('Look at each object carefully',
+  'We will ask you about objects from each planet.<br><br>' +
   '<em>These questions will not affect your score.</em>') +
-  '<div style="display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:14px;' +
-    'width:86vw;max-width:980px;margin:18px auto 8px auto;">' +
+  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;' +
+    'width:92vw;max-width:1180px;margin:18px auto 8px auto;">' +
 
-    '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
-      'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
-      '<div style="font-size:34px;margin-bottom:8px;">🍤 ⇄ 🧩</div>' +
-      '<div style="font-size:15px;line-height:1.45;color:#4b5563;">Which object came <strong>first</strong>?<br>' +
-        '<span style="font-size:13px;color:#888;">← → to select, Enter to confirm</span></div>' +
-    '</div>' +
-
-    '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
-      'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
-      '<div style="margin-bottom:8px;position:relative;height:18px;">' +
-        '<div style="position:absolute;left:10%;right:10%;top:50%;height:4px;transform:translateY(-50%);' +
-          'background:rgba(0,0,0,.12);border-radius:2px;"></div>' +
-        '<div style="position:absolute;left:35%;top:50%;width:12px;height:12px;border-radius:50%;' +
-          'transform:translate(-50%,-50%);background:rgba(59,130,246,.8);border:2px solid rgba(59,130,246,1);"></div>' +
+    memoryExamplePanel(
+      '<div style="font-size:19px;font-weight:750;text-align:center;margin-bottom:14px;' +
+        'text-shadow:0 2px 10px rgba(0,0,0,.45);">Which came first?</div>' +
+      '<div style="display:flex;justify-content:center;align-items:center;gap:16px;margin-bottom:12px;">' +
+        '<div style="text-align:center;">' + memoryExampleStim('🍤', 74, false, true) +
+          '<div style="font-size:24px;font-weight:800;margin-top:7px;">←</div></div>' +
+        '<div style="text-align:center;">' + memoryExampleStim('🌲', 74, false, true) +
+          '<div style="font-size:24px;font-weight:800;margin-top:7px;">→</div></div>' +
       '</div>' +
-      '<div style="display:flex;justify-content:space-between;font-size:11px;color:#94a3b8;margin-bottom:6px;padding:0 8%;">' +
-        '<span>Very close</span><span>Very far</span></div>' +
-      '<div style="font-size:15px;line-height:1.45;color:#4b5563;">How <strong>far apart</strong> in time did these feel?<br>' +
-        '<span style="font-size:13px;color:#888;">← → to move, Enter to confirm</span></div>' +
-    '</div>' +
+      '<div style="font-size:13px;color:rgba(255,255,255,.72);text-align:center;">' +
+        'Press ← or →. Your choice submits immediately.</div>',
+      true,
+      true
+    ) +
 
-    '<div style="background:#f8fafc;border:1px solid #d6dee8;border-radius:14px;' +
-      'padding:16px 14px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.05);">' +
-      '<div style="font-size:34px;margin-bottom:8px;">🌲 ⇠ 🎤 ⇢ 🍤</div>' +
-      '<div style="font-size:15px;line-height:1.45;color:#4b5563;"><strong>Where</strong> in time did one appear between the other two?<br>' +
-        '<span style="font-size:13px;color:#888;">← → to place on the bar</span></div>' +
-    '</div>' +
-    '</div>' +
-    '<div style="max-width:680px;margin:14px auto 0;padding:12px 18px;' +
-      'border-radius:10px;background:#f0f5ff;border:1px solid #c8d8f0;text-align:center;' +
-      'font-size:14px;color:#4b5563;">' +
-      'Answer all questions with <strong>← → arrow keys</strong> ' +
-      'and <strong>Enter</strong>' +
-    '</div>' ,
-
-// P3: placement example — revised for key-controlled bar with larger probe
-pageBody('Example placement question',
-  'Use <strong>← →</strong> to place the highlighted object on the bar between the other two, ' +
-  'then press <strong>Enter</strong> to confirm.') +
-  '<div style="max-width:760px;margin:20px auto 10px auto;padding:20px 24px;' +
-    'border-radius:18px;background:#f8fafc;border:1px solid #d6dee8;' +
-    'box-shadow:0 8px 24px rgba(15,23,42,.08);">' +
-
-    '<div style="text-align:center;margin-bottom:14px;">' +
-      '<div style="display:inline-flex;width:110px;height:110px;border-radius:14px;' +
-        'background:white;border:3px solid rgba(59,130,246,.55);' +
-        'align-items:center;justify-content:center;font-size:56px;' +
-        'box-shadow:0 0 16px rgba(59,130,246,.25),0 4px 12px rgba(0,0,0,.08);">🎤</div>' +
-      '<div style="font-size:13px;color:#3b82f6;font-weight:600;margin-top:6px;">Place this object</div>' +
-    '</div>' +
-
-    '<div style="display:flex;align-items:center;gap:14px;width:100%;">' +
-
-      '<div style="width:80px;text-align:center;flex-shrink:0;">' +
-        '<div style="width:72px;height:72px;margin:0 auto;border-radius:12px;background:white;' +
-          'border:2px solid #c2c8d0;display:flex;align-items:center;justify-content:center;' +
-          'font-size:36px;box-shadow:0 3px 10px rgba(0,0,0,.06);">🌲</div>' +
+    memoryExamplePanel(
+      '<div style="font-size:19px;font-weight:750;text-align:center;margin-bottom:12px;' +
+        'text-shadow:0 2px 10px rgba(0,0,0,.45);">How far apart in time did these two feel?</div>' +
+      '<div style="display:flex;justify-content:center;gap:14px;margin-bottom:10px;">' +
+        memoryExampleStim('🍤', 58, false, true) + memoryExampleStim('🌲', 58, false, true) +
       '</div>' +
+      memoryExampleTrack(35, null, null, 'Very close', 'Very far', true) +
+      '<div style="font-size:13px;color:rgba(255,255,255,.72);text-align:center;margin-top:10px;">' +
+        '← → to adjust<br><strong style="color:#fff;">Enter to confirm</strong></div>',
+      true,
+      true
+    ) +
 
-      '<div style="flex:1;text-align:center;min-width:200px;position:relative;">' +
-        '<div style="height:6px;background:rgba(0,0,0,.12);border-radius:3px;position:relative;margin:14px 0;">' +
-          '<div style="position:absolute;left:38%;top:50%;width:18px;height:18px;border-radius:50%;' +
-            'transform:translate(-50%,-50%);background:rgba(59,130,246,.9);' +
-            'border:2px solid rgba(59,130,246,1);box-shadow:0 0 10px rgba(59,130,246,.5);"></div>' +
-        '</div>' +
-        '<div style="display:flex;justify-content:space-between;font-size:12px;color:#888;margin-top:2px;">' +
-          '<span>Closer to 🌲</span><span>Closer to 🍤</span>' +
-        '</div>' +
-      '</div>' +
+    memoryExamplePanel(
+      '<div style="font-size:19px;font-weight:750;text-align:center;margin-bottom:10px;' +
+        'text-shadow:0 2px 10px rgba(0,0,0,.45);">Where was this object shown between the two?</div>' +
+      '<div style="text-align:center;margin-bottom:8px;">' + memoryExampleStim('🎤', 62, true, true) + '</div>' +
+      memoryExampleTrack(
+        38, '🌲', '🍤', 'Closer to left', 'Closer to right', true,
+        { labelFontSize: 10.5, labelInset: '64px' }
+      ) +
+      '<div style="font-size:13px;color:rgba(255,255,255,.72);text-align:center;margin-top:10px;">' +
+        '← → to adjust<br><strong style="color:#fff;">Enter to confirm</strong></div>',
+      true,
+      true
+    ) +
+  '</div>' +
+  '<div style="max-width:760px;margin:14px auto 0;padding:12px 18px;' +
+    'border-radius:10px;background:linear-gradient(to bottom,#f3f4f6,#e5e7eb);' +
+    'border:1px solid #cbd0d6;text-align:center;' +
+    'font-size:14px;color:#4b5563;line-height:1.5;">' +
+    'Start moving each slider within <strong>5 seconds</strong>. After your first move, it ' +
+    'auto-submits in <strong>7 seconds</strong>.' +
+  '</div>' ,
 
-      '<div style="width:80px;text-align:center;flex-shrink:0;">' +
-        '<div style="width:72px;height:72px;margin:0 auto;border-radius:12px;background:white;' +
-          'border:2px solid #c2c8d0;display:flex;align-items:center;justify-content:center;' +
-          'font-size:36px;box-shadow:0 3px 10px rgba(0,0,0,.06);">🍤</div>' +
-      '</div>' +
-
-    '</div>' +
-    '</div>'
+// P3: placement example
+pageBody('Example Question',
+  'Use <strong>← →</strong> to place highlighted object between two reference objects.') +
+  '<div style="max-width:760px;margin:20px auto 10px auto;">' +
+    memoryExamplePanel(
+      '<div style="font-size:27px;font-weight:800;text-align:center;margin-bottom:18px;' +
+        'text-shadow:0 2px 12px rgba(0,0,0,.5);">Where was this object shown between the two?</div>' +
+      '<div style="text-align:center;margin-bottom:16px;">' + memoryExampleStim('🎤', 110, true, true) + '</div>' +
+      memoryExampleTrack(
+        38, '🌲', '🍤', 'Closer to left', 'Closer to right', true,
+        { id: 'placement-example-slider' }
+      ) +
+      '<div style="font-size:16px;color:rgba(255,255,255,.72);text-align:center;margin-top:14px;' +
+        'text-shadow:0 1px 6px rgba(0,0,0,.45);">← → to adjust<br>' +
+        '<strong style="color:#fff;">Enter to confirm</strong></div>',
+      false,
+      true
+    ) +
+  '</div>'
   ],
+  allow_keys: false,
   show_clickable_nav: true,
   button_label_previous: 'Prev',
-  button_label_next: 'Next'
+  button_label_next: 'Next',
+  on_load: setupInst4PlacementInteraction,
+  on_finish: cleanupInst4PlacementInteraction
 };
 
 // ═══════════════════════════════════════════════════════════════════
@@ -768,10 +949,10 @@ var quiz = {
     glowSquaresScreen(
       pageBody(
         '<div class="glow-title" style="font-size:30px;font-weight:850;margin-bottom:18px;">' +
-          '⚡ Time to Show Your Understanding of Mission ⚡' +
+          'Check What You Learned' +
         '</div>' +
         '<div style="font-size:18px;line-height:1.65;color:#1f2937;">' +
-          'Before the game, answer a few questions to make sure all rules are clear!' +
+          'Before starting, answer a few questions to make sure rules are clear.' +
         '</div>'
       ),
       {
@@ -783,7 +964,7 @@ var quiz = {
   ],
   show_clickable_nav: true,
   button_label_previous: 'Prev',
-  button_label_next: 'I am Ready!'
+  button_label_next: 'Continue'
 };
 
 var ready = {
@@ -822,8 +1003,8 @@ var ready = {
       '<div class="tp-particle" style="left:78%;animation-duration:3.4s;animation-delay:1.5s;font-size:14px;">▪️</div>' +
       '<div class="tp-particle" style="left:90%;animation-duration:2.9s;animation-delay:0.6s;">▪️</div>' +
       '<div class="tp-particle" style="left:44%;animation-duration:3.8s;animation-delay:1.8s;font-size:20px;">▪️</div>' +
-      '<div class="tp-title">🌌 You are being teleported now... 🌌</div>' +
-      '<div class="tp-luck">✨ Good luck ✨</div>' +
+      '<div class="tp-title">Starting game...</div>' +
+      '<div class="tp-luck">Good luck</div>' +
     '</div>'
   ],
   show_clickable_nav: true,
@@ -834,16 +1015,14 @@ var ready = {
 var inst3_incorrect = {
   type: 'instructions',
   pages: [
-    pageBody('😶‍🌫️ You did not respond.',
-      'Your mission must be aborted now.', { headColor: '#b00020' })
+    pageBody(emphasis('You did not respond'),
+      'Your mission must end now.')
   ],
   show_clickable_nav: false
 };
 
 // ═══════════════════════════════════════════════════════════════════
-// E — Comprehension hooks (unchanged)
+// E — Combined comprehension hook
 // ═══════════════════════════════════════════════════════════════════
 
-var num_loops = 0;
-var comprehension1 = { type: 'comprehension1' };
-var comprehension2 = { type: 'comprehension2' };
+var comprehension = { type: 'comprehension' };

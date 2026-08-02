@@ -49,8 +49,7 @@
       '<script src="static/task/ui-helpers.js?v='     + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/stimuli.js?v='          + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/stimuli-details.js?v='  + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/comprehension1.js?v='   + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/comprehension2.js?v='   + window.__APP_VER + '"><\/script>' +
+      '<script src="static/task/comprehension.js?v='   + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/instructions.js?v='     + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/latin_square.js?v='     + window.__APP_VER + '"><\/script>' +
       '<script src="static/task/preload.js?v='          + window.__APP_VER + '"><\/script>' +
@@ -76,6 +75,30 @@
     body { margin: 50px; }
     .jspsych-display-element { transition: opacity 0.12s ease-in-out; }
     .jspsych-display-element.transitioning { opacity: 0; }
+
+    @keyframes instruction-emphasis-pop {
+      0%, 100% {
+        transform: scale(1);
+        text-shadow: 0 0 0 rgba(15, 23, 42, 0);
+      }
+      50% {
+        transform: scale(1.025);
+        text-shadow: 0 0 10px rgba(15, 23, 42, 0.18);
+      }
+    }
+
+    .instruction-emphasis {
+      display: inline-block;
+      color: #111827 !important;
+      font-style: italic;
+      font-weight: 800;
+      transform-origin: center;
+      animation: instruction-emphasis-pop 2.6s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .instruction-emphasis { animation: none; }
+    }
     
     /* Default jsPsych nav buttons: subtle, for instruction Prev/Next */
     .jspsych-btn {
@@ -450,12 +473,12 @@
     type: 'instructions',
     pages: [
       glowSquaresScreen(
-        '<div style="max-width:760px;margin:0 auto;text-align:center;font-size:20px;line-height:1.65;color:#e2e8f0;">' +
-          '<div class="glow-title" style="font-size:32px;font-weight:800;margin-bottom:18px;color:#fff;">🌠 Welcome 🌠</div>' +
+        '<div style="max-width:760px;margin:0 auto;text-align:center;font-size:20px;line-height:1.65;color:#1f2937;">' +
+          '<div class="glow-title" style="font-size:32px;font-weight:800;margin-bottom:18px;color:#0f172a;">Welcome</div>' +
           '<p>You will complete a keyboard game and related questions.</p>' +
-          '<p>The study takes about 45 minutes.</p>' +
+          '<p>Study takes about 45 minutes.</p>' +
           '<p><strong>Bonus payment</strong> depends on game performance.</p>' +
-          '<p><strong>🌟 So Try Your Best 🌟</strong></p>' +
+          '<p><span class="instruction-emphasis">Try to get your highest score.</span></p>' +
         '</div>',
         { minHeight: '40vh', glowColor: '30,64,175', density: 7 }
       )
@@ -680,10 +703,10 @@
         var planetNum = j + 1;
         var blockValence = factors_valence[design_idx];
         var supplyColor = (blockValence === 'loss') ? 'red' : 'green';
-        var supplyEmoji = (blockValence === 'loss') ? '🔴' : '🟢';
+        var supplyColorHex = (blockValence === 'loss') ? '#dc2626' : '#16a34a';
         var scoreRule = (blockValence === 'loss')
-          ? 'Catch more fragments to lose fewer points.'
-          : 'Catch more fragments to earn more points.';
+          ? 'Catch more pieces to lose fewer points.'
+          : 'Catch more pieces to earn more points.';
 
         // Look up this block's sky-gradient theme (defined in trial.js)
         var blockTheme = (typeof BLOCK_THEMES !== 'undefined') ? BLOCK_THEMES[j] : null;
@@ -703,7 +726,7 @@
               'background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);' +
               'font-size:13px;font-weight:800;letter-spacing:.04em;' +
               'text-transform:uppercase;margin-bottom:14px;">' +
-              '🌌 Planet ' + planetNum + ' of 4 🌌' +
+              'Planet ' + planetNum + ' of 4' +
             '</div>' +
 
             '<div class="glow-title" style="font-size:30px;font-weight:850;margin-bottom:10px;color:#fff;">' +
@@ -712,7 +735,7 @@
 
             '<div style="font-size:18px;margin-bottom:18px;color:rgba(255,255,255,.85);">' +
               'This planet has a <strong>new drone route</strong><br>' +
-              'and a <strong>new air-current pattern</strong>.' +
+              'and a <strong>new wind pattern</strong>.' +
             '</div>' +
 
             '<div style="' +
@@ -720,13 +743,14 @@
               'background:' + (blockValence === 'loss' ? 'rgba(255,100,100,.18)' : 'rgba(100,255,140,.15)') + ';' +
               'border:1px solid ' + (blockValence === 'loss' ? 'rgba(255,130,130,.35)' : 'rgba(130,255,160,.3)') + ';' +
               'font-size:17px;margin-bottom:18px;color:#fff;">' +
-              '<strong>' + supplyEmoji + ' ' + supplyColor.toUpperCase() + ' supply</strong><br>' +
+              '<strong style="color:' + (blockValence === 'loss' ? '#fecaca' : '#bbf7d0') + ';">' +
+                supplyColor.toUpperCase() + ' SUPPLY</strong><br>' +
               '<span style="font-size:15px;color:rgba(255,255,255,.7);">' + scoreRule + '</span>' +
             '</div>' +
 
             '<div style="font-size:15px;color:rgba(255,255,255,.55);">' +
               'Press any key to begin.<br>' +
-              '<span style="font-size:13px;">Auto-starts in 20 seconds.</span>' +
+              '<span style="font-size:13px;">Starts automatically in 20 seconds.</span>' +
             '</div>' +
           '</div>',
           {
@@ -756,7 +780,9 @@
               '<div style="' +
                 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
                 'text-align:center;">' +
-                '<div style="font-size:48px;margin-bottom:20px;">' + supplyEmoji + '</div>' +
+                '<div style="width:48px;height:48px;margin:0 auto 20px;border-radius:50%;' +
+                  'background:' + supplyColorHex + ';border:3px solid rgba(255,255,255,.72);' +
+                  'box-shadow:0 0 22px rgba(' + missionGlowColor + ',.7);"></div>' +
                 '<div class="glow-title" style="' +
                   'font-size:26px;font-weight:800;color:#fff;' +
                   'animation:glow-pop .6s cubic-bezier(.2,.8,.3,1.1) both;">' +
@@ -964,33 +990,85 @@
                 'line-height:1.65;color:#e2e8f0;">' +
 
                 '<div class="glow-title" style="font-size:32px;font-weight:850;margin-bottom:14px;color:#fff;">' +
-                  '🌌 Planet ' + blockNum + ' mission complete 🌌' +
+                  'Planet ' + blockNum + ' complete' +
                 '</div>' +
 
                 '<p style="font-size:20px;margin:0 0 14px 0;color:rgba(255,255,255,.9);">' +
-                  'Now we will ask about the <strong>objects you received</strong> on this planet.' +
-                '</p>' +
-
-                '<p style="font-size:18px;margin:0 0 8px 0;color:rgba(255,255,255,.85);">' +
-                  '‼️ Answer <strong>as quickly as possible</strong> ‼️' +
-                '</p>' +
-
-                '<p style="font-size:15px;color:rgba(255,255,255,.55);margin:0 0 22px 0;">' +
-                  'Use ← → and Enter · ~ 10 seconds per question.' +
+                  'Now we will ask about <strong>objects you received</strong> on this planet.' +
                 '</p>' +
 
                 '<div style="' +
                   'display:inline-block;padding:10px 18px;border-radius:12px;' +
                   'background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);' +
                   'color:rgba(255,255,255,.85);font-weight:750;font-size:16px;">' +
-                  'Press any key to begin.' +
+                  'Press any key to continue.' +
                 '</div>' +
               '</div>',
               { minHeight: '22vh', glowColor: _mcGlowColor, density: 5 }
             )
           : '<div style="text-align:center;padding:40px;color:#fff;font-size:30px;">' +
-              '🌌 Planet ' + blockNum + ' mission complete 🌌<br>' +
-              '<span style="font-size:18px;">Press any key.</span></div>'
+              'Planet ' + blockNum + ' complete<br>' +
+              '<span style="font-size:18px;">Press any key to continue.</span></div>'
+        ),
+      choices: jsPsych.ALL_KEYS,
+      trial_duration: 15000,
+      on_start: function() {
+        if (typeof window.skyGradientCSS === 'function') {
+          document.body.style.background = _mcSkyBg;
+          document.body.style.backgroundAttachment = 'fixed';
+        }
+      }
+    });
+
+    timeline.push({
+      type: 'html-keyboard-response',
+      stimulus:
+        '<div style="position:fixed;inset:0;z-index:-1;background:' + _mcSkyBg + ';"></div>' +
+        (typeof glowSquaresScreen === 'function'
+          ? glowSquaresScreen(
+              '<style>' +
+                '@keyframes memory-word-pop{' +
+                  '0%,100%{transform:scale(1);text-shadow:0 0 7px rgba(' + _mcGlowColor + ',.35)}' +
+                  '50%{transform:scale(1.04);text-shadow:0 0 15px rgba(' + _mcGlowColor + ',.82),' +
+                    '0 0 28px rgba(' + _mcGlowColor + ',.42)}' +
+                '}' +
+                '.memory-word-pop{display:inline-block;font-style:italic;font-weight:850;color:#fff;' +
+                  'transform-origin:center;animation:memory-word-pop 2.2s ease-in-out infinite;}' +
+                '@media (prefers-reduced-motion:reduce){.memory-word-pop{animation:none}}' +
+              '</style>' +
+              '<div style="' +
+                'max-width:680px;margin:0 auto;text-align:center;' +
+                'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+                'line-height:1.65;color:#e2e8f0;">' +
+
+                '<p style="font-size:21px;margin:0 0 18px 0;color:rgba(255,255,255,.94);">' +
+                  'Answer <span class="memory-word-pop">as quickly as you can</span>.' +
+                '</p>' +
+
+                '<div style="max-width:500px;margin:0 auto 22px;padding:14px 20px;border-radius:14px;' +
+                  'background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);' +
+                  'box-shadow:0 8px 24px rgba(0,0,0,.14);">' +
+                  '<p style="font-size:17px;margin:0 0 8px;color:rgba(255,255,255,.86);">' +
+                    'Use <strong style="color:#fff;">← or →</strong> to choose or move.' +
+                  '</p>' +
+                  '<p style="font-size:17px;margin:0;color:rgba(255,255,255,.86);">' +
+                    '<strong style="color:#fff;">Enter to confirm</strong> slider answers sooner.' +
+                  '</p>' +
+                '</div>' +
+
+                '<div style="display:inline-block;padding:10px 18px;border-radius:12px;' +
+                  'background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);' +
+                  'color:rgba(255,255,255,.88);font-weight:750;font-size:16px;">' +
+                  'Press any key to begin.' +
+                '</div>' +
+              '</div>',
+              { minHeight: '24vh', glowColor: _mcGlowColor, density: 5 }
+            )
+          : '<div style="text-align:center;padding:40px;color:#fff;line-height:1.7;">' +
+              '<span style="font-size:20px;">Answer as quickly as you can.</span><br>' +
+              '<span style="font-size:17px;">Use ← or → to choose or move.</span><br>' +
+              '<span style="font-size:17px;"><strong>Enter to confirm</strong> slider answers sooner.</span><br>' +
+              '<span style="font-size:16px;">Press any key to begin.</span></div>'
         ),
       choices: jsPsych.ALL_KEYS,
       trial_duration: 15000,
@@ -1078,7 +1156,7 @@
   // ──────────────────────────────────────────────────────────────
   // Topic-aware comprehension loop.
   //
-  // Each comprehension plugin (comprehension1 / comprehension2) returns:
+  // The comprehension plugin returns:
   //   done: true   → all answers correct, exit the loop
   //   done: false  → review_topic is set when the participant clicks
   //                  a wrong-locked card; null if they submitted with
@@ -1137,8 +1215,7 @@
     };
   }
 
-  var comprehension1_loop = makeComprehensionLoop('comprehension1', comprehension1);
-  var comprehension2_loop = makeComprehensionLoop('comprehension2', comprehension2);
+  var comprehension_loop = makeComprehensionLoop('comprehension', comprehension);
 
   function addSmoothTransitions(node) {
     if (!node || node.type !== 'instructions') return node;
@@ -1207,41 +1284,15 @@
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_full_game));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(quiz));
 
-  // Mechanics check (loops until all correct — never terminates)
-  instructions_loop.push(comprehension1_loop);
+  // Single combined check (loops until all correct — never terminates)
+  instructions_loop.push(comprehension_loop);
 
-  // Transition between comprehension sets
-  var comp_transition = {
-    type: 'html-keyboard-response',
-    stimulus: glowSquaresScreen(
-      '<div style="max-width:620px;margin:0 auto;text-align:center;color:#1f2937;' +
-        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;">' +
-
-        '<div class="glow-title" style="font-size:36px;font-weight:800;margin-bottom:14px;color:#111827;">' +
-          '⚡ Part 1 Compelete ⚡' +
-        '</div>' +
-
-        '<p style="font-size:15px;color:#4b5563;margin-top:16px;">' +
-          'Press any key to continue with Part 2.' +
-        '</p>' +
-
-      '</div>',
-      { minHeight: '28vh', glowColor: '34,197,94', density: 20 }
-    ),
-    choices: jsPsych.ALL_KEYS,
-    trial_duration: 10000
-  };
-
-  instructions_loop.push(comp_transition);
-
-  // Full mission check (loops until all correct — never terminates)
-  instructions_loop.push(comprehension2_loop);
 
   instructions_loop = instructions_loop.concat(ready);
 
   // ──────────────────────────────────────────────────────────────
   // Dev-only: comprehension checks in isolation (?dev=1&stage=comprehension).
-  // Reuses the SAME comprehension1_loop / comprehension2_loop objects that
+  // Reuses the SAME comprehension_loop object that
   // ship in instructions_loop — not a re-implementation — so this route
   // always reflects the live loop_function/review-deck logic above.
   // Skips inst1–inst4 main decks and all practice trials; review decks
@@ -1250,9 +1301,7 @@
   // ──────────────────────────────────────────────────────────────
   var comprehensionOnlyTimeline = [].concat(
     addSmoothTransitions(quiz),
-    comprehension1_loop,
-    comp_transition,
-    comprehension2_loop,
+    comprehension_loop,
     ready
   );
 
@@ -1260,11 +1309,11 @@
     type: 'instructions',
     pages: [
       glowSquaresScreen(
-        '<div style="max-width:680px;margin:0 auto;text-align:center;font-size:20px;line-height:1.7;color:#e2e8f0;">' +
-          '<div class="glow-title" style="font-size:27px;font-weight:800;margin-bottom:14px;color:#fff;">🌌 Pre-Flight Briefing 🌌</div>' +
-          '<p>First: mission instructions, then a short understanding check.</p>' +
-          '<p>You must pass the check before liftoff</p>' +
-          '<p><strong>🌟 So Read Closely 🌟</strong></p>' +
+        '<div style="max-width:680px;margin:0 auto;text-align:center;font-size:20px;line-height:1.7;color:#1f2937;">' +
+          '<div class="glow-title" style="font-size:27px;font-weight:800;margin-bottom:14px;color:#0f172a;">Before You Start</div>' +
+          '<p>First, read game instructions. Then answer a short check.</p>' +
+          '<p>You must answer every question correctly before game starts.</p>' +
+          '<p><span class="instruction-emphasis">Read each instruction carefully.</span></p>' +
         '</div>',
         { minHeight: '32vh', glowColor: '30,64,175', density: 5 }
       )
@@ -1274,59 +1323,79 @@
     button_label_next: "Next"
   };
 
+  function cheerfulCompletionScreen(title, bodyHTML, options) {
+    options = options || {};
+    var accent = options.accent || '34,197,94';
+    var accent2 = options.accent2 || '56,189,248';
+
+    return glowSquaresScreen(
+      '<style>' +
+        '@keyframes cheerful-card-in{' +
+          '0%{opacity:0;transform:translateY(16px) scale(.97)}' +
+          '100%{opacity:1;transform:translateY(0) scale(1)}' +
+        '}' +
+        '@keyframes cheerful-bar{' +
+          '0%,100%{transform:scaleY(.55);opacity:.55}' +
+          '50%{transform:scaleY(1.12);opacity:1}' +
+        '}' +
+        '@keyframes cheerful-ring{' +
+          '0%,100%{transform:scale(.88);opacity:.38}' +
+          '50%{transform:scale(1.08);opacity:.8}' +
+        '}' +
+        '.cheerful-card{position:relative;box-sizing:border-box;max-width:650px;margin:0 auto;' +
+          'padding:28px 34px;border-radius:24px;text-align:center;' +
+          'background:linear-gradient(145deg,rgba(255,255,255,.96),rgba(248,250,252,.88));' +
+          'border:1px solid rgba(' + accent + ',.28);' +
+          'box-shadow:0 18px 46px rgba(15,23,42,.13),0 0 34px rgba(' + accent + ',.12);' +
+          'animation:cheerful-card-in .65s cubic-bezier(.2,.8,.3,1.1) both;' +
+          'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;color:#1f2937;}' +
+        '.cheerful-mark{position:relative;width:82px;height:48px;margin:0 auto 14px;' +
+          'display:flex;align-items:center;justify-content:center;gap:7px;}' +
+        '.cheerful-mark:before{content:"";position:absolute;inset:1px 15px;border-radius:50%;' +
+          'border:2px solid rgba(' + accent2 + ',.34);animation:cheerful-ring 2.2s ease-in-out infinite;}' +
+        '.cheerful-mark span{position:relative;width:9px;border-radius:999px;' +
+          'background:linear-gradient(to top,rgba(' + accent + ',.95),rgba(' + accent2 + ',.92));' +
+          'box-shadow:0 0 12px rgba(' + accent + ',.34);transform-origin:bottom;' +
+          'animation:cheerful-bar 1.7s ease-in-out infinite;}' +
+        '.cheerful-mark span:nth-child(1){height:20px;animation-delay:-.8s}' +
+        '.cheerful-mark span:nth-child(2){height:34px;animation-delay:-.35s}' +
+        '.cheerful-mark span:nth-child(3){height:25px;animation-delay:-1.15s}' +
+        '.cheerful-title{font-size:30px;font-weight:850;margin-bottom:12px;color:#0f172a;}' +
+        '.cheerful-body{font-size:19px;line-height:1.65;color:#334155;}' +
+        '.cheerful-body p{margin:8px 0;}' +
+        '.cheerful-body strong{color:#0f172a;font-weight:850;}' +
+        '#jspsych-instructions-next{padding:10px 22px!important;border-radius:999px!important;' +
+          'border:1px solid rgba(' + accent + ',.34)!important;' +
+          'background:linear-gradient(135deg,rgba(' + accent + ',.94),rgba(' + accent2 + ',.92))!important;' +
+          'color:#0f172a!important;font-size:15px!important;font-weight:850!important;opacity:1!important;' +
+          'box-shadow:0 8px 22px rgba(' + accent + ',.22)!important;' +
+          'transition:transform .2s ease,box-shadow .2s ease!important;}' +
+        '#jspsych-instructions-next:hover{transform:translateY(-1px);' +
+          'box-shadow:0 10px 26px rgba(' + accent + ',.3)!important;}' +
+        '@media(prefers-reduced-motion:reduce){.cheerful-card,.cheerful-mark:before,' +
+          '.cheerful-mark span{animation:none}}' +
+      '</style>' +
+      '<div class="cheerful-card">' +
+        '<div class="cheerful-mark" aria-hidden="true"><span></span><span></span><span></span></div>' +
+        '<div class="cheerful-title glow-title">' + title + '</div>' +
+        '<div class="cheerful-body">' + bodyHTML + '</div>' +
+      '</div>',
+      { minHeight: '42vh', glowColor: accent, density: 8 }
+    );
+  }
+
   var feedback1 = {
     type: 'instructions',
     pages: [
-      HIDE_PREV +
-      '<style>' +
-        '#jspsych-instructions-next{' +
-          'background:linear-gradient(135deg,#facc15,#fb923c)!important;' +
-          'color:#111827!important;' +
-          'border:0!important;' +
-          'border-radius:999px!important;' +
-          'padding:11px 24px!important;' +
-          'font-size:16px!important;' +
-          'font-weight:850!important;' +
-          'box-shadow:0 8px 20px rgba(251,146,60,.28)!important;' +
-          'opacity:1!important;' +
-        '}' +
-        '#jspsych-instructions-next:hover{' +
-          'transform:translateY(-1px);' +
-          'box-shadow:0 10px 24px rgba(251,146,60,.36)!important;' +
-        '}' +
-      '</style>' +
-      glowSquaresScreen(
-        '<div style="' +
-          'max-width:680px;margin:0 auto;text-align:center;' +
-          'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
-          'font-size:20px;line-height:1.7;color:#111827;">' +
-
-          '<div style="' +
-            'display:inline-block;padding:6px 14px;border-radius:999px;' +
-            'background:#fff7d6;color:#92400e;font-size:13px;font-weight:850;' +
-            'letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px;">' +
-            'Final step' +
-          '</div>' +
-
-          '<div class="glow-title" style="' +
-            'font-size:28px;font-weight:900;margin-bottom:12px;color:#111827;">' +
-            '🌟 Mission Accomplished 🌟' +
-          '</div>' +
-
-          '<div style="' +
-            'max-width:500px;margin:0 auto;padding:16px 20px;border-radius:18px;' +
-            'background:rgba(255,255,255,.76);border:1px solid rgba(250,204,21,.45);' +
-            'box-shadow:0 10px 28px rgba(15,23,42,.08);">' +
-            '<p style="margin:0;color:#1f2937;font-size:18px;">' +
-              'You are almost done. Next, we will ask a short set of demographic questions.' +
-            '</p>' +
-          '</div>' +
-
-        '</div>',
-        { minHeight: '32vh', glowColor: '250,204,21', density: 5 }
+      cheerfulCompletionScreen(
+        'Game Complete',
+        '<p><strong>Your mission is complete.</strong></p>' +
+        '<p>Next, please answer a few final questions about yourself.</p>',
+        { accent: '245,158,11', accent2: '34,197,94' }
       )
     ],
     show_clickable_nav: true,
+    allow_backward: false,
     button_label_previous: "Prev",
     button_label_next: "Continue"
   };
@@ -1334,69 +1403,21 @@
   var finish = {
     type: 'instructions',
     pages: [
-      HIDE_PREV +
-      '<style>' +
-        '#jspsych-instructions-next{' +
-          'background:linear-gradient(135deg,#60a5fa,#a78bfa)!important;' +
-          'color:#111827!important;' +
-          'border:0!important;' +
-          'border-radius:999px!important;' +
-          'padding:12px 28px!important;' +
-          'font-size:22px!important;' +
-          'font-weight:900!important;' +
-          'box-shadow:0 10px 24px rgba(96,165,250,.30)!important;' +
-          'opacity:1!important;' +
-        '}' +
-        '#jspsych-instructions-next:hover{' +
-          'transform:translateY(-1px);' +
-          'box-shadow:0 12px 28px rgba(96,165,250,.40)!important;' +
-        '}' +
-      '</style>' +
-      glowSquaresScreen(
-        '<div style="' +
-          'max-width:680px;margin:0 auto;text-align:center;' +
-          'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
-          'font-size:20px;line-height:1.7;color:#111827;">' +
-
-          '<div style="' +
-            'display:inline-block;padding:6px 14px;border-radius:999px;' +
-            'background:#eef2ff;color:#3730a3;font-size:13px;font-weight:850;' +
-            'letter-spacing:.04em;text-transform:uppercase;margin-bottom:14px;">' +
-            'Done!' +
-          '</div>' +
-
-          '<div class="glow-title" style="' +
-            'font-size:29px;font-weight:900;margin-bottom:12px;color:#111827;">' +
-            '🌠 Thank You for Playing 🌠' +
-          '</div>' +
-
-          '<div style="' +
-            'max-width:520px;margin:0 auto;padding:18px 22px;border-radius:18px;' +
-            'background:rgba(255,255,255,.78);border:1px solid rgba(96,165,250,.35);' +
-            'box-shadow:0 10px 28px rgba(15,23,42,.08);">' +
-            (PILOT_MODE
-              ? '<p style="margin:0 0 8px 0;color:#1f2937;">' +
-                  '<strong>Thumbs up</strong> to save your record!' +
-                '</p>' +
-                '<p style="margin:0;color:#4b5563;font-size:15px;">' +
-                  'After the confirmation appears, you may close this tab.' +
-                '</p>'
-              : '<p style="margin:0 0 8px 0;color:#1f2937;">' +
-                  '<strong>Thumbs Up</strong> to save your record and return to Prolific!' +
-                '</p>' +
-                '<p style="margin:0;color:#4b5563;font-size:15px;">' +
-                  'Please keep this tab open until you are redirected.' +
-                '</p>'
-            ) +
-          '</div>' +
-
-        '</div>',
-        { minHeight: '32vh', glowColor: '96,165,250', density: 5 }
+      cheerfulCompletionScreen(
+        'Thank You for Playing',
+          (PILOT_MODE
+            ? '<p><strong>Thumbs up to finish and save your record</strong></p>' +
+              '<p style="color:#4b5563;">After confirmation message appears, you may close this tab.</p>'
+            : '<p><strong>Thumbs up to finish and save your record</strong></p>' +
+              '<p style="font-size:16px;color:#4b5563;">Keep this tab open while your record saves and you return to Prolific.</p>'
+          ),
+        { accent: '14,165,233', accent2: '168,85,247' }
       )
     ],
     show_clickable_nav: true,
     allow_backward: false,
-    button_label_next: "👍"
+    button_label_next: "Thumbs up!",
+    button_label_next_arrow: false
   };
 
   // Preload image list (built by static/task/preload.js)
@@ -1515,8 +1536,8 @@
       if (_gateTrial) timeline.push(_gateTrial);
       timeline = timeline.concat(
         combinedTrials,
-        survey_demographics,
         feedback1,
+        survey_demographics,
         finish,
         { type: 'fullscreen', fullscreen_mode: false }
       );

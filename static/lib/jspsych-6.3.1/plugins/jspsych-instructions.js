@@ -80,6 +80,12 @@ jsPsych.plugins.instructions = (function() {
         pretty_name: 'Button label next',
         default: 'Next',
         description: 'The text that appears on the button to go forwards.'
+      },
+      button_label_next_arrow: {
+        type: jsPsych.plugins.parameterType.BOOL,
+        pretty_name: 'Show next arrow',
+        default: true,
+        description: 'If true, a greater-than arrow is shown after the next-button label.'
       }
     }
   }
@@ -125,7 +131,7 @@ jsPsych.plugins.instructions = (function() {
         }
         nav_html += "<button id='jspsych-instructions-next' class='jspsych-btn'"+
             "style='margin-left: 5px;'>"+trial.button_label_next+
-            " &gt;</button></div>";
+            (trial.button_label_next_arrow ? " &gt;" : "")+"</button></div>";
 
         html += nav_html;
         display_element.innerHTML = html;

@@ -65,6 +65,9 @@ jsPsych.plugins['memory-task'] = (function() {
 
   var ORDER_LAYOUT_MODE = 'horizontal';
   var ORDER_KEYMAP_MODE = 'visual_fixed_1_left_2_right';
+  var ORDER_NO_RESPONSE_TIMEOUT_MS = 5000;
+  var NO_RESPONSE_TIMEOUT_MS = 5000;
+  var POST_INTERACTION_AUTOSUBMIT_MS = 7000;
 
   function nextPairForBlock(block) {
     if (!pairOrderByBlock.hasOwnProperty(block)) {
@@ -219,6 +222,13 @@ jsPsych.plugins['memory-task'] = (function() {
       : '0 0 8px rgba(0,0,0,.25)';
   }
 
+  function styleSliderTick(tick, index) {
+    tick.style.cssText =
+      'position:absolute;top:50%;width:1px;height:' + (index % 5 === 0 ? '16' : '10') + 'px;' +
+      'transform:translate(-50%,-50%);background:rgba(0,0,0,.1);' +
+      'left:' + (index * 10) + '%;';
+  }
+
   function createBlock3Wrapper() {
     var wrap = document.createElement('div');
     wrap.className = 'preview-screen block3-screen';
@@ -371,13 +381,22 @@ jsPsych.plugins['memory-task'] = (function() {
     };
   }
 
-  function createSubtext(text) {
-    var p = document.createElement('p');
-    p.style.cssText =
-      'font-size:17px;text-align:center;color:rgba(255,255,255,.7);margin:0;' +
-      'text-shadow:0 1px 6px rgba(0,0,0,.4);';
-    p.textContent = text;
-    return p;
+  function setSliderInstruction(element, movementText) {
+    element.innerHTML = '';
+
+    var movement = document.createElement('span');
+    movement.textContent = movementText;
+
+    var confirm = document.createElement('strong');
+    confirm.textContent = 'Enter to confirm';
+    confirm.style.cssText =
+      'display:inline-block;margin-top:3px;color:rgba(255,255,255,.92);font-weight:800;';
+
+    element.appendChild(movement);
+    element.appendChild(document.createElement('br'));
+    element.appendChild(confirm);
+    element.style.color = 'rgba(255,200,200,.95)';
+    element.style.fontWeight = '600';
   }
 
   function makeChoiceColumn(stim, labelText) {
@@ -640,13 +659,13 @@ jsPsych.plugins['memory-task'] = (function() {
       var badge = document.createElement('div');
       badge.style.cssText =
         'position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:99999;' +
-        'padding:10px 22px;border-radius:999px;' +
-        'background:rgba(217,83,79,.92);color:#fff;' +
+        'padding:10px 18px;border-radius:10px;' +
+        'background:#fffbeb;border:1px solid #fde68a;color:#854d0e;' +
         'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
-        'font-size:14px;font-weight:600;letter-spacing:.02em;' +
-        'box-shadow:0 4px 16px rgba(217,83,79,.35);' +
+        'font-size:15px;font-weight:600;' +
+        'box-shadow:0 6px 18px rgba(133,77,14,.14);' +
         'transition:opacity .4s;pointer-events:none;';
-      badge.textContent = 'Please respond within the allowed time';
+      badge.textContent = 'Please respond within 5 seconds';
       document.body.appendChild(badge);
       setTimeout(function() { badge.style.opacity = '0'; }, 2500);
       setTimeout(function() {
@@ -674,12 +693,6 @@ jsPsych.plugins['memory-task'] = (function() {
       pairWrap.appendChild(leftChoice.col);
       pairWrap.appendChild(rightChoice.col);
       wrap.appendChild(pairWrap);
-
-      var instrWrap = document.createElement('div');
-      instrWrap.style.cssText =
-        'display:flex;flex-direction:column;align-items:center;min-height:60px;';
-      instrWrap.appendChild(createSubtext('← → to select, Enter to confirm'));
-      wrap.appendChild(instrWrap);
 
       display_element.innerHTML = '';
       display_element.appendChild(wrap);
@@ -745,8 +758,6 @@ jsPsych.plugins['memory-task'] = (function() {
           hasInteracted = true;
           currentSide = side;
           highlightSide(side);
-        } else if ((e.key === 'Enter' || e.key === ' ') && hasInteracted) {
-          e.preventDefault();
           submitOrder();
         }
       }
@@ -771,7 +782,7 @@ jsPsych.plugins['memory-task'] = (function() {
             }
           }, 3000);
         }
-      }, 10000);
+      }, ORDER_NO_RESPONSE_TIMEOUT_MS);
     }
 
     function renderDistancePrompt(forceRerender) {
@@ -803,7 +814,7 @@ jsPsych.plugins['memory-task'] = (function() {
 
       var barOuter = document.createElement('div');
       barOuter.style.cssText =
-        'position:relative;width:80%;max-width:520px;height:40px;margin:0 auto;';
+        'position:relative;width:86%;max-width:680px;height:40px;margin:0 auto;';
 
       var rail = document.createElement('div');
       rail.style.cssText =
@@ -814,24 +825,22 @@ jsPsych.plugins['memory-task'] = (function() {
 
       for (var tk = 0; tk <= 10; tk++) {
         var tick = document.createElement('div');
-        tick.style.cssText =
-          'position:absolute;top:50%;width:1px;height:' + (tk % 5 === 0 ? '16' : '10') + 'px;' +
-          'transform:translate(-50%,-50%);background:rgba(255,255,255,.15);left:' + (tk * 10) + '%;';
+        styleSliderTick(tick, tk);
         barOuter.appendChild(tick);
       }
 
       var thumb = document.createElement('div');
       thumb.style.cssText =
-        'position:absolute;top:50%;width:20px;height:20px;border-radius:50%;' +
-        'transform:translate(-50%,-50%);transition:left .08s,background .15s,box-shadow .15s;' +
-        'background:rgba(255,255,255,.4);border:2px solid rgba(255,255,255,.5);' +
+        'position:absolute;top:50%;transform:translate(-50%,-50%);' +
+        'transition:left .08s,background .15s,box-shadow .15s,border .15s;' +
         'left:50%;z-index:2;';
+      styleSliderThumb(thumb, false, _accentFull, _accentBorder, _accentGlow);
       barOuter.appendChild(thumb);
       wrap.appendChild(barOuter);
 
       var labelRow = document.createElement('div');
       labelRow.style.cssText =
-        'display:flex;justify-content:space-between;width:80%;max-width:520px;margin:4px auto 0;';
+        'display:flex;justify-content:space-between;width:86%;max-width:680px;margin:4px auto 0;';
       var lbl1 = document.createElement('span');
       lbl1.textContent = 'Very close';
       lbl1.style.cssText = 'font-size:15px;color:rgba(255,255,255,.7);font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,.4);';
@@ -845,7 +854,7 @@ jsPsych.plugins['memory-task'] = (function() {
       var instrEl = document.createElement('div');
       instrEl.style.cssText =
         'font-size:16px;color:rgba(255,200,200,.95);font-weight:600;text-align:center;margin-top:14px;text-shadow:0 1px 6px rgba(0,0,0,.5);';
-      instrEl.textContent = '← → to move, Enter to confirm';
+      setSliderInstruction(instrEl, '← → to adjust');
       wrap.appendChild(instrEl);
 
       display_element.innerHTML = '';
@@ -854,15 +863,13 @@ jsPsych.plugins['memory-task'] = (function() {
       var start_time = performance.now();
       var submitted = false;
       var distTimeoutID = null;
+      var distAutoSubmitArmed = false;
 
       function updateThumb() {
         thumb.style.left = curVal + '%';
 
         if (hasPlaced) {
           styleSliderThumb(thumb, true, _accentFull, _accentBorder, _accentGlow);
-          instrEl.textContent = '← → to adjust, Enter to confirm';
-          instrEl.style.color = 'rgba(255,255,255,.65)';
-          instrEl.style.fontWeight = '400';
         } else {
           styleSliderThumb(thumb, false, _accentFull, _accentBorder, _accentGlow);
         }
@@ -874,26 +881,41 @@ jsPsych.plugins['memory-task'] = (function() {
         wrap.style.visibility = 'visible';
       });
 
+      function submitDistance() {
+        if (submitted || !hasPlaced) return;
+        submitted = true;
+        clearTimeout(distTimeoutID);
+        document.removeEventListener('keydown', handleKey);
+        distance_rt = Math.round(performance.now() - start_time);
+        window.__memorySuppressKeysUntil = performance.now() + 350;
+        _fadeTransition(function() { renderSliderScreen(curVal, true_distance); });
+      }
+
+      function armDistanceAutoSubmit() {
+        if (distAutoSubmitArmed) return;
+        distAutoSubmitArmed = true;
+        clearTimeout(distTimeoutID);
+        distTimeoutID = setTimeout(submitDistance, POST_INTERACTION_AUTOSUBMIT_MS);
+      }
+
       function handleKey(e) {
         if (submitted) return;
+        if (e.repeat && !hasPlaced) return;
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
           hasPlaced = true;
           curVal = Math.max(0, curVal - (e.shiftKey ? FINE_STEP : STEP));
           updateThumb();
+          armDistanceAutoSubmit();
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
           hasPlaced = true;
           curVal = Math.min(100, curVal + (e.shiftKey ? FINE_STEP : STEP));
           updateThumb();
+          armDistanceAutoSubmit();
         } else if ((e.key === 'Enter' || e.key === ' ') && hasPlaced) {
           e.preventDefault();
-          submitted = true;
-          clearTimeout(distTimeoutID);
-          document.removeEventListener('keydown', handleKey);
-          distance_rt = Math.round(performance.now() - start_time);
-          window.__memorySuppressKeysUntil = performance.now() + 350;
-          _fadeTransition(function() { renderSliderScreen(curVal, true_distance); });
+          submitDistance();
         }
       }
 
@@ -901,27 +923,27 @@ jsPsych.plugins['memory-task'] = (function() {
 
       distTimeoutID = setTimeout(function() {
         if (submitted) return;
+        if (hasPlaced) {
+          submitDistance();
+          return;
+        }
+
         submitted = true;
         document.removeEventListener('keydown', handleKey);
         distance_rt = Math.round(performance.now() - start_time);
         window.__memorySuppressKeysUntil = performance.now() + 350;
-
-        if (!hasPlaced) {
-          timed_out = true;
-          _showTimeoutBadge(wrap);
-          setTimeout(function() {
-            if (distance_attempt_number < 2) {
-              distance_attempt_number++;
-              distancePromptShown = false;
-              _fadeTransition(function() { renderDistancePrompt(true); });
-            } else {
-              _fadeTransition(function() { renderSliderScreen(null, true_distance); });
-            }
-          }, 3000);
-        } else {
-          _fadeTransition(function() { renderSliderScreen(curVal, true_distance); });
-        }
-      }, 10000);
+        timed_out = true;
+        _showTimeoutBadge(wrap);
+        setTimeout(function() {
+          if (distance_attempt_number < 2) {
+            distance_attempt_number++;
+            distancePromptShown = false;
+            _fadeTransition(function() { renderDistancePrompt(true); });
+          } else {
+            _fadeTransition(function() { renderSliderScreen(null, true_distance); });
+          }
+        }, 3000);
+      }, NO_RESPONSE_TIMEOUT_MS);
     }
 
     function renderSliderScreen(dist_est_value, true_distance) {
@@ -989,16 +1011,13 @@ jsPsych.plugins['memory-task'] = (function() {
 
       var rail = document.createElement('div');
       rail.style.cssText =
-        'position:absolute;left:0;right:0;top:50%;height:6px;' +
-        'transform:translateY(-50%);background:rgba(255,255,255,.2);border-radius:3px;';
+        'position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);';
+      styleSliderRail(rail);
       trackOuter.appendChild(rail);
 
       for (var tk = 0; tk <= 10; tk++) {
         var tick = document.createElement('div');
-        tick.style.cssText =
-          'position:absolute;top:50%;width:1px;height:' + (tk % 5 === 0 ? '16' : '10') + 'px;' +
-          'transform:translate(-50%,-50%);background:rgba(0,0,0,.1);' +
-          'left:' + (tk * 10) + '%;';
+        styleSliderTick(tick, tk);
         trackOuter.appendChild(tick);
       }
 
@@ -1033,7 +1052,7 @@ jsPsych.plugins['memory-task'] = (function() {
       var instrEl = document.createElement('div');
       instrEl.style.cssText =
         'font-size:16px;color:rgba(255,200,200,.95);font-weight:600;text-align:center;margin-top:14px;text-shadow:0 1px 6px rgba(0,0,0,.5);';
-      instrEl.textContent = '← → to place, Enter to confirm';
+      setSliderInstruction(instrEl, '← → to adjust');
       wrap.appendChild(instrEl);
 
       display_element.innerHTML = '';
@@ -1041,15 +1060,14 @@ jsPsych.plugins['memory-task'] = (function() {
 
       var start_time = performance.now();
       var sliderTimeoutID = null;
+      var placementSubmitted = false;
+      var placementAutoSubmitArmed = false;
 
       function updateThumb() {
         thumb.style.left = curVal + '%';
 
         if (hasPlaced) {
           styleSliderThumb(thumb, true, _accentFull, _accentBorder, _accentGlow);
-          instrEl.textContent = '← → to adjust, Enter to confirm';
-          instrEl.style.color = 'rgba(255,255,255,.65)';
-          instrEl.style.fontWeight = '400';
         } else {
           styleSliderThumb(thumb, false, _accentFull, _accentBorder, _accentGlow);
         }
@@ -1061,8 +1079,27 @@ jsPsych.plugins['memory-task'] = (function() {
         wrap.style.visibility = 'visible';
       });
 
+      function submitPlacement() {
+        if (placementSubmitted || !hasPlaced) return;
+        placementSubmitted = true;
+        placement_slider_value = curVal;
+        placement_rt = Math.round(performance.now() - start_time);
+        clearTimeout(sliderTimeoutID);
+        document.removeEventListener('keydown', handleKey);
+        window.__memorySuppressKeysUntil = performance.now() + 350;
+        finishTrial(dist_est_value, true_distance, false);
+      }
+
+      function armPlacementAutoSubmit() {
+        if (placementAutoSubmitArmed) return;
+        placementAutoSubmitArmed = true;
+        clearTimeout(sliderTimeoutID);
+        sliderTimeoutID = setTimeout(submitPlacement, POST_INTERACTION_AUTOSUBMIT_MS);
+      }
+
       function handleKey(e) {
-        if (placement_slider_value !== null) return;
+        if (placementSubmitted) return;
+        if (e.repeat && !hasPlaced) return;
 
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
@@ -1070,44 +1107,39 @@ jsPsych.plugins['memory-task'] = (function() {
           var step = e.shiftKey ? FINE_STEP : STEP;
           curVal = Math.max(0, curVal - step);
           updateThumb();
+          armPlacementAutoSubmit();
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
           hasPlaced = true;
           var step2 = e.shiftKey ? FINE_STEP : STEP;
           curVal = Math.min(100, curVal + step2);
           updateThumb();
+          armPlacementAutoSubmit();
         } else if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          if (!hasPlaced) return;
-          placement_slider_value = curVal;
-          placement_rt = Math.round(performance.now() - start_time);
-          clearTimeout(sliderTimeoutID);
-          document.removeEventListener('keydown', handleKey);
-          window.__memorySuppressKeysUntil = performance.now() + 350;
-          finishTrial(dist_est_value, true_distance, false);
+          submitPlacement();
         }
       }
 
       document.addEventListener('keydown', handleKey);
 
       sliderTimeoutID = setTimeout(function() {
-        if (placement_slider_value === null) {
-          placement_rt = Math.round(performance.now() - start_time);
-          document.removeEventListener('keydown', handleKey);
-
-          if (hasPlaced) {
-            placement_slider_value = curVal;
-            finishTrial(dist_est_value, true_distance, false);
-          } else {
-            timed_out = true;
-            _showTimeoutBadge(wrap);
-            placement_slider_value = null;
-            setTimeout(function() {
-              finishTrial(dist_est_value, true_distance, false);
-            }, 3000);
-          }
+        if (placementSubmitted) return;
+        if (hasPlaced) {
+          submitPlacement();
+          return;
         }
-      }, 15000);
+
+        placementSubmitted = true;
+        placement_rt = Math.round(performance.now() - start_time);
+        document.removeEventListener('keydown', handleKey);
+        timed_out = true;
+        _showTimeoutBadge(wrap);
+        placement_slider_value = null;
+        setTimeout(function() {
+          finishTrial(dist_est_value, true_distance, false);
+        }, 3000);
+      }, NO_RESPONSE_TIMEOUT_MS);
     }
 
     function finishTrial(dist_est, true_distance, skipped) {
