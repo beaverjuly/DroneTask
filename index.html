@@ -59,11 +59,11 @@
     );
   </script>
 
-  <!-- Consent screen (optional — removing consent.js from repo skips consent) -->
+  <!-- Required consent gate. Runtime fails closed if this script is unavailable. -->
   <script>
     document.write(
       '<script src="static/task/consent.js?v=' + window.__APP_VER +
-      '" onerror="console.log(\'[CONSENT] consent.js not found — consent will be skipped\')"><\/script>'
+      '" onerror="console.error(\'[CONSENT] Required consent.js failed to load\')"><\/script>'
     );
   </script>
 
@@ -208,12 +208,13 @@
   // ──────────────────────────────────────────────────────────────
   // Consent toggle.
   //   consent=1 (or missing) → show the consent screen (default).
-  //   consent=0              → skip the consent screen (dev/testing
-  //                            ONLY; do not use in production).
+  //   consent=0              → skip the consent screen in DEV_MODE only.
+  //   Pilot and production runs always require consent, even if a URL
+  //   incorrectly includes consent=0.
   // ──────────────────────────────────────────────────────────────
-  var SHOW_CONSENT = _urlParams.get('consent') !== '0';
+  var SHOW_CONSENT = !DEV_MODE || _urlParams.get('consent') !== '0';
   console.log('[MODE] SHOW_CONSENT = ' + SHOW_CONSENT +
-              '  (set ?consent=0 to skip the consent screen during testing)');
+              '  (?dev=1&consent=0 skips consent during testing only)');
 
   // ──────────────────────────────────────────────────────────────
   // Mobile rejection — mirrors Flask __init__.py error 1001.
@@ -315,8 +316,9 @@
 
   initLatinSquare();
 
-  // Consent: auto-detected from consent.js (buildConsentTrial function).
-  // If consent.js is missing or ?consent=0, consent is skipped.
+  // Consent: required for pilot and production. A missing consent script
+  // produces a blocking configuration screen rather than silently allowing
+  // a participant to enter the study without consent.
   var consent_trial = [];
   if (typeof buildConsentTrial === 'function' && SHOW_CONSENT) {
     consent_trial = [buildConsentTrial({
@@ -324,9 +326,22 @@
       onBot:     function() { low_quality = true; jsPsych.endExperiment(); }
     })];
   } else if (!SHOW_CONSENT) {
-    console.log('[CONSENT] consent=0 \u2014 consent screen SKIPPED.');
+    console.log('[CONSENT] DEV_MODE + consent=0 \u2014 consent screen SKIPPED.');
   } else {
-    console.log('[CONSENT] consent.js not loaded \u2014 consent screen SKIPPED.');
+    console.error('[CONSENT] Required consent.js not loaded \u2014 study blocked.');
+    consent_trial = [{
+      type: 'html-keyboard-response',
+      stimulus:
+        '<div style="max-width:640px;margin:10vh auto;padding:30px 34px;' +
+        'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+        'text-align:center;border:1px solid #fecaca;border-radius:16px;' +
+        'background:#fff;color:#7f1d1d;box-shadow:0 12px 32px rgba(15,23,42,.1);">' +
+        '<h2>Study temporarily unavailable</h2>' +
+        '<p>The required consent form could not be loaded. Please close this tab and contact the research team.</p>' +
+        '</div>',
+      choices: jsPsych.NO_KEYS,
+      data: { trial_category: 'consent_load_error' }
+    }];
   }
 
   // Fullscreen entry trial (after consent, before welcome).

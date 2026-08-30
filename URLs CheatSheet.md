@@ -87,19 +87,25 @@ Same parameters and stages as local.
 ### Local Full Experiment Pilot
 
 ```
-http://localhost:8000/index.html?pilot=1&consent=0
+http://localhost:8000/index.html?pilot=1
 ```
 
 ### Pavlovia Pilot (researcher testing — saves to Pavlovia, no Prolific redirect)
 
 ```
-https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&consent=0
+https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1
 ```
 
-### Pavlovia Production (real participants)
+### Pavlovia Root (pilot mode by default)
 
 ```
 https://run.pavlovia.org/jiaheyi/DroneTask/
+```
+
+### Pavlovia Production (real participants — requires configured Prolific codes)
+
+```
+https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=0
 ```
 
 -----
@@ -111,27 +117,28 @@ hash for Latin-square assignment (pseudo-random, not balanced). For a
 controlled N = 10 pilot, assign groups manually:
 
 ```
-?pilot=1&latin_group=0&consent=0    ← give to participants 1–2
-?pilot=1&latin_group=1&consent=0    ← give to participants 3–4
-?pilot=1&latin_group=2&consent=0    ← give to participants 5–7
-?pilot=1&latin_group=3&consent=0    ← give to participants 8–10
+?pilot=1&latin_group=0    ← give to participants 1–2
+?pilot=1&latin_group=1    ← give to participants 3–4
+?pilot=1&latin_group=2    ← give to participants 5–7
+?pilot=1&latin_group=3    ← give to participants 8–10
 ```
 
 Or give each person a unique `subId` for deterministic (but pseudo-random)
 assignment:
 
 ```
-?pilot=1&subId=alice&consent=0
+?pilot=1&subId=alice
 ```
 
 -----
 
 ## Notes
 
-- `consent=0` skips the consent screen. Omit it (or use `consent=1`) to
-  preview the consent screen.
-- If `static/task/consent.js` is missing from the repo entirely, consent
-  is skipped automatically.
+- Consent is required on pilot and production routes. `consent=0` only skips
+  the consent screen when paired with `dev=1`; omit it (or use `consent=1`)
+  to preview the consent screen in dev mode.
+- If `static/task/consent.js` is missing or fails to load, pilot and
+  production runs stop at a blocking configuration screen.
 - Full-screen mode is only enforced on **pilot** and **production** links,
   plus the full (no-`stage`) dev route. Short QA stage routes never force
   full screen, so DevTools stay usable.

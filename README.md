@@ -28,7 +28,7 @@ DroneTask/
 │   │   ├── latin_square.js     # counterbalancing
 │   │   ├── data_saving.js      # Pavlovia / CSV persistence
 │   │   ├── dev_routes.js       # dev/QA route handling
-│   │   ├── consent.js          # IRB consent (optional)
+│   │   ├── consent.js          # required USC IRB consent gate
 │   │   └── game.min.css        # task styling
 │   ├── lib/                    # jsPsych 6.3.1 + plugins
 │   ├── js/                     # survey-demo, nivturk, template plugins
