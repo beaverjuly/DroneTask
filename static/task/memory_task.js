@@ -32,6 +32,27 @@ jsPsych.plugins['memory-task'] = (function() {
         type: jsPsych.plugins.parameterType.INT,
         default: 0,
         description: '0-based block index for matching background theme to BLOCK_THEMES.'
+      },
+      design_idx: {
+        type: jsPsych.plugins.parameterType.INT,
+        default: undefined,
+        description: 'Canonical 0-based condition index after block-order counterbalancing.'
+      },
+      condition_id: {
+        type: jsPsych.plugins.parameterType.STRING,
+        default: null
+      },
+      true_vol_param: {
+        type: jsPsych.plugins.parameterType.INT,
+        default: undefined
+      },
+      true_stc_param: {
+        type: jsPsych.plugins.parameterType.INT,
+        default: undefined
+      },
+      valence: {
+        type: jsPsych.plugins.parameterType.STRING,
+        default: null
       }
     }
   };
@@ -482,27 +503,88 @@ jsPsych.plugins['memory-task'] = (function() {
 
     var block = trial.block_num;
 
-    function _getBlockParamsFromData() {
+    // The timeline passes the canonical condition explicitly.  Looking it up
+    // from the encoding rows is retained as a safe fallback for direct/plugin
+    // previews, but never infer it from display-block position: Latin-square
+    // counterbalancing means display block N is not canonical condition N.
+    function _getBlockParamsFromEncoding() {
       try {
-        var rec = jsPsych.data.get()
-          .filterCustom(function(r) { return Array.isArray(r.true_vol) && r.true_vol.length; })
-          .last(1).values()[0];
+        var rows = jsPsych.data.get()
+          .filter({ trial_type: 'trial', block: block })
+          .filterCustom(function(r) {
+            return r.true_vol_param !== null && r.true_vol_param !== undefined;
+          })
+          .first(1).values();
+        var rec = rows.length ? rows[0] : null;
 
-        if (rec && Array.isArray(rec.true_vol) && Array.isArray(rec.true_stc)) {
+        if (rec) {
           return {
-            true_vol: rec.true_vol,
-            true_stc: rec.true_stc,
-            true_valence: rec.true_valence || null
+            design_idx: rec.design_idx,
+            condition_id: rec.condition_id,
+            true_vol_param: rec.true_vol_param,
+            true_stc_param: rec.true_stc_param,
+            valence: rec.valence
           };
         }
       } catch (e) {}
-      return { true_vol: null, true_stc: null, true_valence: null };
+
+      if (
+        typeof window.DEV_FAKE_BLOCK_DATA !== 'undefined' &&
+        Array.isArray(window.DEV_FAKE_BLOCK_DATA[block]) &&
+        window.DEV_FAKE_BLOCK_DATA[block].length
+      ) {
+        var fake = window.DEV_FAKE_BLOCK_DATA[block][0];
+        return {
+          design_idx: fake.design_idx,
+          condition_id: fake.condition_id,
+          true_vol_param: fake.true_vol_param,
+          true_stc_param: fake.true_stc_param,
+          valence: fake.valence
+        };
+      }
+
+      return {
+        design_idx: null,
+        condition_id: null,
+        true_vol_param: null,
+        true_stc_param: null,
+        valence: null
+      };
     }
 
-    var _bp = _getBlockParamsFromData();
-    var _trueVolParam = (Array.isArray(_bp.true_vol) && _bp.true_vol.length >= block) ? _bp.true_vol[block - 1] : null;
-    var _trueStcParam = (Array.isArray(_bp.true_stc) && _bp.true_stc.length >= block) ? _bp.true_stc[block - 1] : null;
-    var _valence = (Array.isArray(_bp.true_valence) && _bp.true_valence.length >= block) ? _bp.true_valence[block - 1] : null;
+    function _defined(value) {
+      return value !== null && value !== undefined;
+    }
+
+    var _encodingParams = _getBlockParamsFromEncoding();
+    var _designIdx = _defined(trial.design_idx)
+      ? trial.design_idx : _encodingParams.design_idx;
+    var _conditionId = trial.condition_id || _encodingParams.condition_id || null;
+    var _trueVolParam = _defined(trial.true_vol_param)
+      ? trial.true_vol_param : _encodingParams.true_vol_param;
+    var _trueStcParam = _defined(trial.true_stc_param)
+      ? trial.true_stc_param : _encodingParams.true_stc_param;
+    var _valence = trial.valence || _encodingParams.valence || null;
+    var _conditionLabelSource = (
+      _defined(trial.design_idx) &&
+      _defined(trial.true_vol_param) &&
+      _defined(trial.true_stc_param) &&
+      !!trial.valence
+    ) ? 'timeline' : 'encoding_fallback';
+    var _conditionLabelMismatch = false;
+
+    if (
+      _defined(trial.design_idx) &&
+      _defined(_encodingParams.design_idx) &&
+      trial.design_idx !== _encodingParams.design_idx
+    ) {
+      _conditionLabelMismatch = true;
+      console.error('[memory-task] Timeline/encoding condition mismatch', {
+        block: block,
+        timeline_design_idx: trial.design_idx,
+        encoding_design_idx: _encodingParams.design_idx
+      });
+    }
 
     var _volLevel = (_trueVolParam === null) ? null : (_trueVolParam === 49 ? 'high' : 'low');
     var _stcLevel = (_trueStcParam === null) ? null : (_trueStcParam === 64 ? 'high' : 'low');
@@ -516,6 +598,13 @@ jsPsych.plugins['memory-task'] = (function() {
       jsPsych.finishTrial({
         task_phase: 'memory',
         block: block,
+        display_block: block,
+        design_idx: _designIdx,
+        canonical_design_idx: _designIdx,
+        condition_id: _conditionId,
+        randomized: _designIdx,
+        condition_label_source: _conditionLabelSource,
+        condition_label_mismatch: _conditionLabelMismatch,
         true_vol_param: _trueVolParam,
         true_stc_param: _trueStcParam,
         valence: _valence,
@@ -1163,6 +1252,13 @@ jsPsych.plugins['memory-task'] = (function() {
       var trial_data = {
         task_phase: 'memory',
         block: block,
+        display_block: block,
+        design_idx: _designIdx,
+        canonical_design_idx: _designIdx,
+        condition_id: _conditionId,
+        randomized: _designIdx,
+        condition_label_source: _conditionLabelSource,
+        condition_label_mismatch: _conditionLabelMismatch,
         true_vol_param: _trueVolParam,
         true_stc_param: _trueStcParam,
         valence: _valence,

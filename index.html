@@ -502,7 +502,7 @@
     button_label_previous: "Prev",
     button_label_next: "Next",
     data: {
-      task_version: 'v3.1-png-main-practice-emoji-latin-square-block-order',
+      task_version: 'v3.2-memory-condition-label-fix',
       stimuli_version: stimuli_version,
 
       true_vol: factors_vol,
@@ -1109,6 +1109,11 @@
         type: 'memory-task',
         pair_index: p + 1,
         block_num: blockNum,
+        design_idx: designIdxForBlock,
+        condition_id: getCanonicalConditionId(designIdxForBlock),
+        true_vol_param: factors_vol[designIdxForBlock],
+        true_stc_param: factors_stc[designIdxForBlock],
+        valence: factors_valence[designIdxForBlock],
         // block_index matches the *display* block this memory test
         // immediately follows (0-3), not the canonical design index.
         // Game trials use `j` (display order) for block_index too, so

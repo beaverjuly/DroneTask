@@ -58,8 +58,11 @@ ENCODING_COLS = [
 
 MEMORY_COLS = [
     'trial_index', 'time_elapsed',
-    'block', 'pair_index',
+    'block', 'display_block', 'pair_index',
+    'design_idx', 'canonical_design_idx', 'randomized',
     'condition', 'condition_id',
+    'condition_label_source', 'condition_label_mismatch',
+    'condition_label_repaired',
     'valence', 'vol_level', 'stc_level',
     'true_vol_param', 'true_stc_param',
     'trial1_index', 'trial2_index',
@@ -133,6 +136,69 @@ def _scalar(df, col):
         return None
     vals = df[col].dropna()
     return vals.iloc[0] if len(vals) > 0 else None
+
+
+def _repair_memory_condition_labels(mem, enc):
+    """Make memory condition metadata match the encoding block actually shown.
+
+    Builds before task version 3.2 indexed canonical factor arrays with the
+    displayed block number, ignoring Latin-square order.  Encoding rows were
+    labeled correctly, so they are the authoritative source for both legacy
+    and current files.
+    """
+    if not len(mem) or not len(enc) or 'block' not in mem or 'block' not in enc:
+        return mem
+
+    repaired = mem.copy()
+    condition_cols = [
+        'display_block', 'design_idx', 'canonical_design_idx', 'randomized',
+        'condition_id', 'true_vol_param', 'true_stc_param',
+        'vol_level', 'stc_level', 'valence',
+    ]
+    available = [c for c in condition_cols if c in enc.columns]
+    if not available:
+        return repaired
+
+    by_block = enc.groupby('block', dropna=False)[available].first()
+    any_mismatch = pd.Series(False, index=repaired.index)
+    any_repair = pd.Series(False, index=repaired.index)
+
+    for col in available:
+        authoritative = repaired['block'].map(by_block[col])
+        has_authoritative = authoritative.notna()
+        if col in repaired.columns:
+            original = repaired[col]
+            any_mismatch |= (
+                original.notna() & has_authoritative & ~original.eq(authoritative)
+            )
+            any_repair |= has_authoritative & (
+                original.isna() | ~original.eq(authoritative)
+            )
+            repaired.loc[has_authoritative, col] = authoritative[has_authoritative]
+        else:
+            repaired[col] = authoritative
+            any_repair |= has_authoritative
+
+    if {'true_vol_param', 'true_stc_param'}.issubset(repaired.columns):
+        repaired['condition'] = (
+            'vol' + repaired['true_vol_param'].astype('Int64').astype(str) +
+            '_stc' + repaired['true_stc_param'].astype('Int64').astype(str)
+        )
+
+    if 'condition_label_source' not in repaired.columns:
+        repaired['condition_label_source'] = pd.NA
+    repaired['condition_label_source'] = repaired['condition_label_source'].fillna(
+        'encoding_repair'
+    )
+
+    runtime_mismatch = (
+        repaired['condition_label_mismatch'].fillna(False).astype(bool)
+        if 'condition_label_mismatch' in repaired.columns
+        else pd.Series(False, index=repaired.index)
+    )
+    repaired['condition_label_mismatch'] = runtime_mismatch | any_mismatch
+    repaired['condition_label_repaired'] = any_repair
+    return repaired
 
 def _build_preload_diagnostics(df, enc, mem):
     """Build a per-URL preload diagnostics table.
@@ -228,6 +294,7 @@ def process_one(filepath, outdir):
     # 3. Memory trials
     mem = df[df['trial_type'] == 'memory-task']
     if len(mem):
+        mem = _repair_memory_condition_labels(mem, enc)
         _keep(mem, MEMORY_COLS).to_csv(f'{prefix}_memory.csv', index=False)
         written.append(f'memory ({len(mem)})')
 
