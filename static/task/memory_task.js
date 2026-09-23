@@ -3,9 +3,9 @@
 /*
  * jsPsych plugin for a three-stage temporal memory test.
  *
- * Stage 1: Temporal order judgement ("Which came first?")
- * Stage 2: Intervening-item count ("How many items between these two?")
- * Stage 3: Slider placement after every temporal-distance question.
+ * Stage 1: Temporal order judgment (which item appeared first)
+ * Stage 2: Subjective temporal-distance judgment
+ * Stage 3: Temporal placement of another item between the reference items.
  * For one-intervening-item pairs, the only intervening item is probed.
  * For two-intervening-item pairs, the earlier/later intervening probe is balanced within block.
  *
@@ -409,7 +409,7 @@ jsPsych.plugins['memory-task'] = (function() {
     movement.textContent = movementText;
 
     var confirm = document.createElement('strong');
-    confirm.textContent = 'Enter to confirm';
+    confirm.textContent = 'Enter or Space to confirm';
     confirm.style.cssText =
       'display:inline-block;margin-top:3px;color:rgba(255,255,255,.92);font-weight:800;';
 
@@ -768,7 +768,7 @@ jsPsych.plugins['memory-task'] = (function() {
       wrap.id = 'order-container';
       wrap.style.visibility = 'hidden';
 
-      wrap.appendChild(createStepLabel('Which came first?'));
+      wrap.appendChild(createStepLabel('Which item in the pair appeared first during the game?'));
 
       var pairWrap = document.createElement('div');
       var orderGap = Math.max(18, Math.min(48, Math.floor(window.innerWidth * 0.045)));
@@ -888,7 +888,7 @@ jsPsych.plugins['memory-task'] = (function() {
       wrap.id = 'distance-container';
       wrap.style.visibility = 'hidden';
 
-      wrap.appendChild(createStepLabel('How far apart in time did these two feel?'));
+      wrap.appendChild(createStepLabel('How far apart in time did you feel these two items were during the game?'));
 
       var pairWrap = document.createElement('div');
       var gapPx = Math.max(22, Math.min(64, Math.floor(window.innerWidth * 0.055)));
@@ -1054,7 +1054,7 @@ jsPsych.plugins['memory-task'] = (function() {
       var wrap = createBlock3Wrapper();
       wrap.id = 'slider-container';
 
-      wrap.appendChild(createStepLabel('Where was this object shown between the two?'));
+      wrap.appendChild(createStepLabel('When did this item appear between the other two items?'));
 
       var probeWrap = document.createElement('div');
       probeWrap.style.cssText = 'text-align:center;margin-bottom:16px;';
@@ -1126,14 +1126,14 @@ jsPsych.plugins['memory-task'] = (function() {
 
       var labelRow = document.createElement('div');
       labelRow.style.cssText =
-        'display:flex;justify-content:space-between;width:86%;max-width:680px;' +
-        'margin:4px auto 0;padding:0 80px;';
+        'display:flex;justify-content:space-between;gap:12px;box-sizing:border-box;width:86%;max-width:680px;' +
+        'margin:4px auto 0;';
       var lblL = document.createElement('span');
-      lblL.textContent = 'Closer to left';
-      lblL.style.cssText = 'font-size:13px;color:rgba(255,255,255,.55);text-shadow:0 1px 4px rgba(0,0,0,.3);';
+      lblL.textContent = 'Closer to first item';
+      lblL.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.2;text-align:left;color:rgba(255,255,255,.55);text-shadow:0 1px 4px rgba(0,0,0,.3);';
       var lblR = document.createElement('span');
-      lblR.textContent = 'Closer to right';
-      lblR.style.cssText = 'font-size:13px;color:rgba(255,255,255,.55);text-shadow:0 1px 4px rgba(0,0,0,.3);';
+      lblR.textContent = 'Closer to second item';
+      lblR.style.cssText = 'flex:1;min-width:0;font-size:13px;line-height:1.2;text-align:right;color:rgba(255,255,255,.55);text-shadow:0 1px 4px rgba(0,0,0,.3);';
       labelRow.appendChild(lblL);
       labelRow.appendChild(lblR);
       wrap.appendChild(labelRow);

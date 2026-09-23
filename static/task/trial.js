@@ -650,6 +650,10 @@ plugin.trial = function (display_element, trial) {
       trial.no_response_duration = 5000;
     }
 
+    display_element.classList.toggle(
+      'jspsych-moving-practice-layout',
+      !!trial.is_moving_practice
+    );
     display_element.innerHTML = make_html(trial);
     setCollectorUnlocked();
 
@@ -685,26 +689,22 @@ plugin.trial = function (display_element, trial) {
       // Tip shown when participant clicks Next before sliding at all.
       var tipEl = document.createElement('div');
       tipEl.id = 'practice-tip';
+      tipEl.className = 'practice-tip';
+      tipEl.setAttribute('role', 'status');
+      tipEl.setAttribute('aria-live', 'polite');
       tipEl.textContent = '← Try sliding with the arrow keys first! →';
-      tipEl.style.cssText =
-        'position:fixed;bottom:90px;right:40px;' +
-        'background:#fffbeb;border:1px solid #fde68a;color:#854d0e;' +
-        'font-size:15px;font-weight:600;' +
-        'padding:10px 18px;border-radius:10px;' +
-        'box-shadow:0 6px 18px rgba(133,77,14,.14);' +
-        'opacity:0;transition:opacity 0.3s;' +
-        'pointer-events:none;z-index:998;';
       display_element.appendChild(tipEl);
 
-      var nextBtn = document.createElement('button');
-      nextBtn.id  = 'practice-next-btn';
-      nextBtn.textContent = 'Next →';
-      nextBtn.style.cssText =
-        'position:fixed;bottom:32px;right:40px;' +
-        'padding:10px 26px;font-size:16px;font-weight:700;' +
-        'border:none;border-radius:8px;cursor:pointer;z-index:999;' +
-        'background:#fff;color:#1f2937;' +
-        'box-shadow:0 3px 12px rgba(0,0,0,.25);';
+      var navEl = document.createElement('div');
+      navEl.className = 'jspsych-instructions-nav practice-instructions-nav';
+      navEl.setAttribute('aria-label', 'Practice navigation');
+      navEl.innerHTML =
+        '<button id="practice-prev-btn" class="jspsych-btn" disabled="disabled">' +
+          '&lt; Prev</button>' +
+        '<button id="practice-next-btn" class="jspsych-btn">Next &gt;</button>';
+      display_element.appendChild(navEl);
+
+      var nextBtn = navEl.querySelector('#practice-next-btn');
       nextBtn.addEventListener('click', function () {
         if (_num_moves === 0) {
           // Participant hasn't slid yet — flash the tip instead of advancing.
@@ -714,7 +714,6 @@ plugin.trial = function (display_element, trial) {
           end_trial(1);
         }
       });
-      display_element.appendChild(nextBtn);
     }
 
     var keyboardListener1 = null;
@@ -825,24 +824,24 @@ plugin.trial = function (display_element, trial) {
         msg = warningCard(
           '⚠️',
           'Still there?',
-          'Please move your collector with the arrow keys.',
-          'Your mission will end early if you leave your collector for many trials.',
+          'Now give it a try. Make a response using the left or right arrow key.',
+          'Please move the collector before continuing.',
           'orange'
         );
       } else if (trial.strong_warning) {
         msg = warningCard(
           '⚠️',
           'Still there?',
-          'Please move your collector with the arrow keys.',
-          'Your mission will end early if you leave your collector for many trials.',
+          'Please move the collector with the arrow keys.',
+          'If you continue to leave it in one place, we may have to end the game early.',
           'red'
         );
       } else {
         msg = warningCard(
           '⚠️',
           'Still there?',
-          'Please move your collector with the arrow keys.',
-          'Your mission will end early if you leave your collector for many trials.',
+          'You have left the collector in one place for several turns. Please move it with the arrow keys.',
+          'If you persist, we may have to end the game early.',
           'orange'
         );
       }
@@ -918,6 +917,7 @@ plugin.trial = function (display_element, trial) {
       };
 
       display_element.innerHTML = "";
+      display_element.classList.remove('jspsych-moving-practice-layout');
       jsPsych.finishTrial(trial_data);
     };
 

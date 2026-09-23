@@ -224,10 +224,10 @@ function mockPlanet(hue, sat, planetNum, droneX, collectorX, scale) {
 function pageBody(headline, body, opts) {
   opts = opts || {};
   return (
-    '<div style="font-size:20px;line-height:1.7;text-align:center;max-width:800px;margin:0 auto;color:#111827;">' +
-      '<div style="font-size:25px;font-weight:800;color:' + (opts.headColor || '#0f172a') + ';margin-bottom:14px;">' +
+    '<div class="instruction-copy">' +
+      '<div class="instruction-headline" style="color:' + (opts.headColor || '#0f172a') + ';">' +
         headline + '</div>' +
-      (body ? '<div>' + body + '</div>' : '') +
+      (body ? '<div class="instruction-copy-body">' + body + '</div>' : '') +
     '</div>'
   );
 }
@@ -238,18 +238,15 @@ function blockIntroHTML(lines, accentColor, turnLabel) {
     return '<li style="margin:8px 0;">' + l + '</li>';
   }).join('');
   return (
-    HIDE_PREV +
-    '<div style="font-size:20px;line-height:1.6;text-align:center;' +
-      'max-width:540px;margin:36px auto;padding:22px 28px;' +
+    '<div class="instruction-intro-card" style="text-align:center;' +
       'border-radius:16px;background:#fafbfc;border:2px solid ' + c + '33;' +
       'box-shadow:0 6px 18px rgba(0,0,0,.06);">' +
       (turnLabel
         ? '<div style="font-size:13px;font-weight:700;color:#999;letter-spacing:.5px;' +
           'text-transform:uppercase;margin-bottom:10px;">' + turnLabel + '</div>'
         : '') +
-      '<ul style="list-style:none;padding:0;margin:0 auto;text-align:left;' +
-        'display:inline-block;font-size:18px;">' + bullets + '</ul>' +
-      '<div style="margin-top:18px;font-size:15px;color:#555;">' +
+      '<ul class="instruction-intro-list" style="list-style:none;">' + bullets + '</ul>' +
+      '<div class="instruction-start-hint">' +
         'Press <strong>space</strong> or click <strong>Next</strong> to begin.' +
       '</div>' +
     '</div>'
@@ -328,13 +325,18 @@ function memoryExampleTrack(position, leftEmoji, rightEmoji, leftLabel, rightLab
 
   var labelInset = hasAnchors ? (options.labelInset || '70px') : '0';
   var labelFontSize = options.labelFontSize || 12;
+  var labelWrap = !!options.labelWrap;
+  var leftLabelStyle = labelWrap ? ' style="flex:1;min-width:0;text-align:left;"' : '';
+  var rightLabelStyle = labelWrap ? ' style="flex:1;min-width:0;text-align:right;"' : '';
   return (
     bar +
     '<div style="display:flex;justify-content:space-between;margin-top:2px;' +
       'padding-left:' + labelInset + ';padding-right:' + labelInset + ';' +
-      'gap:8px;font-size:' + labelFontSize + 'px;white-space:nowrap;' +
+      'box-sizing:border-box;gap:8px;font-size:' + labelFontSize + 'px;line-height:1.2;' +
+      'white-space:' + (labelWrap ? 'normal' : 'nowrap') + ';' +
       'color:rgba(255,255,255,.68);text-shadow:0 1px 4px rgba(0,0,0,.3);">' +
-      '<span>' + leftLabel + '</span><span>' + rightLabel + '</span>' +
+      '<span' + leftLabelStyle + '>' + leftLabel + '</span>' +
+      '<span' + rightLabelStyle + '>' + rightLabel + '</span>' +
     '</div>'
   );
 }
@@ -353,12 +355,6 @@ function memoryExamplePanel(innerHTML, compact, neutral) {
   );
 }
 
-// Injected into page-1 HTML of every instruction node so jsPsych's back
-// button is cleanly hidden when there is nothing to go back to.
-// jsPsych replaces the content div on each page navigation, so this tag
-// only lives while page 1 is shown; Prev reappears from page 2 onwards.
-var HIDE_PREV = '<style>#jspsych-instructions-back{display:none!important}</style>';
-
 // ═══════════════════════════════════════════════════════════════════
 // C — Instruction pages
 // ═══════════════════════════════════════════════════════════════════
@@ -367,10 +363,10 @@ var HIDE_PREV = '<style>#jspsych-instructions-back{display:none!important}</styl
 var inst1 = {
   type: 'instructions',
   pages: [
-    HIDE_PREV +
     pageBody('Your task',
-      'A drone drops <strong>supplies</strong> toward a rail. Use your ' +
-      emphasis('collector') + ' to catch them.<br><br>'),
+      'In this game, drones drop <strong>supplies</strong> toward the rail. Your goal is to catch as many ' +
+      'pieces as you can by moving your ' + emphasis('collector') +
+      ' to where you think the pieces will land.<br><br>'),
 
     pageBody('Here is your game screen.') +
       mockGame(
@@ -390,7 +386,7 @@ var inst1 = {
       '</div>',
 
     pageBody('How to move',
-      'Press <strong>Left (←)</strong> and <strong>Right (→)</strong> arrow keys to move your collector.<br>'),
+      'You should use the <strong>right (→)</strong> and <strong>left (←)</strong> arrow keys to move the collector.<br>'),
 
   ],
   show_clickable_nav: true,
@@ -403,10 +399,11 @@ var block_intro_practice1 = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      '<strong>Practice moving your collector.</strong>',
-      'Use <strong>Left (←)</strong> and <strong>Right (→)</strong> arrow keys.'
+      '<strong>Now give it a try.</strong>',
+      'Make a response by using the <strong>left (←)</strong> or <strong>right (→)</strong> arrow key.'
     ], '#3b6db8')
   ],
+  key_forward: ' ',
   show_clickable_nav: true,
   button_label_previous: 'Prev',
   button_label_next: 'Next'
@@ -418,9 +415,9 @@ var inst2_locking_and_bag = {
   pages: [
 
     // P1: locking
-    HIDE_PREV +
-    pageBody('Your collector is <strong style="color:#475569;">locked</strong> just before each supply drops',
-      'It turns grey. You cannot move it until next turn.') +
+    pageBody('After you position the collector, it will turn <strong style="color:#475569;">grey</strong>',
+      'At this time you can no longer move the collector. A new turn begins when the collector turns ' +
+      'white again. At this time you are once again able to move the collector.') +
       '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:16px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         '<div style="flex:1;min-width:280px;">' +
@@ -438,9 +435,12 @@ var inst2_locking_and_bag = {
       '</div>',
 
     // P2: bag drops + score
-    pageBody('Supplies <strong>break into pieces</strong> just before reaching the rail',
-      'Your score is based on how many pieces you catch.<br>' +
-      emphasis('Catch more pieces = a better score')) +
+    pageBody('You will then see the drone dropping a supply',
+      'The supply breaks into pieces near the rail and the pieces fall.<br><br>' +
+      'Your score is determined by the number of pieces that you catch in the collector. You will see ' +
+      'your score on the screen after the pieces fall at the end of each turn.<br><br>' +
+      'If you align the collector perfectly, you will catch all ten pieces! Otherwise, you will catch ' +
+      'fewer depending on how far off the collector is.') +
       '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         '<div style="flex:1;min-width:280px;">' +
@@ -459,8 +459,7 @@ var inst2_locking_and_bag = {
 
     // P3: bag colour rule
     pageBody('Two kinds of supply',
-      'Your goal <strong>never changes</strong>: ' +
-      emphasis('catch as many pieces as possible') + '.') +
+      'Your goal never changes: ' + emphasis('catch as many pieces as you can') + '.') +
       '<div style="display:flex;gap:18px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:16px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
 
@@ -469,7 +468,8 @@ var inst2_locking_and_bag = {
           '<div style="font-size:20px;font-weight:800;color:#0a7f2e;margin-bottom:8px;">' +
             pill('Green supply', '#0a7f2e', '#fff') + '</div>' +
           '<div style="font-size:17px;line-height:1.6;color:#1f2937;">' +
-            'Catch more = ' + green('earn more points') + '<br>' +
+            'When the supply is green, you earn from 0 to +10 points on each turn.<br>' +
+            'The more pieces you catch, the more points you earn.<br>' +
             '<span style="font-size:14px;color:#555;">Best: ' + green('+10') + ' &nbsp;·&nbsp; Worst: ' + gold('0') + '</span>' +
           '</div>' +
           mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
@@ -481,7 +481,8 @@ var inst2_locking_and_bag = {
           '<div style="font-size:20px;font-weight:800;color:#b00020;margin-bottom:8px;">' +
             pill('Red supply', '#b00020', '#fff') + '</div>' +
           '<div style="font-size:17px;line-height:1.6;color:#1f2937;">' +
-            'Catch more = ' + red('lose fewer points') + '<br>' +
+            'When the supply is red, your score is from −10 to 0 points on each turn.<br>' +
+            'The more pieces you catch, the fewer points you lose.<br>' +
             '<span style="font-size:14px;color:#555;">Best: ' + gold('0') + ' &nbsp;·&nbsp; Worst: ' + red('−10') + '</span>' +
           '</div>' +
           mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
@@ -490,15 +491,16 @@ var inst2_locking_and_bag = {
 
       '</div>' +
       '<div style="font-size:17px;text-align:center;margin-top:16px;">' +
-        emphasis('Your final score affects your bonus pay.') +
+        emphasis('Your bonus is determined by your final score across the game.') +
       '</div>',
 
     // P4: items + keep responding
-    pageBody('You also receive an object with each supply',
-      'We may ask about objects you received, ' +
-      'but you do <strong>not</strong> need to remember them.<br><br>' +
-      emphasis('Keep moving your collector.') + '<br>' +
-      'If you leave it in one place for too long, your mission will <strong>end early</strong>.') +
+    pageBody('A distinct item will appear on each turn',
+      'You will also notice that on each turn, a distinct item will appear where the pieces fall. ' +
+      'You should note these items as they appear, but you do not need to memorize them.<br><br>' +
+      'If you do not move the collector on one or two turns, we assume you are happy with its position. ' +
+      'However, you should not leave the collector in one place for more than a few turns. If you do, ' +
+      'we will warn you, and if you persist, we may have to end the game early!') +
       mockGame({
         droneX: 50,
         collectorX: 50,
@@ -511,7 +513,7 @@ var inst2_locking_and_bag = {
         itemEmoji: '🍪', // tutorial-only; not in main, practice, or fallback pools
         realTrialLayout: true
       },
-      [callout(82, 25, 55, 30, 'object received')], 0.65),
+      [callout(82, 25, 55, 30, 'item appears')], 0.65),
 
   ],
   show_clickable_nav: true,
@@ -524,11 +526,13 @@ var block_intro_green_seen = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      '<strong>3 practice turns.</strong>',
+      'For these <strong>3 practice turns</strong>, the supplies will be green.',
+      '<strong>Now give it a try.</strong> Notice that you can only move the collector when it is white.',
       pill('Green supply', '#0a7f2e', '#fff') +
-        ' Catch more = ' + green('earn more') + ' (0 to +10 per turn).'
+        ' You will see how many points you earn on the screen, from ' + green('0 to +10') + '.'
     ], '#0a7f2e', 'Practice · green supply')
   ],
+  key_forward: ' ',
   show_clickable_nav: true,
   button_label_previous: 'Prev',
   button_label_next: 'Next'
@@ -539,11 +543,14 @@ var block_intro_red_seen = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      '<strong>Now try a different kind of supply.</strong> 3 practice turns.',
+      'For these <strong>3 practice turns</strong>, the supplies will be red.',
+      '<strong>Now give it a try.</strong> Notice that you can only move the collector when it is white.',
       pill('Red supply', '#b00020', '#fff') +
-        ' Catch more = ' + red('lose fewer points') + ' (−10 to 0 per turn).'
+        ' You will see your score on the screen, from ' + red('−10 to 0') + '. The more pieces you catch, ' +
+        'the fewer points you lose.'
     ], '#b00020', 'Practice · red supply')
   ],
+  key_forward: ' ',
   show_clickable_nav: true,
   button_label_previous: 'Prev',
   button_label_next: 'Next'
@@ -555,15 +562,18 @@ var inst3_drone_disappears = {
   pages: [
 
     // P1a: air currents / bag shift
-    HIDE_PREV +
-    pageBody('Wind moves each supply',
-      'Each supply lands <strong>near</strong> drone position, but wind can move it a little.<br>' +
-      'It may land on either side of that position.') +
+    pageBody('The supply will land near the drone',
+      'The supply will land near the drone, but the exact position will vary around the drone ' +
+      'because it is windy!') +
       '<div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         (function () {
           var bags = [44, 50, 56];
-          var labels = ['shifted left', 'near drone position', 'shifted right'];
+          var labels = [
+            'might land to the left of the drone',
+            'or just under the drone',
+            'or to the right of the drone'
+          ];
           return labels.map(function (label, i) {
             return (
               '<div style="flex:1;min-width:200px;">' +
@@ -581,10 +591,11 @@ var inst3_drone_disappears = {
         })() +
       '</div>',
 
-    // P1b: drone hovers, then moves farther
-    pageBody('Drone position changes',
-      'It <strong>stays in one area</strong> for several drops, then ' +
-      emphasis('moves to a new area') + '.') +
+    // P1b: the previous position is useful, but movement is unpredictable
+    pageBody('The drone can move unpredictably',
+      'You may have noticed that the drone can also move unpredictably. The best prediction for its ' +
+      'position on one turn is its position on the previous turn, but it may move to a new location ' +
+      'at any time.') +
       '<div style="display:flex;align-items:flex-start;gap:12px;justify-content:center;' +
         'margin-top:14px;width:86vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
 
@@ -592,7 +603,7 @@ var inst3_drone_disappears = {
         '<div style="flex:3;min-width:0;background:rgba(255,255,255,.07);' +
           'border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px 8px 6px;">' +
           '<div style="text-align:center;font-size:16px;letter-spacing:.3px;margin-bottom:6px;">' +
-            '<span class="instruction-emphasis">STAYS NEARBY</span></div>' +
+            '<span class="instruction-emphasis">BEST PREDICTION: PREVIOUS POSITION</span></div>' +
           '<div style="display:flex;gap:6px;justify-content:center;">' +
             (function () {
               return [
@@ -614,13 +625,13 @@ var inst3_drone_disappears = {
 
         '<!-- Arrow divider -->' +
         '<div style="display:flex;align-items:center;padding-top:38px;' +
-          'font-size:14px;font-weight:800;color:#64748b;flex-shrink:0;">THEN</div>' +
+          'font-size:14px;font-weight:800;color:#64748b;flex-shrink:0;">OR</div>' +
 
         '<!-- Group 2: jump phase -->' +
         '<div style="flex:2;min-width:0;background:rgba(255,220,100,.08);' +
           'border:1px solid rgba(255,220,100,.25);border-radius:12px;padding:10px 8px 6px;">' +
           '<div style="text-align:center;font-size:16px;letter-spacing:.3px;margin-bottom:6px;">' +
-            '<span class="instruction-emphasis">MOVES TO A NEW AREA</span></div>' +
+            '<span class="instruction-emphasis">MAY MOVE TO A NEW LOCATION</span></div>' +
           '<div style="display:flex;gap:6px;justify-content:center;">' +
             (function () {
               return [
@@ -642,10 +653,9 @@ var inst3_drone_disappears = {
       '</div>',
 
     // P1c: strategy tip
-    pageBody(emphasis('Best Strategy: Aim for the Drone.'),
-      'Supplies drift because of wind.<br><br>' +
-      emphasis('Placing your collector directly under the drone') +
-      '<br> gives you the best chance to catch more pieces over time.') +
+    pageBody('Your best strategy',
+      emphasis('Your best strategy is to position the collector directly under where you think ' +
+        'the drone is located.')) +
       mockGame({
         droneX: 50,
         collectorX: 50,
@@ -657,25 +667,27 @@ var inst3_drone_disappears = {
         realTrialLayout: true,
         scoreTop: 48
       },
-      [callout(74, 22, 50, 7, 'guess drone position'),
-      callout(20, 62, 50, 67, 'put collector here')],
+      [callout(74, 22, 50, 7, 'where you think the drone is'),
+      callout(20, 62, 50, 67, 'position the collector here')],
       0.65),
 
     // P2: drone disappears
-    pageBody(emphasis('During the game, drone will be hidden'),
-      'You only see where each supply lands.<br>' +
-      'Use those landings to <strong>guess where the drone is</strong>.') +
+    pageBody('In the full game, you cannot see the drone',
+      'We are almost ready for the full game, but there are just a few important differences. Most importantly, ' +
+      'in the full game, you cannot actually see the drone, only the supplies that it drops!<br><br>' +
+      'Your movement of the collector is exactly the same as before—but you have to estimate where the ' +
+      'drone is located based on where it has been.') +
       '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         '<div style="flex:1;min-width:280px;">' +
           '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
-            '<span class="instruction-emphasis">DRONE SHOWN</span></div>' +
+            '<span class="instruction-emphasis">PRACTICE: DRONE SHOWN</span></div>' +
           mockGame({ droneX: 55, collectorX: 50, collectorLocked: true,
             bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
         '</div>' +
         '<div style="flex:1;min-width:280px;">' +
           '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
-            '<span class="instruction-emphasis">DRONE HIDDEN</span></div>' +
+            '<span class="instruction-emphasis">FULL GAME: DRONE HIDDEN</span></div>' +
           mockGame({ collectorX: 50, collectorLocked: true,
             bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
         '</div>' +
@@ -692,11 +704,14 @@ var block_intro_green_hidden = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      '<strong>3 turns.</strong> Drone is <strong>hidden</strong>.',
+      '<strong>Now give it a try.</strong> You will play 3 practice turns with the drone hidden.',
+      'Your goal is to catch as many pieces as you can by moving the collector to where you think ' +
+        'the pieces will land.',
       pill('Green supply', '#0a7f2e', '#fff') +
-        ' Catch more = ' + green('earn more') + ' (0 to +10).'
-    ], '#0a7f2e', 'Practice · green supply · no drone')
+        ' Catching more pieces earns more points, from ' + green('0 to +10') + ' points per turn.'
+    ], '#0a7f2e', 'Practice · green supply · drone hidden')
   ],
+  key_forward: ' ',
   show_clickable_nav: true,
   button_label_previous: 'Prev',
   button_label_next: 'Next'
@@ -707,11 +722,14 @@ var block_intro_red_hidden = {
   type: 'instructions',
   pages: [
     blockIntroHTML([
-      '<strong>3 practice turns.</strong> Drone is <strong>hidden</strong>.',
+      '<strong>Now try a different kind of supply.</strong> You will play 3 practice turns with the drone hidden.',
+      'Your goal is still to catch as many pieces as you can by moving the collector to where you think ' +
+        'the pieces will land.',
       pill('Red supply', '#b00020', '#fff') +
-        ' Catch more = ' + red('lose fewer points') + ' (−10 to 0).'
-    ], '#b00020', 'Practice · red supply · no drone')
+        ' Catching more pieces means losing fewer points, from ' + red('−10 to 0') + ' points per turn.'
+    ], '#b00020', 'Practice · red supply · drone hidden')
   ],
+  key_forward: ' ',
   show_clickable_nav: true,
   button_label_previous: 'Prev',
   button_label_next: 'Next'
@@ -807,13 +825,13 @@ var inst4_full_game = {
   type: 'instructions',
   pages: [
 
-    // P1: 4 planets, each with a unique drone
-    HIDE_PREV +
-    pageBody('You will visit <strong>4 planets</strong>',
-      'Each planet has a <strong>different drone</strong> with a <strong>different flight path</strong>.<br>' +
-      'On each planet, supplies are <em>all</em> ' + green('green') +
-      ', or <em>all</em> ' + red('red') + '.<br>' +
-      '<strong>Always catch as many pieces as possible.</strong>') +
+    // P1: four planets; the two wind/movement parameter sets are crossed with valence.
+    pageBody('The full game',
+      'The full game will have <strong>4 different planets</strong>. Each planet will have a drone. Wind ' +
+      'conditions and drone movement can differ between planets. You will be reminded each time the planet ' +
+      'and drone change.<br><br>' +
+      'On each planet, the supplies will all be ' + green('green') + ' or all be ' + red('red') + '. ' +
+      '<strong>In both cases, your goal is to catch as many pieces as you can.</strong>') +
 
       '<div style="display:flex;gap:14px;justify-content:center;align-items:flex-start;' +
         'margin-top:20px;width:90vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
@@ -829,7 +847,7 @@ var inst4_full_game = {
               '<div style="flex:1;min-width:0;text-align:center;">' +
                 mockPlanet(p.hue, p.sat, i + 1, p.droneX, p.collectorX, 0.22) +
                 '<div style="font-size:12px;color:#666;margin-top:6px;font-style:italic;">' +
-                  'different movement' +
+                  'planet and drone' +
                 '</div>' +
               '</div>'
             );
@@ -842,31 +860,34 @@ var inst4_full_game = {
         '<div style="flex:1;min-width:200px;padding:10px 16px;border-radius:10px;' +
           'background:#f6fff7;border:1.5px solid #c6e8cc;font-size:15px;">' +
           pill('Green supply', '#0a7f2e', '#fff') +
-          ' Catch more = ' + green('earn more') + '<br>' +
+          ' Catching more pieces means ' + green('earning more points') + '<br>' +
           '<span style="font-size:13px;color:#555;">Best: ' + green('+10') + '&nbsp;·&nbsp;Worst: ' + gold('0') + '</span>' +
         '</div>' +
         '<div style="flex:1;min-width:200px;padding:10px 16px;border-radius:10px;' +
           'background:#fff7f7;border:1.5px solid #f0c8c8;font-size:15px;">' +
           pill('Red supply', '#b00020', '#fff') +
-          ' Catch more = ' + red('lose less') + '<br>' +
+          ' Catching more pieces means ' + red('losing fewer points') + '<br>' +
           '<span style="font-size:13px;color:#555;">Best: ' + gold('0') + '&nbsp;·&nbsp;Worst: ' + red('−10') + '</span>' +
         '</div>' +
       '</div>' ,
 
-// P2: object questions overview
-pageBody('Look at each object carefully',
-  'We will ask you about objects from each planet.<br><br>' +
+// P2: item questions overview
+pageBody('Items and the memory task',
+  'You should note these items as they appear, but you do not need to memorize them.<br><br>' +
+  'You will complete a memory task based on the items that appear. You will be asked which item in a ' +
+  'pair appeared first, how far apart in time you feel the two items were during the game, and when you ' +
+  'feel another item appeared between them.<br><br>' +
   '<em>These questions will not affect your score.</em>') +
   '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;' +
     'width:92vw;max-width:1180px;margin:18px auto 8px auto;">' +
 
     memoryExamplePanel(
       '<div style="font-size:19px;font-weight:750;text-align:center;margin-bottom:14px;' +
-        'text-shadow:0 2px 10px rgba(0,0,0,.45);">Which came first?</div>' +
+        'text-shadow:0 2px 10px rgba(0,0,0,.45);">Which item in the pair appeared first during the game?</div>' +
       '<div style="display:flex;justify-content:center;align-items:center;gap:16px;margin-bottom:12px;">' +
-        '<div style="text-align:center;">' + memoryExampleStim('🍤', 74, false, true) +
+        '<div style="text-align:center;">' + memoryExampleStim(MEMORY_DEMO_EMOJI.first, 74, false, true) +
           '<div style="font-size:24px;font-weight:800;margin-top:7px;">←</div></div>' +
-        '<div style="text-align:center;">' + memoryExampleStim('🌲', 74, false, true) +
+        '<div style="text-align:center;">' + memoryExampleStim(MEMORY_DEMO_EMOJI.second, 74, false, true) +
           '<div style="font-size:24px;font-weight:800;margin-top:7px;">→</div></div>' +
       '</div>' +
       '<div style="font-size:13px;color:rgba(255,255,255,.72);text-align:center;">' +
@@ -877,27 +898,30 @@ pageBody('Look at each object carefully',
 
     memoryExamplePanel(
       '<div style="font-size:19px;font-weight:750;text-align:center;margin-bottom:12px;' +
-        'text-shadow:0 2px 10px rgba(0,0,0,.45);">How far apart in time did these two feel?</div>' +
+        'text-shadow:0 2px 10px rgba(0,0,0,.45);">How far apart in time did you feel these two items were during the game?</div>' +
       '<div style="display:flex;justify-content:center;gap:14px;margin-bottom:10px;">' +
-        memoryExampleStim('🍤', 58, false, true) + memoryExampleStim('🌲', 58, false, true) +
+        memoryExampleStim(MEMORY_DEMO_EMOJI.first, 58, false, true) +
+        memoryExampleStim(MEMORY_DEMO_EMOJI.second, 58, false, true) +
       '</div>' +
       memoryExampleTrack(35, null, null, 'Very close', 'Very far', true) +
       '<div style="font-size:13px;color:rgba(255,255,255,.72);text-align:center;margin-top:10px;">' +
-        '← → to adjust<br><strong style="color:#fff;">Enter to confirm</strong></div>',
+        '← → to adjust<br><strong style="color:#fff;">Enter or Space to confirm</strong></div>',
       true,
       true
     ) +
 
     memoryExamplePanel(
       '<div style="font-size:19px;font-weight:750;text-align:center;margin-bottom:10px;' +
-        'text-shadow:0 2px 10px rgba(0,0,0,.45);">Where was this object shown between the two?</div>' +
-      '<div style="text-align:center;margin-bottom:8px;">' + memoryExampleStim('🎤', 62, true, true) + '</div>' +
+        'text-shadow:0 2px 10px rgba(0,0,0,.45);">When did this item appear between the other two items?</div>' +
+      '<div style="text-align:center;margin-bottom:8px;">' +
+        memoryExampleStim(MEMORY_DEMO_EMOJI.probe, 62, true, true) + '</div>' +
       memoryExampleTrack(
-        38, '🌲', '🍤', 'Closer to left', 'Closer to right', true,
-        { labelFontSize: 10.5, labelInset: '64px' }
+        38, MEMORY_DEMO_EMOJI.second, MEMORY_DEMO_EMOJI.first,
+        'Closer to first item', 'Closer to second item', true,
+        { labelFontSize: 10.5, labelInset: '0', labelWrap: true }
       ) +
       '<div style="font-size:13px;color:rgba(255,255,255,.72);text-align:center;margin-top:10px;">' +
-        '← → to adjust<br><strong style="color:#fff;">Enter to confirm</strong></div>',
+        '← → to adjust<br><strong style="color:#fff;">Enter or Space to confirm</strong></div>',
       true,
       true
     ) +
@@ -906,25 +930,29 @@ pageBody('Look at each object carefully',
     'border-radius:10px;background:linear-gradient(to bottom,#f3f4f6,#e5e7eb);' +
     'border:1px solid #cbd0d6;text-align:center;' +
     'font-size:14px;color:#4b5563;line-height:1.5;">' +
-    'Start moving each slider within <strong>5 seconds</strong>. After your first move, it ' +
-    'auto-submits in <strong>7 seconds</strong>.' +
+    'Begin each response within <strong>5 seconds</strong>. For a slider question, after your first move, ' +
+    'your answer submits automatically in <strong>7 seconds</strong>.' +
   '</div>' ,
 
 // P3: placement example
-pageBody('Example Question',
-  'Use <strong>← →</strong> to place highlighted object between two reference objects.') +
+pageBody('Example of the third memory question',
+  'You will be shown one highlighted item and two reference items. Use <strong>← →</strong> to place ' +
+  'the highlighted item where you feel it appeared between the two reference items during the game.<br>' +
+  'Try it now by pressing <strong>←</strong> or <strong>→</strong>.') +
   '<div style="max-width:760px;margin:20px auto 10px auto;">' +
     memoryExamplePanel(
       '<div style="font-size:27px;font-weight:800;text-align:center;margin-bottom:18px;' +
-        'text-shadow:0 2px 12px rgba(0,0,0,.5);">Where was this object shown between the two?</div>' +
-      '<div style="text-align:center;margin-bottom:16px;">' + memoryExampleStim('🎤', 110, true, true) + '</div>' +
+        'text-shadow:0 2px 12px rgba(0,0,0,.5);">When did this item appear between the other two items?</div>' +
+      '<div style="text-align:center;margin-bottom:16px;">' +
+        memoryExampleStim(MEMORY_DEMO_EMOJI.probe, 110, true, true) + '</div>' +
       memoryExampleTrack(
-        38, '🌲', '🍤', 'Closer to left', 'Closer to right', true,
-        { id: 'placement-example-slider' }
+        38, MEMORY_DEMO_EMOJI.second, MEMORY_DEMO_EMOJI.first,
+        'Closer to first item', 'Closer to second item', true,
+        { id: 'placement-example-slider', labelInset: '0', labelWrap: true }
       ) +
       '<div style="font-size:16px;color:rgba(255,255,255,.72);text-align:center;margin-top:14px;' +
         'text-shadow:0 1px 6px rgba(0,0,0,.45);">← → to adjust<br>' +
-        '<strong style="color:#fff;">Enter to confirm</strong></div>',
+        '<strong style="color:#fff;">During the memory task, press Enter or Space to confirm</strong></div>',
       false,
       true
     ) +
@@ -945,14 +973,15 @@ pageBody('Example Question',
 var quiz = {
   type: 'instructions',
   pages: [
-    HIDE_PREV +
     glowSquaresScreen(
       pageBody(
         '<div class="glow-title" style="font-size:30px;font-weight:850;margin-bottom:18px;">' +
           'Check What You Learned' +
         '</div>' +
         '<div style="font-size:18px;line-height:1.65;color:#1f2937;">' +
-          'Before starting, answer a few questions to make sure rules are clear.' +
+          'You will now see some questions testing your understanding of the game. You should answer all ' +
+          'of them correctly to proceed.<br><br>If any answer is incorrect, review the relevant instructions ' +
+          'and then answer that question again.<br><br>Good luck!' +
         '</div>'
       ),
       {
@@ -970,7 +999,6 @@ var quiz = {
 var ready = {
   type: 'instructions',
   pages: [
-    HIDE_PREV +
     '<style>' +
     '@keyframes tp-drift{' +
       '0%{transform:translateY(0) scale(1);opacity:0}' +
@@ -1003,8 +1031,8 @@ var ready = {
       '<div class="tp-particle" style="left:78%;animation-duration:3.4s;animation-delay:1.5s;font-size:14px;">▪️</div>' +
       '<div class="tp-particle" style="left:90%;animation-duration:2.9s;animation-delay:0.6s;">▪️</div>' +
       '<div class="tp-particle" style="left:44%;animation-duration:3.8s;animation-delay:1.8s;font-size:20px;">▪️</div>' +
-      '<div class="tp-title">Starting game...</div>' +
-      '<div class="tp-luck">Good luck</div>' +
+      '<div class="tp-title">We are now beginning the game.</div>' +
+      '<div class="tp-luck">Good luck!</div>' +
     '</div>'
   ],
   show_clickable_nav: true,
@@ -1016,7 +1044,7 @@ var inst3_incorrect = {
   type: 'instructions',
   pages: [
     pageBody(emphasis('You did not respond'),
-      'Your mission must end now.')
+      'We must terminate the game here.')
   ],
   show_clickable_nav: false
 };

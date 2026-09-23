@@ -10,6 +10,18 @@ http://localhost:8000/index.html
 https://run.pavlovia.org/jiaheyi/DroneTask/
 ```
 
+## Advisor Quick Links
+
+- Full pilot, including consent and data saving:
+  <https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1>
+- Instructions, practice, and comprehension only:
+  <https://run.pavlovia.org/jiaheyi/DroneTask/?dev=1&stage=instructions&consent=0>
+- Comprehension check and review loop only:
+  <https://run.pavlovia.org/jiaheyi/DroneTask/?dev=1&stage=comprehension&consent=0>
+
+The `dev=1` links download their test CSV locally and do not save data to
+Pavlovia. The full pilot link saves to Pavlovia.
+
 -----
 
 ## Data-saving
@@ -55,8 +67,8 @@ Pavlovia automatically.
 ### Full Block: Encoding + Memory
 
 ```
-?dev=1&stage=encoding-test&block=1&consent=0
-?dev=1&stage=encoding-test&block=2&consent=0
+?dev=1&stage=block&block=1&consent=0
+?dev=1&stage=block&block=2&consent=0
 ```
 
 ### Survey / Demographics Only

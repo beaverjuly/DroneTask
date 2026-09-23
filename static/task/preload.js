@@ -380,9 +380,9 @@
             '<div style="position:absolute;left:50%;top:62%;transform:translateX(-50%);' +
               'text-align:center;width:90%;max-width:520px;">' +
               '<div style="font-size:26px;font-weight:800;color:#fff;' +
-                'animation:gatePulse 2s ease-in-out infinite;">Preparing your mission\u2026</div>' +
+                'animation:gatePulse 2s ease-in-out infinite;">Preparing the game\u2026</div>' +
               '<div style="font-size:15px;color:rgba(226,232,240,.65);margin:6px 0 16px;">' +
-                'Final calibration before liftoff.</div>' +
+                'Please wait while the game finishes loading.</div>' +
               '<div style="height:8px;background:rgba(255,255,255,.12);border-radius:999px;' +
                 'overflow:hidden;border:1px solid rgba(255,255,255,.18);">' +
                 '<div id="gate-bar" style="height:100%;width:0%;' +

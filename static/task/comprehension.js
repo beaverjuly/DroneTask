@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════
-// comprehension.js — Combined mechanics + mission check (single test)
+// comprehension.js — Combined mechanics + game check (single test)
 //
 // Flow:
 //   1. First render: all questions editable.  Submit is active.
@@ -35,7 +35,7 @@ jsPsych.plugins['comprehension'] = (function() {
 
   var PROMPTS = [
     {
-      text: 'To get your <strong>highest score</strong>, use your <strong>collector</strong> to catch <strong>as many supply pieces as possible</strong>.',
+      text: 'In this game, drones drop supplies toward the rail. Your goal is to catch <strong>as many pieces as you can</strong> by moving your collector to where you think the pieces will land.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst1'
@@ -47,7 +47,7 @@ jsPsych.plugins['comprehension'] = (function() {
       topic: 'inst2'
     },
     {
-      text: 'Each <strong>supply</strong> lands <em>directly below</em> <strong>drone position</strong>.',
+      text: 'Each <strong>supply</strong> always lands <em>directly below</em> the <strong>drone</strong>.',
       options: ['True', 'False'],
       correct: 'False',
       topic: 'inst3'
@@ -65,50 +65,50 @@ jsPsych.plugins['comprehension'] = (function() {
       topic: 'inst2'
     },
     {
-      text: 'If you leave your <strong>collector in one place</strong> for <em>too long</em>, your <strong>mission will end early</strong>.',
+      text: 'If you leave the <strong>collector in one place</strong> for more than a few turns, you will be warned, and if you persist, the <strong>game may end early</strong>.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst2'
     },
     {
-      text: 'You will be asked about <strong>objects received</strong> on a planet, but you <strong>do not need</strong> to <em>remember them</em>.',
+      text: 'You should <strong>note the items</strong> as they appear, but you do not need to <strong>memorize</strong> them.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst4'
     },
 
     {
-      text: 'You can <strong>predict drone position</strong> from <em>where a supply lands</em>.',
+      text: 'Because the drone is hidden in the full game, you can use where supplies have landed to <strong>estimate the drone’s position</strong>.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst3'
     },
     {
-      text: 'You can <strong>see a drone</strong> <em>while a supply falls</em>.',
+      text: 'In the <strong>full game</strong>, you can see the drone while it drops a supply.',
       options: ['True', 'False'],
       correct: 'False',
       topic: 'inst3'
     },
     {
-      text: '<strong>Drone</strong> sometimes <strong>moves</strong> to a <em>new area</em>.',
+      text: 'The best prediction for the drone’s position on one turn is its position on the previous turn, but it may <strong>move to a new location at any time</strong>.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst3'
     },
     {
-      text: 'To get your <strong>highest score</strong>, put your <strong>collector</strong> below <strong>predicted drone position</strong>.',
+      text: 'Your best strategy is to position the <strong>collector directly under where you think the drone is located</strong>.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst3'
     },
     {
-      text: 'How many <strong>planets</strong> have <strong>different drone movement patterns</strong>?',
+      text: 'How many <strong>planets</strong> are in the <strong>full game</strong>?',
       options: ['1', '2', '3', '4'],
       correct: '4',
       topic: 'inst4'
     },
     {
-      text: '<strong>Questions about objects</strong> <strong>do not affect</strong> your <em>score</em>.',
+      text: 'The memory task asks which item appeared first, how far apart in time two items felt, and when another item appeared between them. These answers <strong>do not affect</strong> your score.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst4'
@@ -116,10 +116,10 @@ jsPsych.plugins['comprehension'] = (function() {
   ];
 
   var TOPIC_LABEL = {
-    inst1: 'mission goal',
+    inst1: 'game goal',
     inst2: 'collector & supplies',
     inst3: 'wind and drone movement',
-    inst4: 'full mission'
+    inst4: 'full game and memory task'
   };
 
   function buildStyles() {
@@ -127,7 +127,7 @@ jsPsych.plugins['comprehension'] = (function() {
       '<style>',
       'body{min-height:100vh;overflow-y:auto;',
         'background:radial-gradient(circle at top,rgba(232,241,255,.96),rgba(250,250,252,1) 58%);}',
-      '.comp-shell{box-sizing:border-box;max-width:920px;margin:32px auto 80px auto;padding:0 18px;',
+      '.comp-shell{box-sizing:border-box;width:100%;max-width:920px;margin:28px auto 72px auto;padding:0 18px;',
         'font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;color:#1f2937;}',
       '.comp-card{background:rgba(255,255,255,.97);border:1px solid rgba(148,163,184,.35);',
         'border-radius:18px;box-shadow:0 12px 34px rgba(15,23,42,.12);padding:26px 30px 30px 30px;}',
@@ -162,7 +162,7 @@ jsPsych.plugins['comprehension'] = (function() {
         'padding:2px 8px;border-radius:999px;}',
       '.q-status{font-size:13px;font-weight:700;}',
       '.q-status-cta{margin-left:auto;}',
-      '.q-text{font-size:17px;line-height:1.48;margin:0;}',
+      '.q-text{font-size:clamp(16px,1.35vw,17px);line-height:1.5;margin:0;text-wrap:pretty;}',
       '.q-text strong{font-weight:800;color:#111827;}',
       '.q-text em{font-style:italic;font-weight:700;color:#111827;}',
       '.q-options{display:flex;gap:10px;flex-wrap:wrap;margin-left:38px;}',
@@ -186,7 +186,8 @@ jsPsych.plugins['comprehension'] = (function() {
       '.comp-toast.warn{background:#fef2f2;border:1px solid #fecaca;color:#991b1b;}',
       '.comp-toast.unanswered{background:#fffbeb;border:1px solid #fde68a;color:#854d0e;',
         'box-shadow:0 6px 18px rgba(133,77,14,.14);}',
-      '@media(max-width:720px){.comp-card{padding:22px 18px 26px 18px;}',
+      '@media(max-width:720px){.comp-shell{margin-top:18px;padding:0 12px;}',
+        '.comp-card{padding:20px 16px 22px 16px;}.comp-q{padding:13px 12px;}',
         '.q-text{font-size:16px;}.q-options{margin-left:0;}}',
       '</style>'
     ].join('');
@@ -260,8 +261,8 @@ jsPsych.plugins['comprehension'] = (function() {
     html += '<div class="comp-shell"><div class="comp-card">';
     html +=   '<p class="comp-subtitle">';
     html +=     'Answer <strong>all questions correctly</strong> before you start playing.<br>';
-    html +=     'If an answer is wrong, click it to <strong>review instructions</strong>, ';
-    html +=     'then <strong>change</strong> your answer.<br>';
+    html +=     'If an answer is incorrect, click it to <strong>review the relevant instructions</strong>, ';
+    html +=     'and then <strong>change</strong> your answer. You may continue until all answers are correct.<br>';
     html +=   '</p>';
     html += '</div>';
 
@@ -269,7 +270,7 @@ jsPsych.plugins['comprehension'] = (function() {
       html += '<div class="comp-banner">';
       html +=   'You just reviewed <strong>' +
                   (TOPIC_LABEL[justReviewedTopic] || justReviewedTopic) + '</strong>. ';
-      html +=   'Update your answer below!';
+      html +=   'Please answer this question again.';
       html += '</div>';
     }
 
@@ -280,7 +281,6 @@ jsPsych.plugins['comprehension'] = (function() {
       else if (state.correctness[k] === false) pipCls += ' wrong';
       html += '<div class="' + pipCls + '" title="Question ' + (k + 1) + '"></div>';
     }
-    html += '</div>';
     html += '</div>';
 
     html += '<div class="comp-list" id="comp-list">';
@@ -296,7 +296,7 @@ jsPsych.plugins['comprehension'] = (function() {
     html += '<div class="comp-toast" id="comp-toast"></div>';
     html += '</div>';
 
-    html += '</div></div>';
+    html += '</div>';
     return html;
   }
 

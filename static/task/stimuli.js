@@ -1,5 +1,5 @@
 
-var stimuli_version = "v10-png-main-practice-emoji";
+var stimuli_version = "v11-png-main-unique-practice-emoji";
 
 // ── Block design ──────────────────────────────────────────────────
 // Block 1: reward, high vol / low sto
@@ -346,5 +346,55 @@ var STIMULUS_IMAGE_POOL = [
   "static/stimuli/yo-yo.png",
 ];
 
-// Practice emoji (3, matching the 3 practice trials)
-var PRACTICE_EMOJI = ["🍤","🎤","🌲"];
+// ── Tutorial-only stimuli ────────────────────────────────────────
+// The task constructs 13 practice turns: one item-hidden movement warm-up,
+// followed by four 3-turn item-visible blocks. Every configured turn gets a
+// different emoji so an item identity is never repeated during practice.
+//
+// These animal concepts are absent from all 200 real-game PNG identities and
+// from the main-task fallback-emoji pool in preload.js.
+var PRACTICE_EMOJI = [
+  "🐬", "🐧", "🐦", "🐓", "🐕", "🐖", "🐎",
+  "🐒", "🦀", "🦃", "🦅", "🦆", "🦉"
+];
+
+var PRACTICE_STIMULUS_CONCEPTS = [
+  "dolphin", "penguin", "bird", "rooster", "dog", "pig", "horse",
+  "monkey", "crab", "turkey", "eagle", "duck", "owl"
+];
+
+var PRACTICE_STIMULUS_ITEMS = PRACTICE_EMOJI.map(function (emoji, index) {
+  return { emoji: emoji, concept: PRACTICE_STIMULUS_CONCEPTS[index] };
+});
+
+// Separate examples for the memory-instruction demonstration. Keeping these
+// outside PRACTICE_EMOJI prevents participants from seeing a practice item
+// before its turn.
+var MEMORY_DEMO_EMOJI = {
+  first:  "🐸",
+  second: "🐔",
+  probe:  "🦌"
+};
+
+(function validateTutorialStimuli() {
+  var expectedPracticeCount = 13;
+  var uniquePracticeEmoji = new Set(PRACTICE_EMOJI);
+  if (PRACTICE_EMOJI.length !== expectedPracticeCount ||
+      uniquePracticeEmoji.size !== expectedPracticeCount ||
+      PRACTICE_STIMULUS_CONCEPTS.length !== expectedPracticeCount) {
+    throw new Error('Practice stimulus configuration must contain 13 unique emoji.');
+  }
+
+  var mainConcepts = new Set(STIMULUS_IMAGE_POOL.map(function (path) {
+    return path.split('/').pop().replace(/\.png$/i, '');
+  }));
+  var conceptOverlap = PRACTICE_STIMULUS_ITEMS.filter(function (item) {
+    return mainConcepts.has(item.concept);
+  });
+  if (conceptOverlap.length > 0) {
+    throw new Error(
+      'Practice stimulus concepts overlap real-game items: ' +
+      conceptOverlap.map(function (item) { return item.concept; }).join(', ')
+    );
+  }
+})();

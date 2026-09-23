@@ -1,0 +1,249 @@
+  var instructions = [];
+  const style1 ="font-size:20px";
+  var inst1_incorrect = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"><br><br> Some of your answers were incorrect. Some instructions will be' +
+                'repeated. Please pay attention!</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  var inst_summary = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"> You did not answer all questions correctly. Some of the instructions will' +
+                ' be repeated before you see the questions again. <br><br><br>Pay close attention!</p>',
+        '<p style="font-size:20px"><img src="../static/img/imga1.jpg" width=40%></img> <br><br><br> In this' +
+                ' game, birds drop bags of coins onto the ground. Your goal is to catch as many coins as you can by' +
+                ' moving your bucket to where you think the coins will land.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imga2.jpg" width=40%></img> <br><br><br> You' +
+                ' should use right and left arrow keys to move the bucket.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgb1.jpg" width=40%></img> <br><br><br> After you' +
+                ' position the bucket, the sky will slightly darken. At this time you can no longer move the' +
+                ' bucket.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgb2.jpg" width=40%></img> <br><br><br> You will' +
+                ' then see the bird dropping a bag of coins.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgb3.jpg" width=40%></img> <br><br><br> The bag' +
+                ' explodes near the land and the coins fall.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgb3.jpg" width=40%></img> <br><br><br> Your' +
+                ' bonus is determined by the number of coins that you catch in your bucket. You will see the number of' +
+                ' coins you successfully catch on the screen after the coins fall at the end of each turn.' +
+                '<br><br><br>If you align your bucket perfectly, you will catch all ten coins! Otherwise, you will' +
+                ' catch less depending on how far off your bucket is.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imga2.jpg" width=40%></img> <br><br><br> A new' +
+                ' turn begins when the scene lights up again. At this time you are once again able to move the' +
+                ' bucket.</p>',
+        '<p style="font-size:20px"> If you do not move the bucket on one or two turns, we assume you are' +
+                ' happy with its position. <br><br> However, you should not leave the bucket in one place for more' +
+                ' than a few turns. If you do, we will warn you, and if you persist, we may have to end the game' +
+                ' early!</p>',
+        '<p style="font-size:20px"> The bag will fall near the bird, but the exact position will vary around' +
+                ' the bird because it is a windy day!</p>',
+        '<p style="font-size:20px"> You may have noticed that the bird can also move unpredictably. The best' +
+                ' prediction for its position on one turn is its position on the previous turn, but it may fly to a' +
+                'new location at any time</p>',
+        '<p style="font-size:20px"><strong> Your best strategy is to position the bucket directly under where' +
+                ' you think the bird is located.</p>',
+        '<p style="font-size:20px"> Remember though: in the real game, you cannot actually see the bird, only' +
+                ' the bag of coins that it drops!</p>',
+        '<p style="font-size:20px"> Your movement of the bucket is exactly the same as before - but you have' +
+                ' to estimate where the bird is located based on where it has been.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgs1.jpg" width=40%></img> <br><br><br>You will' +
+                ' also notice that on each turn, a distinct item will appear where the coins fall. <br><br>There will' +
+                ' be a memory test based on those items.</p>',
+        '<p style="font-size:20px"> The full game will have 4 different environments with 4 different wind' +
+                ' conditions. Each of the 4 environments will also have a different bird with different flying' +
+                ' behavior.</p>',
+        '<p style="font-size:20px"> You will now see the questions about the game again. Please answer all' +
+                ' questions correctly, or we will have to end the game.</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  // var inst2_incorrect = {
+  //   type: 'instructions',
+  //   pages: [
+  //       '<p style="font-size:20px"<br><br> We have to terminate the game here because some of your answers' +
+  //           'were incorrect for the second time. <br><br> Please return your submission by closing the survey and' +
+  //           'choosing "Stop Without Completing" on prolific.</p>',
+  //   ],
+  //   show_clickable_nav: true,
+  //   button_label_previous: "Prev",
+  //   button_label_next: "Next"
+  // };
+  var inst3_incorrect = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"><br><br> You did not respond. <br><br> We must terminate the game here.</p>',
+    ],
+    show_clickable_nav: false,
+  };
+
+  var inst1 = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"><img src="../static/img/imga1.jpg" width=40%></img> <br><br><br> In this' +
+                ' game, birds drop bags of coins onto the ground. Your goal is to catch as many coins as you can by' +
+                ' moving your bucket to where you think the coins will land.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imga2.jpg" width=40%></img> <br><br><br> You' +
+                ' should use right and left arrow keys to move the bucket.</p>',
+        '<p style="font-size:20px"><br><br> Now give it a try. Make a response by using the left or right' +
+                ' arrow key.</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  var inst2 = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"><img src="../static/img/imgb1.jpg" width=40%></img> <br><br><br> After you' +
+                ' position the bucket, the sky will slightly darken. At this time you can no longer move the' +
+                ' bucket.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgb2.jpg" width=40%></img> <br><br><br> You will' +
+                ' then see the bird dropping a bag of coins.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgb3.jpg" width=40%></img> <br><br><br> The bag' +
+                ' explodes near the land and the coins fall.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgb3.jpg" width=40%></img> <br><br><br> Your' +
+                ' bonus is determined by the number of coins that you catch in your bucket. You will see the number of' +
+                ' coins you successfully catch on the screen after the coins fall at the end of each turn.' +
+                '<br><br><br> If you align your bucket perfectly, you will catch all ten coins! Otherwise, you will' +
+                ' catch less depending on how far off your bucket is.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imga2.jpg" width=40%></img> <br><br><br> A new' +
+                ' turn begins when the screne lights up again. At this time you are once again able to move the' +
+                ' bucket.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imga2.jpg" width=20%></img></p>' +
+                '<p style="font-size:20px"><img src="../static/img/imgb1.jpg" width=20%></img></p>' +
+                '<p style="font-size:20px"><br><br>' +
+                ' Remember: when the scene is light (like the top image) you can move the bucket. When it is slightly' +
+                ' darkened (like the bottom), the bucket is frozen.</p>',
+        '<p style="font-size:20px"> If you do not move the bucket on one or two turns, we assume you are' +
+                ' happy with its position. <br><br> However, you should not leave the bucket in one place for more' +
+                ' than a few turns. If you do, we will warn you, and if you persist, we may have to end the game' +
+                ' early!</p>',
+        '<p style="font-size:20px"> Now give it a try. Notice that you can only move your bucket when the' +
+                ' scene is light. <br><br><br>You will see how many coins you win on the screen, from 0 to' +
+                ' 10.</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  var inst3 = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"> The bag will fall near the bird, but the exact position will vary around' +
+                ' the bird because it is a windy day!</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgc1.jpg" width=40%></img> <br><br><br> The bag' +
+                ' might fall in front of the bird,</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgc2.jpg" width=40%></img> <br><br><br> or it' +
+                ' might fall just under the bird,</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgc3.jpg" width=40%></img> <br><br><br> or it' +
+                ' might fall behind the bird.</p>',
+        '<p style="font-size:20px">You may have noticed that the bird can also move unpredictably. The best' +
+                ' prediction for its position on one turn is its position on the previous turn, but it may fly to a' +
+                ' new location at any time</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgd1.jpg" width=40%></img> <br><br><br> If this' +
+                ' is its current position,</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgd2.jpg" width=40%></img> <br><br><br> On the' +
+                ' next turn, it could be here,</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgd3.jpg" width=40%></img> <br><br><br> or' +
+                ' here.</p>',
+        '<p style="font-size:20px"><strong>Your best strategy is to position the bucket directly under where' +
+                ' you think the bird is located.</p>',
+        '<p style="font-size:20px"> Now that you know how the game works, try playing a few turns, noticing' +
+                ' that the bird moves and where the bag falls.</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  var inst4 = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"> We are almost ready for the full game, but there are just a few important' +
+                ' differences. <br>Most importantly, in the real game, you cannot actually see the bird, only the bag' +
+                ' of coins that it drops!</p>',
+        '<p style="font-size:20px">Your movement of the bucket is exactly the same as before - but you have' +
+                ' to estimate where the bird is located based on where it has been.</p>',
+        '<p style="font-size:20px"><img src="../static/img/imgs1.jpg" width=40%></img> <br><br><br>You will' +
+                ' also notice that on each turn, a distinct item will appear where the coins fall.</p>',
+        '<p style="font-size:20px"> You should note these items as they appear but you do not need to' +
+                ' memorize them. <br>' +
+                //'Remember: your primary goal is to maximize your bonus by catching as many coins' +
+                //' in your bucket as you can!</p>',
+        '<p style="font-size:20px"> You will complete a memory task' +
+                ' based on the items that appear. <br>You will be asked which item in a pair appeared first, and how' +
+                ' far apart you feel the two items were during the game.</p>',
+        '<p style="font-size:20px"> There is a shorter and longer version of the game. You will not know which version of the game you will have beforehand.</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  var inst5 = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"> The full game will start with a shorter initial section. If you are in the shorter version, the game will end following this.</p>',
+        '<p style="font-size:20px"> If you are in the longer version, ' +
+                ' the initial section will be followed by 4 different environments with 4 different wind conditions. ' +
+                ' Each of the 4 environments will also have a different bird with different flying behavior.</p>',
+        '<p style="font-size:20px"> You will be reminded each time the environment and bird changes.</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  //var inst6 = {
+  //  type: 'instructions',
+  //  pages: [
+  //      ],
+  //  show_clickable_nav: true,
+  //  button_label_previous: "Prev",
+  //  button_label_next: "Next"
+  //};
+  var inst7 = {
+    type: 'instructions',
+    pages: [
+        //'<p style="font-size:20px"> You should note these items as they appear but you do not need to' +
+                //' memorize them. <br>' +
+                //'Remember: your primary goal is to maximize your bonus by catching as many coins' +
+                //' in your bucket as you can!</p>',
+        '<p style="font-size:20px"> Finally, the 4 environments in the longer section' +
+                ' will include a series of hypothetical' +
+                ' choices between two options. These will come just before the memory test.</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  var ready = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"> We are now beginning the game.<br><br>Good luck!</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  var quiz = {
+    type: 'instructions',
+    pages: [
+        '<p style="font-size:20px"> You will now see some questions testing your understanding of the game. You should answer all of' +
+                ' them correctly to proceed.<br><br>Good luck!</p>',
+    ],
+    show_clickable_nav: true,
+    button_label_previous: "Prev",
+    button_label_next: "Next"
+  };
+  var num_loops = 0;
+  var comprehension1 = {
+    type: 'comprehension1',
+  };
+
+  var comprehension2 = {
+    type: 'comprehension2',
+  };
