@@ -1,5 +1,5 @@
 
-var stimuli_version = "v11-png-main-unique-practice-emoji";
+var stimuli_version = "v14-separate-memory-demo-emojis";
 
 // ── Block design ──────────────────────────────────────────────────
 // Block 1: reward, high vol / low sto
@@ -347,42 +347,64 @@ var STIMULUS_IMAGE_POOL = [
 ];
 
 // ── Tutorial-only stimuli ────────────────────────────────────────
-// The task constructs 13 practice turns: one item-hidden movement warm-up,
-// followed by four 3-turn item-visible blocks. Every configured turn gets a
-// different emoji so an item identity is never repeated during practice.
+// The task constructs 10 practice turns: one movement warm-up followed by
+// three 3-turn scored blocks. Every configured turn retains a different object
+// identity for data consistency, but all practice items remain visually hidden.
 //
-// These animal concepts are absent from all 200 real-game PNG identities and
+// These inanimate object concepts are absent from all 200 real-game PNG identities and
 // from the main-task fallback-emoji pool in preload.js.
 var PRACTICE_EMOJI = [
-  "🐬", "🐧", "🐦", "🐓", "🐕", "🐖", "🐎",
-  "🐒", "🦀", "🦃", "🦅", "🦆", "🦉"
+  "🔑", "🔔", "💡", "🔨", "🔧",
+  "📌", "📎", "✂️", "📏", "📐"
 ];
 
 var PRACTICE_STIMULUS_CONCEPTS = [
-  "dolphin", "penguin", "bird", "rooster", "dog", "pig", "horse",
-  "monkey", "crab", "turkey", "eagle", "duck", "owl"
+  "key", "bell", "light-bulb", "hammer", "wrench",
+  "pushpin", "paperclip", "scissors", "straight-ruler", "triangular-ruler"
 ];
 
 var PRACTICE_STIMULUS_ITEMS = PRACTICE_EMOJI.map(function (emoji, index) {
   return { emoji: emoji, concept: PRACTICE_STIMULUS_CONCEPTS[index] };
 });
 
-// Separate examples for the memory-instruction demonstration. Keeping these
-// outside PRACTICE_EMOJI prevents participants from seeing a practice item
-// before its turn.
-var MEMORY_DEMO_EMOJI = {
-  first:  "🐸",
-  second: "🐔",
-  probe:  "🦌"
+// The item-introduction screen uses the three identities assigned to the first
+// scored practice block. The later memory-question examples use a different
+// trio from the same practice-only pool, so the two instruction screens never
+// repeat an item identity.
+var MEMORY_ITEM_INTRO_EMOJI = {
+  first:  PRACTICE_EMOJI[1], // 🔔
+  second: PRACTICE_EMOJI[2], // 💡
+  probe:  PRACTICE_EMOJI[3]  // 🔨
+};
+
+var MEMORY_QUESTION_DEMO_EMOJI = {
+  first:  PRACTICE_EMOJI[4], // 🔧
+  second: PRACTICE_EMOJI[5], // 📌
+  probe:  PRACTICE_EMOJI[6]  // 📎
 };
 
 (function validateTutorialStimuli() {
-  var expectedPracticeCount = 13;
+  var expectedPracticeCount = 10;
   var uniquePracticeEmoji = new Set(PRACTICE_EMOJI);
   if (PRACTICE_EMOJI.length !== expectedPracticeCount ||
       uniquePracticeEmoji.size !== expectedPracticeCount ||
       PRACTICE_STIMULUS_CONCEPTS.length !== expectedPracticeCount) {
-    throw new Error('Practice stimulus configuration must contain 13 unique emoji.');
+    throw new Error('Practice stimulus configuration must contain 10 unique object emoji.');
+  }
+
+  var scoredPracticeEmoji = new Set(PRACTICE_EMOJI.slice(1));
+  var itemIntroEmoji = Object.keys(MEMORY_ITEM_INTRO_EMOJI).map(function (key) {
+    return MEMORY_ITEM_INTRO_EMOJI[key];
+  });
+  var questionDemoEmoji = Object.keys(MEMORY_QUESTION_DEMO_EMOJI).map(function (key) {
+    return MEMORY_QUESTION_DEMO_EMOJI[key];
+  });
+  var allMemoryDemoEmoji = itemIntroEmoji.concat(questionDemoEmoji);
+  if (new Set(itemIntroEmoji).size !== itemIntroEmoji.length ||
+      new Set(questionDemoEmoji).size !== questionDemoEmoji.length ||
+      new Set(allMemoryDemoEmoji).size !== allMemoryDemoEmoji.length ||
+      allMemoryDemoEmoji.some(function (emoji) { return !scoredPracticeEmoji.has(emoji); })) {
+    throw new Error('Item-introduction and memory-question examples must use separate scored-practice identities.');
   }
 
   var mainConcepts = new Set(STIMULUS_IMAGE_POOL.map(function (path) {

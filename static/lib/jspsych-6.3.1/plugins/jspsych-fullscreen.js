@@ -46,29 +46,59 @@ jsPsych.plugins.fullscreen = (function() {
 
   plugin.trial = function(display_element, trial) {
 
-    // check if keys are allowed in fullscreen mode
-    var keyboardNotAllowed = typeof Element !== 'undefined' && 'ALLOW_KEYBOARD_INPUT' in Element;
-    if (keyboardNotAllowed) {
-      // This is Safari, and keyboard events will be disabled. Don't allow fullscreen here.
-      // do something else?
-      endTrial();
-    } else {
-      if(trial.fullscreen_mode){
-        display_element.innerHTML = trial.message + '<button id="jspsych-fullscreen-btn" class="jspsych-btn">'+trial.button_label+'</button>';
-        var listener = display_element.querySelector('#jspsych-fullscreen-btn').addEventListener('click', function() {
-          var element = document.documentElement;
-          if (element.requestFullscreen) {
-            element.requestFullscreen();
-          } else if (element.mozRequestFullScreen) {
-            element.mozRequestFullScreen();
-          } else if (element.webkitRequestFullscreen) {
-            element.webkitRequestFullscreen();
-          } else if (element.msRequestFullscreen) {
-            element.msRequestFullscreen();
+    // Use the current Fullscreen API directly. The original jsPsych 6 plug-in
+    // skipped every browser exposing the old WebKit keyboard constant, which
+    // can incorrectly bypass fullscreen in modern Safari/WebKit.
+    if(trial.fullscreen_mode){
+        display_element.innerHTML = trial.message +
+          '<button id="jspsych-fullscreen-btn" class="jspsych-btn">'+trial.button_label+'</button>' +
+          '<div id="jspsych-fullscreen-status" role="status" aria-live="polite" ' +
+            'style="min-height:24px;margin-top:12px;text-align:center;font-size:15px;color:#991b1b;"></div>';
+
+        var button = display_element.querySelector('#jspsych-fullscreen-btn');
+        var status = display_element.querySelector('#jspsych-fullscreen-status');
+
+        button.addEventListener('click', function() {
+          if (button.disabled) return;
+          button.disabled = true;
+          status.textContent = 'Entering full screen…';
+          status.style.color = '#475569';
+
+          var request;
+          if (typeof window.requestTaskFullscreen === 'function') {
+            request = window.requestTaskFullscreen();
+          } else {
+            var element = document.documentElement;
+            var requestMethod = element.requestFullscreen ||
+              element.mozRequestFullScreen || element.webkitRequestFullscreen ||
+              element.msRequestFullscreen;
+            try {
+              request = requestMethod
+                ? Promise.resolve(requestMethod.call(element))
+                : Promise.reject(new Error('Full-screen mode is unavailable.'));
+            } catch (error) {
+              request = Promise.reject(error);
+            }
           }
-          endTrial();
+
+          Promise.resolve(request).then(function() {
+            window._hasEnteredFullscreen = true;
+            endTrial(true);
+          }).catch(function() {
+            button.disabled = false;
+            status.style.color = '#991b1b';
+            status.textContent = 'Full-screen mode did not open. Please click the button to try again.';
+          });
         });
-      } else {
+    } else {
+        // This is an intentional end-of-task exit, so suppress the reminder.
+        window._hasEnteredFullscreen = false;
+        document.body.classList.remove('fullscreen-warning-visible');
+        var reminder = document.getElementById('fs-remind');
+        if (reminder) {
+          reminder.style.display = 'none';
+          reminder.setAttribute('aria-hidden', 'true');
+        }
         if ( document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement ) {
           if (document.exitFullscreen) {
             document.exitFullscreen();
@@ -80,18 +110,17 @@ jsPsych.plugins.fullscreen = (function() {
             document.webkitExitFullscreen();
           }
         }
-        endTrial();
-      }
+        endTrial(true);
     }
 
-    function endTrial() {
+    function endTrial(success) {
 
       display_element.innerHTML = '';
 
       jsPsych.pluginAPI.setTimeout(function(){
 
         var trial_data = {
-          success: !keyboardNotAllowed
+          success: success !== false
         };
 
         jsPsych.finishTrial(trial_data);

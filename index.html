@@ -6,11 +6,11 @@
   <!-- Load libraries -->
   <script src="static/lib/jquery-3.7.1/jquery-3.7.1.min.js"></script>
   <script src="static/lib/jspsych-6.3.1/jspsych.js"></script>
-  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-instructions.js?v=instruction-layout-20260922" type="text/javascript"></script>
+  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-instructions.js?v=instruction-layout-20260923" type="text/javascript"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-html-keyboard-response.js" type="text/javascript"></script>
 
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-call-function.js" type="text/javascript"></script>
-  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-fullscreen.js" type="text/javascript"></script>
+  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-fullscreen.js?v=fullscreen-20260923" type="text/javascript"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-html-button-response.js" type="text/javascript"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-preload.js" type="text/javascript"></script>
   <link href="static/lib/jspsych-6.3.1/css/jspsych.css" rel="stylesheet" type="text/css"></link>
@@ -72,6 +72,106 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <style>
+    :root {
+      --instruction-title-size: clamp(24px, 2vw, 28px);
+      --instruction-body-size: clamp(16px, 1.22vw, 18px);
+      --instruction-small-size: clamp(13px, 1vw, 15px);
+    }
+
+    @keyframes memory-slow-pop {
+      0%, 100% { transform: scale(1); opacity: .88; }
+      50% { transform: scale(1.035); opacity: 1; }
+    }
+
+    @keyframes memory-no-score-glow {
+      0%, 100% { text-shadow: 0 0 5px rgba(59, 130, 246, .13); }
+      50% { text-shadow: 0 0 12px rgba(59, 130, 246, .38); }
+    }
+
+    .memory-no-score-emphasis,
+    .memory-item-note-reminder {
+      display: inline-block;
+      transform-origin: center;
+      will-change: transform, opacity, text-shadow;
+    }
+
+    .memory-no-score-emphasis {
+      animation:
+        memory-slow-pop 2.8s ease-in-out infinite,
+        memory-no-score-glow 2.8s ease-in-out infinite;
+    }
+
+    .memory-item-note-reminder {
+      animation: memory-slow-pop 3.2s ease-in-out infinite;
+    }
+
+    /* Shared by the interactive instruction example and both real memory
+       sliders. The centered starting marker is intentionally only a faint
+       location cue; the first arrow press reveals the response knob. */
+    .memory-slider-thumb {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-sizing: border-box;
+      background: rgba(255,255,255,.07);
+      border: 1px solid rgba(255,255,255,.12);
+      box-shadow: none;
+      opacity: .14;
+      transition: left .08s ease, width .15s ease, height .15s ease,
+        background .15s ease, border .15s ease, box-shadow .15s ease,
+        opacity .15s ease;
+    }
+
+    .memory-slider-thumb.is-active {
+      width: 22px;
+      height: 22px;
+      background: rgba(255,255,255,.96);
+      border: 2px solid #fff;
+      box-shadow: 0 0 18px rgba(255,255,255,.52),
+        0 0 8px rgba(255,255,255,.20);
+      opacity: 1;
+    }
+
+    .memory-item-demo-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 260px));
+      justify-content: center;
+      column-gap: 42px;
+      row-gap: 10px;
+      width: min(86vw, 620px);
+      margin: 12px auto 4px;
+    }
+
+    .memory-item-demo-card:first-child {
+      grid-column: 1 / -1;
+      width: 260px;
+      justify-self: center;
+    }
+
+    .memory-item-demo-card .instruction-mock-frame {
+      box-sizing: border-box;
+      width: 100% !important;
+      height: clamp(125px, 18vh, 145px) !important;
+      margin: 4px auto !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .memory-no-score-emphasis,
+      .memory-item-note-reminder { animation: none; }
+    }
+
+    @media (max-width: 760px) {
+      .memory-item-demo-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+        width: min(88vw, 320px) !important;
+      }
+
+      .memory-item-demo-card:first-child {
+        grid-column: auto;
+        width: auto;
+      }
+    }
+
     body { margin: 50px; }
     .jspsych-display-element { transition: opacity 0.12s ease-in-out; }
     .jspsych-display-element.transitioning { opacity: 0; }
@@ -90,7 +190,6 @@
     .instruction-emphasis {
       display: inline-block;
       color: #111827 !important;
-      font-style: italic;
       font-weight: 800;
       transform-origin: center;
       animation: instruction-emphasis-pop 2.6s ease-in-out infinite;
@@ -154,29 +253,100 @@
       overflow-y: auto;
       overscroll-behavior: contain;
       scrollbar-gutter: stable both-edges;
-      padding: clamp(12px, 2.2vh, 26px) clamp(12px, 3vw, 44px)
+      padding: clamp(12px, 2.2vh, 26px) clamp(12px, 2vw, 44px)
                clamp(16px, 2.5vh, 30px);
+      text-align: center;
     }
 
     .instruction-copy {
       box-sizing: border-box;
-      max-width: 780px;
+      width: 100%;
+      max-width: 1120px;
       margin: 0 auto;
       color: #111827;
       text-align: center;
-      font-size: clamp(16px, 1.25vw, 19px);
-      line-height: 1.58;
+      font-size: var(--instruction-body-size);
+      line-height: 1.42;
     }
 
     .instruction-headline {
-      margin-bottom: 12px;
-      font-size: clamp(22px, 2vw, 28px);
+      max-width: 100%;
+      margin: 0 auto 14px;
+      font-size: var(--instruction-title-size) !important;
       font-weight: 800;
       line-height: 1.25;
+      text-align: center;
+      text-wrap: balance;
+    }
+
+    /* Reference-derived key sentences replace invented summary headings on
+       instruction pages while retaining the same consistent visual hierarchy. */
+    .instruction-key-line {
+      font-size: var(--instruction-title-size) !important;
+      font-weight: 800;
+      line-height: 1.25;
+      color: #0f172a;
+      text-align: center;
+      text-wrap: balance;
+    }
+
+    .instruction-strategy-line {
+      font-size: var(--instruction-title-size);
+      font-weight: 500;
+      line-height: 1.28;
+      color: #0f172a;
+      text-align: center;
+      text-wrap: balance;
+    }
+
+    .instruction-strategy-line strong {
+      font-weight: 850;
+    }
+
+    .instruction-strategy-line em {
+      font-style: italic;
     }
 
     .instruction-copy-body {
-      text-wrap: pretty;
+      text-align: center;
+    }
+
+    /* One semantic sentence per row. Long sentences can be divided into
+       clause-sized segments: segments stay close together, while complete
+       sentences receive a larger vertical gap. */
+    .instruction-lines {
+      width: 100%;
+      max-width: 1120px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .instruction-sentence {
+      display: block;
+      margin: 0 auto;
+    }
+
+    .instruction-sentence + .instruction-sentence {
+      margin-top: 0.7em;
+    }
+
+    .instruction-segment {
+      display: block;
+      width: fit-content;
+      max-width: 100%;
+      margin: 0 auto;
+      text-align: center;
+      text-wrap: balance;
+    }
+
+    .instruction-segment + .instruction-segment {
+      margin-top: 0.16em;
+    }
+
+    @media (min-width: 1000px) {
+      .instruction-copy-body > .instruction-lines .instruction-segment {
+        white-space: nowrap;
+      }
     }
 
     .instruction-intro-card {
@@ -184,23 +354,59 @@
       width: min(620px, 100%);
       margin: clamp(12px, 4vh, 36px) auto;
       padding: clamp(18px, 3vw, 24px) clamp(18px, 4vw, 30px);
-      font-size: clamp(16px, 1.25vw, 19px);
-      line-height: 1.55;
+      font-size: var(--instruction-body-size);
+      line-height: 1.42;
+      text-align: center;
     }
 
     .instruction-intro-list {
-      display: inline-block;
+      display: block;
       max-width: 100%;
       margin: 0 auto;
       padding: 0;
-      font-size: clamp(16px, 1.2vw, 18px);
-      text-align: left;
+      font-size: var(--instruction-body-size);
+      text-align: center;
+    }
+
+    .instruction-intro-main {
+      margin: 0 auto 14px;
+    }
+
+    .instruction-intro-list li {
+      text-align: center;
+      text-wrap: balance;
     }
 
     .instruction-start-hint {
       margin-top: 18px;
       color: #475569;
-      font-size: 15px;
+      font-size: var(--instruction-small-size);
+      text-align: center;
+    }
+
+    /* Sequence diagrams size each miniature scene to its grid cell instead
+       of allowing viewport-based demo widths to collide with adjacent cards. */
+    .instruction-sequence-item .instruction-mock-frame {
+      box-sizing: border-box;
+      width: 100% !important;
+      height: clamp(112px, 19vh, 185px) !important;
+      margin: 8px auto !important;
+    }
+
+    @media (max-width: 700px) {
+      .instruction-movement-comparison {
+        grid-template-columns: minmax(0, 1fr) !important;
+        width: 100% !important;
+      }
+
+      .instruction-sequence-or {
+        justify-content: center;
+        padding-top: 0 !important;
+      }
+
+      .instruction-sequence-item .instruction-mock-frame {
+        height: clamp(104px, 16vh, 145px) !important;
+      }
     }
 
     .jspsych-instructions-nav {
@@ -400,7 +606,7 @@
     /* Persistent fullscreen reminder — small corner badge, non-intrusive */
     #fs-remind {
       position: fixed;
-      top: 8px;
+      top: 48px;
       right: 8px;
       z-index: 99999;
       padding: 8px 14px;
@@ -412,14 +618,27 @@
       user-select: none;
       display: none;
       box-shadow: 0 4px 14px rgba(0,0,0,.28);
+      max-width: min(230px, calc(100vw - 20px));
+      text-align: center;
     }
     #fs-remind:hover {
       background: rgba(30,30,30,.98);
     }
+
+    #fs-remind:focus-visible {
+      outline: 3px solid rgba(96,165,250,.72);
+      outline-offset: 3px;
+    }
+
+    /* When the reminder is visible, reserve its vertical area on text-heavy
+       instruction pages so it never covers a heading or sentence. */
+    body.fullscreen-warning-visible .jspsych-instructions-page {
+      padding-top: max(clamp(12px, 2.2vh, 26px), 54px);
+    }
   </style>
 </head>
 <body>
-<div id="fs-remind" onclick="document.documentElement.requestFullscreen().catch(function(){})">⛶ Return to full screen</div>
+<button id="fs-remind" type="button" aria-live="polite" aria-hidden="true">⛶ Return to full screen</button>
 </body>
 <script>
   // ──────────────────────────────────────────────────────────────
@@ -620,15 +839,15 @@
 
       '<div style="font-size:44px;margin-bottom:10px;">🖥️</div>' +
 
-      '<div style="font-size:30px;font-weight:850;margin-bottom:14px;">Full-Screen Mode</div>' +
+      '<div class="instruction-headline">Full-Screen Mode</div>' +
 
-      '<p style="font-size:20px;margin:0 0 14px 0;">' +
+      '<p style="font-size:var(--instruction-body-size);margin:0 0 14px 0;">' +
 
         'This study runs best in full screen.' +
 
       '</p>' +
 
-      '<p style="font-size:16px;color:#64748b;margin:0;">' +
+      '<p style="font-size:var(--instruction-small-size);color:#64748b;margin:0;">' +
 
         'If you press <strong>Esc</strong> to exit, a reminder will appear until you return.' +
 
@@ -637,84 +856,113 @@
     '</div>',
     button_label: 'Enter full screen and continue',
     delay_after: 200,
-    on_finish: function() {
-      window._hasEnteredFullscreen = true;
+    on_finish: function(data) {
+      window._hasEnteredFullscreen = !!(data && data.success);
     }
   };
 
   // Persistent fullscreen monitor shows/hides the corner badge.
   (function initFullscreenMonitor() {
     window._hasEnteredFullscreen = window._hasEnteredFullscreen || false;
+    var fullscreenErrorUntil = 0;
+
+    function fullscreenElement() {
+      return (
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement ||
+        null
+      );
+    }
+
+    function requestTaskFullscreen() {
+      var target = document.documentElement;
+      var req =
+        target.requestFullscreen ||
+        target.webkitRequestFullscreen ||
+        target.mozRequestFullScreen ||
+        target.msRequestFullscreen;
+
+      if (!req) {
+        return Promise.reject(new Error('Full-screen mode is not supported by this browser.'));
+      }
+
+      try {
+        return Promise.resolve(req.call(target)).then(function() {
+          window._hasEnteredFullscreen = true;
+          checkFullscreenState();
+          return true;
+        });
+      } catch (error) {
+        return Promise.reject(error);
+      }
+    }
+
+    // The entry plugin and persistent reminder share this tested request path.
+    window.requestTaskFullscreen = requestTaskFullscreen;
 
     function ensureBadge() {
       var badge = document.getElementById('fs-remind');
 
       if (!badge) {
-        badge = document.createElement('div');
+        badge = document.createElement('button');
         badge.id = 'fs-remind';
-        badge.innerHTML = '⛶ Return to full screen';
-        badge.onclick = function() {
-          var target = document.documentElement;
-          var req =
-            target.requestFullscreen ||
-            target.webkitRequestFullscreen ||
-            target.mozRequestFullScreen ||
-            target.msRequestFullscreen;
-
-          if (req) {
-            req.call(target);
-            window._hasEnteredFullscreen = true;
-            setTimeout(checkFullscreenState, 250);
-          }
-        };
+        badge.setAttribute('type', 'button');
 
         document.documentElement.appendChild(badge);
       }
+
+      badge.removeAttribute('onclick');
+      badge.textContent = '⛶ Return to full screen';
+      badge.setAttribute('role', 'button');
+      badge.setAttribute('tabindex', '0');
+      badge.onclick = function() {
+        fullscreenErrorUntil = 0;
+        badge.textContent = 'Returning to full screen…';
+        requestTaskFullscreen().catch(function() {
+          fullscreenErrorUntil = Date.now() + 4000;
+          badge.textContent = 'Could not enter full screen — click to retry';
+          badge.style.display = 'block';
+          badge.setAttribute('aria-hidden', 'false');
+          document.body.classList.add('fullscreen-warning-visible');
+        });
+      };
+      badge.onkeydown = function(event) {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          badge.click();
+        }
+      };
 
       return badge;
     }
 
     function isDomFullscreen() {
-      return !!(
-        document.fullscreenElement ||
-        document.webkitFullscreenElement ||
-        document.mozFullScreenElement ||
-        document.msFullscreenElement
-      );
-    }
-
-    function looksLikeFullscreenViewport() {
-      // Fallback only. Browser-window fullscreen is not standardized.
-      var heightGap = Math.abs(window.innerHeight - screen.height);
-      var widthGap = Math.abs(window.innerWidth - screen.width);
-
-      return heightGap < 80 && widthGap < 80;
+      return !!fullscreenElement();
     }
 
     function shouldShowBadge() {
       if (!window._hasEnteredFullscreen) return false;
-
-      // If DOM fullscreen is active, hide badge.
-      if (isDomFullscreen()) return false;
-
-      // If browser still appears visually fullscreen, hide badge.
-      // This avoids showing the badge when the user is in browser fullscreen
-      // but not DOM fullscreen.
-      if (looksLikeFullscreenViewport()) return false;
-
-      return true;
+      return !isDomFullscreen();
     }
 
     function checkFullscreenState() {
       var badge = ensureBadge();
+      var visible = false;
 
       if (isDomFullscreen()) {
         window._hasEnteredFullscreen = true;
-        badge.style.display = 'none';
-        return;
+      } else {
+        visible = shouldShowBadge();
       }
 
-      badge.style.display = shouldShowBadge() ? 'block' : 'none';
+      badge.textContent = Date.now() < fullscreenErrorUntil
+        ? 'Could not enter full screen — click to retry'
+        : '⛶ Return to full screen';
+      badge.style.display = visible ? 'block' : 'none';
+      badge.setAttribute('aria-hidden', visible ? 'false' : 'true');
+      document.body.classList.toggle('fullscreen-warning-visible', visible);
     }
 
     [
@@ -745,13 +993,16 @@
     type: 'instructions',
     pages: [
       glowSquaresScreen(
-        '<div style="max-width:760px;margin:0 auto;text-align:center;font-size:20px;line-height:1.65;color:#1f2937;">' +
-          '<div class="glow-title" style="font-size:32px;font-weight:800;margin-bottom:18px;color:#0f172a;">Welcome to the drone game!</div>' +
-          '<p>Please follow the instructions and complete the task. It will take approximately 45 minutes.</p>' +
-          '<p>There will be a game, followed by a questionnaire.</p>' +
-          '<p><strong>Bonus payment</strong> will be processed based on game performance and questionnaire data quality checks.</p>' +
-          '<p><span class="instruction-emphasis">To ensure maximal payment, please read all instructions, pay close attention to the game, and read through every questionnaire item.</span></p>' +
-        '</div>',
+        pageBody('Welcome to the drone game!', [
+          'Please follow the instructions and complete the task.',
+          'It will take approximately 45 minutes.',
+          'There will be a game, followed by a questionnaire.',
+          '<strong>Bonus payment</strong> will be processed based on game performance and questionnaire data quality checks.',
+          [
+            '<span class="instruction-emphasis">To ensure maximal payment, please read all instructions,</span>',
+            '<span class="instruction-emphasis">pay close attention to the game, and read through every questionnaire item.</span>'
+          ]
+        ], { headlineClass: 'glow-title' }),
         { minHeight: '40vh', glowColor: '30,64,175', density: 7 }
       )
     ],
@@ -759,7 +1010,7 @@
     button_label_previous: "Prev",
     button_label_next: "Next",
     data: {
-      task_version: 'v3.2-memory-condition-label-fix',
+      task_version: 'v3.6-emphasis-hierarchy',
       stimuli_version: stimuli_version,
 
       true_vol: factors_vol,
@@ -823,7 +1074,7 @@
 
   // ──────────────────────────────────────────────────────────────
   // Randomized practice-position helpers
-  // Used only for practice blocks 1–5.
+  // Used only for practice blocks 1–4.
   // Main-task latent trajectories remain unchanged.
   // ──────────────────────────────────────────────────────────────
   function clampPracticeX(x) {
@@ -891,18 +1142,15 @@
     //
     // Drone visibility (`show_drone`):
     //   practice 1, 2, 3 — drone VISIBLE (drone-visible warmup)
-    //   practice 4, 5    — drone HIDDEN (matches main task)
+    //   practice 4       — drone HIDDEN (matches main task)
     //
     // Item visibility (`hideStimulus`):
-    //   practice 1          — items HIDDEN (items not yet introduced)
-    //   practice 2, 3, 4, 5 — items VISIBLE
+    //   practices 1–4 — items HIDDEN (items are introduced only after
+    //                   all three scored practice blocks are complete)
     //
-    // Valence is set per-trial below; practices 3 and 5 use 'loss'.
+    // Valence is set per-trial below; practice 3 uses 'loss'.
     // ────────────────────────────────────────────────────────────
-    var hideStimulus = false;
-    if (practice_no === 1) {
-      hideStimulus = true;
-    }
+    var hideStimulus = (practice_no >= 1 && practice_no <= 4);
 
     if (practice_no == 1) {
       is_moving_practice = true;
@@ -917,10 +1165,6 @@
       missed_threshold = 2;
       block_order = [0];
     } else if (practice_no == 4) {
-      show_drone = false;
-      num_trials = 3;
-      block_order = [0];
-    } else if (practice_no == 5) {
       show_drone = false;
       num_trials = 3;
       block_order = [0];
@@ -953,7 +1197,7 @@
     // Tracks previous practice drone position so practice drone locations
     // move a meaningful distance from one supply-drop to another.
     var practiceDronePath = null;
-    if (practice_no >= 1 && practice_no <= 5) {
+    if (practice_no >= 1 && practice_no <= 4) {
       practiceDronePath = makePracticeDronePath(num_trials);
     }
 
@@ -966,10 +1210,10 @@
       // number, while `design_idx` stores the canonical condition identity.
       //
       // Practice valence coverage:
-      // Practice 3 and practice 5 are set to 'loss'.
+      // Practice 3 is set to 'loss'.
       // ────────────────────────────────────────────────────────────
       var design_idx = (practice_no === 0) ? block_order[j] : 0;
-      var practice_valence = (practice_no === 3 || practice_no === 5) ? 'loss' : 'reward';
+      var practice_valence = (practice_no === 3) ? 'loss' : 'reward';
 
       if (block_intro) {
         var planetNum = j + 1;
@@ -1057,7 +1301,8 @@
                   'box-shadow:0 0 22px rgba(' + missionGlowColor + ',.7);"></div>' +
                 '<div class="glow-title" style="' +
                   'font-size:26px;font-weight:800;color:#fff;' +
-                  'animation:glow-pop .6s cubic-bezier(.2,.8,.3,1.1) both;">' +
+                  'animation:glow-pop .6s cubic-bezier(.2,.8,.3,1.1) both,' +
+                    'glow-pulse 2.2s ease-in-out .6s infinite;">' +
                   'We are now beginning Planet ' + planetNum + '.' +
                 '</div>' +
               '</div>',
@@ -1074,11 +1319,12 @@
         var cdist = Array.isArray(supply_distribution[idx]) ? supply_distribution[idx].slice() : supply_distribution.slice();
 
         // Main task uses per-block shuffled PNGs. Practice uses one dedicated
-        // emoji per configured turn: 1 hidden warm-up item, then 4 × 3 visible
-        // items. Fixed offsets prevent each practice block from restarting at
-        // the beginning of the emoji pool.
+        // emoji per configured turn: 1 movement warm-up identity, then 3 × 3
+        // scored-practice identities. All remain visually hidden; the fixed
+        // offsets preserve unique saved identities without introducing items
+        // before the memory instructions.
         var stim_img;
-        if (practice_no >= 1 && practice_no <= 5) {
+        if (practice_no >= 1 && practice_no <= 4) {
           var practiceStimulusOffset = (practice_no === 1)
             ? 0
             : 1 + ((practice_no - 2) * 3);
@@ -1096,15 +1342,15 @@
         }
 
         // Practice positions:
-        // - Practices 1–5 use randomized underlying drone positions.
+        // - Practices 1–4 use randomized underlying drone positions.
         // - The bag is stochastically shifted around that drone position.
-        // - Practices 4–5 still keep the drone hidden through show_drone = false.
+        // - Practice 4 keeps the drone hidden through show_drone = false.
         // Main-task positions remain the designed latent trajectories.
         var thisDronePosition;
         var thisDroneStartPosition;
         var thisBagPosition;
 
-        if (practice_no >= 1 && practice_no <= 5) {
+        if (practice_no >= 1 && practice_no <= 4) {
           thisDronePosition = practiceDronePath[i % practiceDronePath.length];
 
           // For visible practice trials, animate from previous drone location
@@ -1238,7 +1484,6 @@
   var practice2 = make_trials(2, block_order);
   var practice3 = make_trials(3, block_order);
   var practice4 = make_trials(4, block_order);
-  var practice5 = make_trials(5, block_order);
   var trials = make_trials(0, block_order);
 
   function create_memory_timeline(blockNum) {
@@ -1320,37 +1565,42 @@
                   '50%{transform:scale(1.04);text-shadow:0 0 15px rgba(' + _mcGlowColor + ',.82),' +
                     '0 0 28px rgba(' + _mcGlowColor + ',.42)}' +
                 '}' +
-                '.memory-word-pop{display:inline-block;font-style:italic;font-weight:850;color:#fff;' +
+                '.memory-word-pop{display:inline-block;font-weight:850;color:#fff;' +
                   'transform-origin:center;animation:memory-word-pop 2.2s ease-in-out infinite;}' +
                 '@media (prefers-reduced-motion:reduce){.memory-word-pop{animation:none}}' +
               '</style>' +
               '<div style="' +
-                'max-width:680px;margin:0 auto;text-align:center;' +
+                'max-width:720px;margin:0 auto;text-align:center;' +
                 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
-                'line-height:1.65;color:#e2e8f0;">' +
+                'line-height:1.45;color:#e2e8f0;">' +
 
-                '<p style="font-size:19px;margin:0 0 16px 0;color:rgba(255,255,255,.94);">' +
-                  'For each set of items, you will answer three questions:<br>' +
-                  'Which item in the pair appeared first during the game?<br>' +
-                  'How far apart in time did you feel these two items were during the game?<br>' +
-                  'When did this item appear between the other two items?' +
+                '<p style="font-size:14px;margin:0 auto 14px;color:rgba(255,255,255,.72);max-width:640px;">' +
+                  'For each set of items: choose which appeared first · rate how far apart they felt · place the highlighted item between them.' +
                 '</p>' +
 
-                '<div style="max-width:560px;margin:0 auto 18px;padding:14px 20px;border-radius:14px;' +
-                  'background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);' +
-                  'box-shadow:0 8px 24px rgba(0,0,0,.14);">' +
-                  '<p style="font-size:17px;margin:0 0 8px;color:rgba(255,255,255,.86);">' +
-                    'Press <strong style="color:#fff;">← or →</strong> to choose an item. Press or hold them to move a slider.' +
-                  '</p>' +
-                  '<p style="font-size:16px;margin:0 0 8px;color:rgba(255,255,255,.86);">' +
-                    'Respond within <strong style="color:#fff;">5 seconds</strong>. After your first slider move, the answer submits automatically in <strong style="color:#fff;">7 seconds</strong>.' +
-                  '</p>' +
-                  '<p style="font-size:16px;margin:0;color:rgba(255,255,255,.86);">' +
-                    '<strong style="color:#fff;">Press Enter or Space</strong> to submit a slider answer sooner.' +
-                  '</p>' +
+                '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;' +
+                  'max-width:610px;margin:0 auto 14px;">' +
+                  '<div style="padding:13px 16px;border-radius:14px;background:rgba(255,255,255,.12);' +
+                    'border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 24px rgba(0,0,0,.15);">' +
+                    '<div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;' +
+                      'color:rgba(255,255,255,.68);margin-bottom:2px;">Start each response within</div>' +
+                    '<div style="font-size:30px;font-weight:900;line-height:1.1;color:#fff;text-shadow:0 0 16px rgba(' + _mcGlowColor + ',.72);">5 seconds</div>' +
+                  '</div>' +
+                  '<div style="padding:13px 16px;border-radius:14px;background:rgba(255,255,255,.12);' +
+                    'border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 24px rgba(0,0,0,.15);">' +
+                    '<div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;' +
+                      'color:rgba(255,255,255,.68);margin-bottom:2px;">Slider auto-submits after</div>' +
+                    '<div style="font-size:30px;font-weight:900;line-height:1.1;color:#fff;text-shadow:0 0 16px rgba(' + _mcGlowColor + ',.72);">7 seconds</div>' +
+                    '<div style="font-size:11px;color:rgba(255,255,255,.62);margin-top:2px;">from your first arrow press</div>' +
+                  '</div>' +
                 '</div>' +
 
-                '<p style="font-size:20px;margin:0 0 16px 0;color:rgba(255,255,255,.94);">' +
+                '<p style="font-size:14px;margin:0 0 12px;color:rgba(255,255,255,.78);line-height:1.5;">' +
+                  '<span style="display:block;">Use <strong style="color:#fff;">← →</strong> to choose or move.</span>' +
+                  '<span style="display:block;">Press <strong style="color:#fff;">Enter or Space</strong> to submit a slider sooner.</span>' +
+                '</p>' +
+
+                '<p style="font-size:18px;margin:0 0 14px;color:rgba(255,255,255,.94);">' +
                   'Answer <span class="memory-word-pop">as quickly as you can</span>.' +
                 '</p>' +
 
@@ -1363,11 +1613,11 @@
               '</div>',
               { minHeight: '24vh', glowColor: _mcGlowColor, density: 5 }
             )
-          : '<div style="text-align:center;padding:40px;color:#fff;line-height:1.7;">' +
-              '<span style="font-size:19px;">For each set of items, answer three questions: Which item in the pair appeared first during the game? How far apart in time did you feel these two items were during the game? When did this item appear between the other two items?</span><br>' +
-              '<span style="font-size:17px;">Press ← or → to choose an item. Press or hold them to move a slider.</span><br>' +
-              '<span style="font-size:17px;">Respond within 5 seconds. After your first slider move, the answer submits automatically in 7 seconds. <strong>Press Enter or Space</strong> to submit sooner.</span><br>' +
-              '<span style="font-size:20px;">Answer as quickly as you can.</span><br>' +
+          : '<div style="text-align:center;padding:40px;color:#fff;line-height:1.5;">' +
+              '<span style="font-size:14px;opacity:.76;">For each set: choose which appeared first, rate the time gap, then place the highlighted item.</span><br><br>' +
+              '<strong style="font-size:26px;">Start within 5 seconds · Slider submits 7 seconds after your first arrow press.</strong><br><br>' +
+              '<span style="font-size:14px;">Use ← → to respond. Press Enter or Space to submit a slider sooner.</span><br>' +
+              '<span style="font-size:18px;">Answer as quickly as you can.</span><br>' +
               '<span style="font-size:16px;">Press any key to begin. Begins automatically in 15 seconds.</span></div>'
         ),
       choices: jsPsych.ALL_KEYS,
@@ -1584,8 +1834,6 @@
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst3_drone_disappears));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(block_intro_green_hidden));
   instructions_loop = instructions_loop.concat(practice4);
-  instructions_loop = instructions_loop.concat(addSmoothTransitions(block_intro_red_hidden));
-  instructions_loop = instructions_loop.concat(practice5);
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_full_game));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(quiz));
 
@@ -1614,13 +1862,12 @@
     type: 'instructions',
     pages: [
       glowSquaresScreen(
-        '<div style="max-width:680px;margin:0 auto;text-align:center;font-size:20px;line-height:1.7;color:#1f2937;">' +
-          '<div class="glow-title" style="font-size:27px;font-weight:800;margin-bottom:14px;color:#0f172a;">Before You Start</div>' +
-          '<p>You will now see the instructions for the game.</p>' +
-          '<p>Please pay attention to the instructions and complete the comprehension check.</p>' +
-          '<p>You must answer every question correctly before the game starts.</p>' +
-          '<p><strong>A bonus payment</strong> will be processed based on your game performance.</p>' +
-        '</div>',
+        pageBody(null, [
+          keyLine('You will now see the instructions for the game.', 'glow-title'),
+          'Please pay attention to the instructions and complete the comprehension check.',
+          'You must answer every question correctly before the game starts.',
+          '<strong>A bonus payment</strong> will be processed based on your game performance.'
+        ]),
         { minHeight: '32vh', glowColor: '30,64,175', density: 5 }
       )
     ],

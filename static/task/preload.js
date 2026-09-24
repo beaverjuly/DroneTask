@@ -75,6 +75,20 @@
   ];
   window.FALLBACK_EMOJI = FALLBACK_EMOJI;
 
+  // Practice items must remain visually distinct from every real-game
+  // fallback. Fail at startup if either pool is edited into an overlap.
+  var practiceFallbackOverlap = Array.isArray(window.PRACTICE_EMOJI)
+    ? window.PRACTICE_EMOJI.filter(function (emoji) {
+        return FALLBACK_EMOJI.indexOf(emoji) !== -1;
+      })
+    : [];
+  if (practiceFallbackOverlap.length > 0) {
+    throw new Error(
+      'Practice emoji overlap real-game fallback emoji: ' +
+      practiceFallbackOverlap.join(', ')
+    );
+  }
+
   // ── Deterministic URL → emoji mapping ────────────────────────
   // Same URL always maps to the same emoji across sessions and
   // across encoding/memory phases. Uses a simple string hash.

@@ -231,16 +231,11 @@ jsPsych.plugins['memory-task'] = (function() {
   }
 
   function styleSliderThumb(thumb, active, accentFull, accentBorder, accentGlow) {
-    thumb.style.width = active ? '22px' : '20px';
-    thumb.style.height = active ? '22px' : '20px';
-    thumb.style.borderRadius = '50%';
-    thumb.style.background = active ? accentFull : 'rgba(255,255,255,.42)';
-    thumb.style.border = active
-      ? '2px solid ' + accentBorder
-      : '2px solid rgba(255,255,255,.55)';
-    thumb.style.boxShadow = active
-      ? '0 0 18px ' + accentGlow + ',0 0 8px rgba(255,255,255,.18)'
-      : '0 0 8px rgba(0,0,0,.25)';
+    // Keep the instruction try-out and both real memory sliders identical:
+    // a nearly invisible centered marker before movement, then a clearly
+    // visible neutral knob after the participant presses an arrow key.
+    thumb.classList.add('memory-slider-thumb');
+    thumb.classList.toggle('is-active', !!active);
   }
 
   function styleSliderTick(tick, index) {

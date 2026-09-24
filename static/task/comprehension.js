@@ -35,80 +35,79 @@ jsPsych.plugins['comprehension'] = (function() {
 
   var PROMPTS = [
     {
-      text: 'In this game, drones drop supplies toward the rail. Your goal is to catch <strong>as many pieces as you can</strong> by moving your collector to where you think the pieces will land.',
+      text: '<strong>Your goal</strong> is to move the collector as close to the hidden drone as you can.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst1'
     },
     {
-      text: 'When your collector is <strong>white</strong>, you can <strong>move it</strong>. When it is <strong>grey, it is locked</strong>.',
-      options: ['True', 'False'],
-      correct: 'True',
-      topic: 'inst2'
-    },
-    {
-      text: 'Each <strong>supply</strong> always lands <em>directly below</em> the <strong>drone</strong>.',
+      text: 'The drone <strong>never changes</strong> its location.',
       options: ['True', 'False'],
       correct: 'False',
       topic: 'inst3'
     },
     {
-      text: 'For <strong>green supplies</strong>, <strong>catching more pieces</strong> helps you <strong>earn more points</strong>.',
-      options: ['True', 'False'],
-      correct: 'True',
-      topic: 'inst2'
-    },
-    {
-      text: 'For <strong>red supplies</strong>, <strong>catching more pieces</strong> makes you <strong>lose more points</strong>.',
+      text: 'You can move the <strong>collector</strong> both when it is white and when it is grey.',
       options: ['True', 'False'],
       correct: 'False',
       topic: 'inst2'
     },
     {
-      text: 'If you leave the <strong>collector in one place</strong> for more than a few turns, you will be warned, and if you persist, the <strong>game may end early</strong>.',
+      text: 'The supply will land near the drone, but its <strong>exact position</strong> will vary around the drone.',
+      options: ['True', 'False'],
+      correct: 'True',
+      topic: 'inst3'
+    },
+    {
+      text: 'Your <strong>best strategy</strong> is to place the collector directly under where you think the hidden drone is.',
+      options: ['True', 'False'],
+      correct: 'True',
+      topic: 'inst3'
+    },
+    {
+      text: 'If you leave the collector in one place for a long time, the game may <strong>end early</strong>.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst2'
     },
     {
-      text: 'You should <strong>note the items</strong> as they appear, but you do not need to <strong>memorize</strong> them.',
+      text: 'Your bonus is based on your <strong>final score</strong> across the game.',
+      options: ['True', 'False'],
+      correct: 'True',
+      topic: 'inst2'
+    },
+    {
+      text: 'You should note these items as they appear, but you <strong>do not</strong> need to memorize them.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst4'
     },
-
     {
-      text: 'Because the drone is hidden in the full game, you can use where supplies have landed to <strong>estimate the drone’s position</strong>.',
+      text: 'There will be a <strong>memory task</strong> after each planet based on the items that appear.',
       options: ['True', 'False'],
       correct: 'True',
-      topic: 'inst3'
-    },
-    {
-      text: 'In the <strong>full game</strong>, you can see the drone while it drops a supply.',
-      options: ['True', 'False'],
-      correct: 'False',
-      topic: 'inst3'
-    },
-    {
-      text: 'The best prediction for the drone’s position on one turn is its position on the previous turn, but it may <strong>move to a new location at any time</strong>.',
-      options: ['True', 'False'],
-      correct: 'True',
-      topic: 'inst3'
-    },
-    {
-      text: 'Your best strategy is to position the <strong>collector directly under where you think the drone is located</strong>.',
-      options: ['True', 'False'],
-      correct: 'True',
-      topic: 'inst3'
-    },
-    {
-      text: 'How many <strong>planets</strong> are in the <strong>full game</strong>?',
-      options: ['1', '2', '3', '4'],
-      correct: '4',
       topic: 'inst4'
     },
     {
-      text: 'The memory task asks which item appeared first, how far apart in time two items felt, and when another item appeared between them. These answers <strong>do not affect</strong> your score.',
+      text: 'All planets have the <strong>same wind</strong> patterns and drones with the same movement.',
+      options: ['True', 'False'],
+      correct: 'False',
+      topic: 'inst4'
+    },
+    {
+      text: 'For <strong>green supplies</strong>, catching more pieces means earning more points.',
+      options: ['True', 'False'],
+      correct: 'True',
+      topic: 'inst2'
+    },
+    {
+      text: 'For <strong>red supplies</strong>, catching more pieces means losing fewer points.',
+      options: ['True', 'False'],
+      correct: 'True',
+      topic: 'inst2'
+    },
+    {
+      text: 'The memory task asks <strong>three questions</strong>: which item appeared first, how far apart in time two items felt, and when another item appeared between them. These answers do not affect your score.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst4'
@@ -121,6 +120,28 @@ jsPsych.plugins['comprehension'] = (function() {
     inst3: 'wind and drone movement',
     inst4: 'full game and memory task'
   };
+  var STATE_VERSION = 'reference-aligned-13-v1';
+
+  function freshState() {
+    return {
+      version: STATE_VERSION,
+      responses:   PROMPTS.map(function() { return null; }),
+      correctness: PROMPTS.map(function() { return null; }),
+      reviewed:    PROMPTS.map(function() { return false; }),
+      attempts: 0
+    };
+  }
+
+  function stateIsValid(state) {
+    return !!(
+      state &&
+      state.version === STATE_VERSION &&
+      Array.isArray(state.responses) && state.responses.length === PROMPTS.length &&
+      Array.isArray(state.correctness) && state.correctness.length === PROMPTS.length &&
+      Array.isArray(state.reviewed) && state.reviewed.length === PROMPTS.length &&
+      typeof state.attempts === 'number' && state.attempts >= 0
+    );
+  }
 
   function buildStyles() {
     return [
@@ -164,7 +185,7 @@ jsPsych.plugins['comprehension'] = (function() {
       '.q-status-cta{margin-left:auto;}',
       '.q-text{font-size:clamp(16px,1.35vw,17px);line-height:1.5;margin:0;text-wrap:pretty;}',
       '.q-text strong{font-weight:800;color:#111827;}',
-      '.q-text em{font-style:italic;font-weight:700;color:#111827;}',
+      '.q-text em{font-style:italic;font-weight:400;color:#111827;}',
       '.q-options{display:flex;gap:10px;flex-wrap:wrap;margin-left:38px;}',
       '.q-option{display:inline-flex;align-items:center;gap:8px;min-width:96px;padding:8px 12px;',
         'border-radius:999px;background:#fff;border:1px solid #d1d5db;font-size:15px;font-weight:650;}',
@@ -216,7 +237,11 @@ jsPsych.plugins['comprehension'] = (function() {
                    'Click to review &#x2192;</span>';
     }
 
-    var html = '<div class="comp-q ' + status + '" data-q-idx="' + idx + '">';
+    var reviewAttrs = status === 'wrong-locked'
+      ? ' role="button" tabindex="0" aria-label="Question ' + (idx + 1) +
+        ' is incorrect. Review the relevant instructions."'
+      : '';
+    var html = '<div class="comp-q ' + status + '" data-q-idx="' + idx + '"' + reviewAttrs + '>';
     html += '<div class="q-topline">';
     html +=   '<div class="q-num">' + (idx + 1) + '</div>';
     html +=   '<div class="q-body">';
@@ -261,8 +286,8 @@ jsPsych.plugins['comprehension'] = (function() {
     html += '<div class="comp-shell"><div class="comp-card">';
     html +=   '<p class="comp-subtitle">';
     html +=     'Answer <strong>all questions correctly</strong> before you start playing.<br>';
-    html +=     'If an answer is incorrect, click it to <strong>review the relevant instructions</strong>, ';
-    html +=     'and then <strong>change</strong> your answer. You may continue until all answers are correct.<br>';
+    html +=     'If an answer is incorrect, click it to review the relevant instructions, ';
+    html +=     'and then <strong>change your answer</strong>. You may continue until all answers are correct.<br>';
     html +=   '</p>';
     html += '</div>';
 
@@ -303,13 +328,8 @@ jsPsych.plugins['comprehension'] = (function() {
   plugin.trial = function(display_element, trial) {
     var startTime = performance.now();
 
-    if (!window.__compState) {
-      window.__compState = {
-        responses:   PROMPTS.map(function() { return null; }),
-        correctness: PROMPTS.map(function() { return null; }),
-        reviewed:    PROMPTS.map(function() { return false; }),
-        attempts: 0
-      };
+    if (!stateIsValid(window.__compState)) {
+      window.__compState = freshState();
     }
     var state = window.__compState;
 
@@ -328,6 +348,7 @@ jsPsych.plugins['comprehension'] = (function() {
       var listEl = display_element.querySelector('#comp-list');
       var submitBtn = display_element.querySelector('#comp-submit');
       listEl.addEventListener('click', onCardClick);
+      listEl.addEventListener('keydown', onCardKeyDown);
       listEl.addEventListener('change', onRadioChange);
       submitBtn.addEventListener('click', onSubmitClick);
     }
@@ -359,10 +380,10 @@ jsPsych.plugins['comprehension'] = (function() {
       }
     }
 
-    function onCardClick(e) {
-      var card = e.target.closest('.comp-q');
+    function beginReview(card) {
       if (!card || !card.classList.contains('wrong-locked')) return;
       var idx = parseInt(card.getAttribute('data-q-idx'), 10);
+      if (!isFinite(idx) || idx < 0 || idx >= PROMPTS.length) return;
       snapshotEditable();
       state.reviewed[idx] = true;
       finishWith({
@@ -370,6 +391,18 @@ jsPsych.plugins['comprehension'] = (function() {
         review_topic: PROMPTS[idx].topic,
         clicked_question: idx + 1
       });
+    }
+
+    function onCardClick(e) {
+      beginReview(e.target.closest('.comp-q'));
+    }
+
+    function onCardKeyDown(e) {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      var card = e.target.closest('.comp-q');
+      if (!card || !card.classList.contains('wrong-locked')) return;
+      e.preventDefault();
+      beginReview(card);
     }
 
     function onSubmitClick() {
