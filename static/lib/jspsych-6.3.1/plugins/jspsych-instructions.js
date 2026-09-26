@@ -16,6 +16,20 @@ jsPsych.plugins.instructions = (function() {
 
   var plugin = {};
 
+  // Instruction decks in this task are intentionally split into small trials
+  // so that practice and comprehension can be interleaved. Keep a lightweight
+  // page history so Prev remains useful at the first page of a later deck too.
+  // Only rendered HTML is retained; response data and trial order are never
+  // rewound or changed.
+  var prior_instruction_pages = [];
+
+  // Read-only access for instruction-like interactive screens (notably the
+  // collector warm-up) that need to show the same prior-page review without
+  // rewinding the jsPsych timeline.
+  plugin.getPriorPageHTML = function() {
+    return prior_instruction_pages.map(function(page) { return page.html; });
+  };
+
   plugin.info = {
     name: 'instructions',
     description: '',
@@ -97,6 +111,8 @@ jsPsych.plugins.instructions = (function() {
     display_element.classList.add('jspsych-instructions-layout');
 
     var current_page = 0;
+    var committed_pages = {};
+    var prior_page_cursor = null;
 
     var view_history = [];
 
@@ -114,9 +130,26 @@ jsPsych.plugins.instructions = (function() {
     	}
     }
 
+    function is_reviewing_prior_page() {
+      return prior_page_cursor !== null;
+    }
+
+    function displayed_page_html() {
+      if (is_reviewing_prior_page()) {
+        return prior_instruction_pages[prior_page_cursor].html;
+      }
+      return trial.pages[current_page];
+    }
+
+    function commit_current_page() {
+      if (is_reviewing_prior_page() || committed_pages[current_page]) return;
+      prior_instruction_pages.push({ html: trial.pages[current_page] });
+      committed_pages[current_page] = true;
+    }
+
     function show_current_page() {
       var html = "<div class='jspsych-instructions-page'>" +
-        trial.pages[current_page] + "</div>";
+        displayed_page_html() + "</div>";
 
       var pagenum_display = "";
       if(trial.show_page_number) {
@@ -128,8 +161,7 @@ jsPsych.plugins.instructions = (function() {
 
         var nav_html = "<div class='jspsych-instructions-nav' aria-label='Instruction navigation' style='padding: 10px 0px;'>";
         if (trial.allow_backward) {
-          var allowed = (current_page > 0 )? '' : "disabled='disabled'";
-          nav_html += "<button id='jspsych-instructions-back' class='jspsych-btn' style='margin-right: 5px;' "+allowed+">&lt; "+trial.button_label_previous+"</button>";
+          nav_html += "<button id='jspsych-instructions-back' class='jspsych-btn' style='margin-right: 5px;'>&lt; "+trial.button_label_previous+"</button>";
         }
         if (trial.pages.length > 1 && trial.show_page_number) {
             nav_html += pagenum_display;
@@ -140,7 +172,7 @@ jsPsych.plugins.instructions = (function() {
 
         html += nav_html;
         display_element.innerHTML = html;
-        if (current_page != 0 && trial.allow_backward) {
+        if (trial.allow_backward) {
           display_element.querySelector('#jspsych-instructions-back').addEventListener('click', btnListener);
         }
 
@@ -159,6 +191,18 @@ jsPsych.plugins.instructions = (function() {
 
       add_current_page_to_view_history()
 
+      if (is_reviewing_prior_page()) {
+        if (prior_page_cursor < prior_instruction_pages.length - 1) {
+          prior_page_cursor++;
+        } else {
+          prior_page_cursor = null;
+        }
+        show_current_page();
+        return;
+      }
+
+      commit_current_page();
+
       current_page++;
 
       // if done, finish up...
@@ -174,7 +218,17 @@ jsPsych.plugins.instructions = (function() {
 
       add_current_page_to_view_history()
 
-      current_page--;
+      if (is_reviewing_prior_page()) {
+        if (prior_page_cursor > 0) prior_page_cursor--;
+        show_current_page();
+        return;
+      }
+
+      if (current_page > 0) {
+        current_page--;
+      } else if (prior_instruction_pages.length > 0) {
+        prior_page_cursor = prior_instruction_pages.length - 1;
+      }
 
       show_current_page();
     }
@@ -185,10 +239,17 @@ jsPsych.plugins.instructions = (function() {
 
       var page_view_time = current_time - last_page_update_time;
 
-      view_history.push({
+      var page_view = {
         page_index: current_page,
         viewing_time: page_view_time
-      });
+      };
+
+      if (is_reviewing_prior_page()) {
+        page_view.viewed_prior_instruction = true;
+        page_view.prior_instruction_index = prior_page_cursor;
+      }
+
+      view_history.push(page_view);
 
       last_page_update_time = current_time;
     }
@@ -222,7 +283,7 @@ jsPsych.plugins.instructions = (function() {
       });
       // check if key is forwards or backwards and update page
       if (jsPsych.pluginAPI.compareKeys(info.key, trial.key_backward)) {
-        if (current_page !== 0 && trial.allow_backward) {
+        if (trial.allow_backward) {
           back();
         }
       }

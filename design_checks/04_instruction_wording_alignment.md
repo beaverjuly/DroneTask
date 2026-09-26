@@ -6,8 +6,8 @@ This document compares the live drone-task wording with the original bird-task w
 
 | Source | Role |
 |---|---|
-| [`Bird Task 15 Instructions Text.txt`](../Bird%20Task%2015%20Instructions%20Text.txt) | Reference instruction wording. |
-| [`Experiment HTML Text.txt`](../Experiment%20HTML%20Text.txt) | Reference welcome, transitions, and closing wording. |
+| [`Bird Task 15 Instructions Text.txt`](./Bird%20Task%2015%20Instructions%20Text.txt) | Reference instruction wording. |
+| [`Experiment HTML Text.txt`](./Experiment%20HTML%20Text.txt) | Reference welcome, transitions, and closing wording. |
 | [`birdTask/static/task/comprehension1.js`](../../birdTask/static/task/comprehension1.js) | Ten-question reference comprehension check used by the bird task. |
 | [`static/task/instructions.js`](../static/task/instructions.js) | Live drone instructions. |
 | [`static/task/comprehension.js`](../static/task/comprehension.js) | Live drone comprehension check. |
@@ -32,7 +32,7 @@ This document compares the live drone-task wording with the original bird-task w
 | Goal | “In this game, birds drop bags of coins onto the ground.”<br>“Your goal is to catch as many coins as you can by moving your bucket to where you think the coins will land.” | “In this game, drones drop supplies toward the rail.”<br>“Your goal is to catch as many pieces as you can by moving your collector to where you think the pieces will land.” | Cover-story nouns and landing surface only. |
 | Movement | “You should use right and left arrow keys to move the bucket.” | “You should use the right (→) and left (←) arrow keys to move the collector.” | `bucket` → `collector`; key symbols clarify the response. |
 | Lock and new turn | “After you position the bucket, the sky will slightly darken.”<br>“A new turn begins when the scene lights up again.” | “After you position the collector, it will turn grey.”<br>“A new turn begins when the collector turns white again.” | The collector, rather than the scene, now shows whether movement is available. |
-| Drop and score | “You will then see the bird dropping a bag of coins.”<br>“If you align your bucket perfectly, you will catch all ten coins!” | “You will then see the drone dropping a supply.”<br>“If you align the collector perfectly, you will catch all ten pieces!” | Cover-story nouns only. |
+| Drop and score | “You will then see the bird dropping a bag of coins.”<br>“If you align your bucket perfectly, you will catch all ten coins!” | “You will then see the drone dropping a green supply.”<br>“If you align the collector perfectly, you will catch all ten pieces!” | Cover-story nouns change; `green` establishes the first scoring condition before red is introduced. |
 | Items | “You will also notice that on each turn, a distinct item will appear where the coins fall.”<br>“You should note these items as they appear but you do not need to memorize them.” | “You will also notice that on each turn, a distinct item will appear where the pieces fall.”<br>“You should note these items as they appear, but you do not need to memorize them.” | `coins` → `pieces`; this reference-derived page now appears after practice and immediately before the memory-task explanation. Bell, light-bulb, and hammer examples show that the item differs across turns. |
 | Inactivity | “If you do not move the bucket on one or two turns, we assume you are happy with its position.”<br>“However, you should not leave the bucket in one place for more than a few turns.”<br>“If you do, we will warn you, and if you persist, we may have to end the game early!” | The same wording with `collector` replacing `bucket`. | Cover-story noun only. The reminder follows the score explanation and repeats its two static catch-outcome demonstrations. |
 | Wind | “The bag will fall near the bird, but the exact position will vary around the bird because it is a windy day!” | “The supply will land near the drone, but the exact position will vary around the drone because it is windy!” | `bag/bird` → `supply/drone`; left/right examples replace front/behind in the side-on display. |
@@ -50,7 +50,7 @@ This document compares the live drone-task wording with the original bird-task w
 |---|---|---|
 | **Bold** | The most important action, rule, or deadline. | At most one continuous bold phrase in each sentence segment. |
 | *Italics* | A secondary clarification. | At most one continuous italic phrase in each sentence segment. |
-| Bold + italics | Not used. | No phrase is both bold and italic. |
+| Bold + italics | Not used. | Scoring-direction words such as `more` and `fewer` use italics without bold. |
 
 For the inactivity reminder, the live emphasis is: **do not move the collector**, *happy with its position*, **more than a few turns**, *warn you*, and **end the game early!** The same hierarchy is used in the opening instructions, comprehension guidance, planet transitions, and repeated memory-task reminders.
 
@@ -58,9 +58,9 @@ For the inactivity reminder, the live emphasis is: **do not move the collector**
 
 | Addition | Live wording | Why it is necessary |
 |---|---|---|
-| Green supplies | “The more pieces you catch, the more points you earn.” | Explains reward blocks, which do not exist in the reference task. |
-| Red supplies | “The more pieces you catch, the fewer points you lose.” | Explains loss blocks while keeping the same goal: catch as many pieces as possible. |
-| Practice sequence | Drone shown with green, drone shown with red, then drone hidden with green; item identities remain hidden in all three scored blocks. | Demonstrates both scoring rules and the hidden-drone mechanic without repeating a second hidden red block or introducing memory items prematurely. |
+| Green supplies | “Green supplies **add points** to your score.”<br>“The *more* pieces you catch, the *more* points you earn.” | Green scoring is introduced and explained fully before the first three scored practice turns. Its practice-start reminder contains only “For these 3 practice turns, the supplies will be green,” the green scoring scale, and the standard start control. This wording is a necessary drone-task addition, not verbatim Bird Task wording. The closest reference says, “You will see how many coins you win on the screen, from 0 to 10.” |
+| Red supplies | “Red supplies **reduce loss** of points.”<br>“The *more* pieces you catch, the *fewer* points you lose.” | Red scoring is introduced only after green practice. Its practice-start reminder likewise contains one condition sentence, the red scale from −10 to −0 points, and the standard start control. |
+| Practice sequence | Green scoring lesson → green practice-start reminder → three visible-drone green turns → red scoring lesson → red practice-start reminder → three visible-drone red turns → three hidden-drone green turns. Item identities remain hidden in all three scored blocks. | Establishes the full green rule before introducing red, then demonstrates the hidden-drone mechanic without repeating a second hidden-red block or introducing memory items prematurely. |
 | Memory demonstration items | Bell, light bulb, and hammer appear only on the item-introduction page. The later memory-question examples use wrench, pushpin, and paperclip from the separate scored-practice identities. | Prevents the memory-question examples from repeating item a/b/c while keeping every example within the practice-only object pool. |
 | Third memory judgment | “When did this item appear between the other two items?” | Documents the added temporal-placement measure. |
 | Memory timing | Begin within 5 seconds; slider responses auto-submit 7 seconds after the first move. | Documents the live response deadlines. |

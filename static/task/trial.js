@@ -687,27 +687,101 @@ plugin.trial = function (display_element, trial) {
     // ── Next button for the slider warm-up ──────────────────────────
     if (trial.is_moving_practice) {
       // Tip shown when participant clicks Next before sliding at all.
+      var movementPrompt = '← Try sliding with the arrow keys first! →';
       var tipEl = document.createElement('div');
       tipEl.id = 'practice-tip';
       tipEl.className = 'practice-tip';
       tipEl.setAttribute('role', 'status');
       tipEl.setAttribute('aria-live', 'polite');
-      tipEl.textContent = '← Try sliding with the arrow keys first! →';
+      tipEl.textContent = movementPrompt;
       display_element.appendChild(tipEl);
 
       var navEl = document.createElement('div');
       navEl.className = 'jspsych-instructions-nav practice-instructions-nav';
       navEl.setAttribute('aria-label', 'Practice navigation');
       navEl.innerHTML =
-        '<button id="practice-prev-btn" class="jspsych-btn" disabled="disabled">' +
+        '<button id="practice-prev-btn" class="jspsych-btn">' +
           '&lt; Prev</button>' +
         '<button id="practice-next-btn" class="jspsych-btn">Next &gt;</button>';
       display_element.appendChild(navEl);
+
+      function openPriorInstructionReview() {
+        var instructionsPlugin = jsPsych.plugins.instructions;
+        var priorPages = instructionsPlugin &&
+          typeof instructionsPlugin.getPriorPageHTML === 'function'
+            ? instructionsPlugin.getPriorPageHTML()
+            : [];
+
+        if (!priorPages.length) return;
+
+        var historyCursor = priorPages.length - 1;
+        var overlay = document.createElement('div');
+        overlay.id = 'practice-prior-instruction-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-label', 'Previous instruction');
+        overlay.style.cssText =
+          'position:fixed;inset:0;z-index:90000;box-sizing:border-box;' +
+          'display:grid;grid-template-rows:minmax(0,1fr) auto;' +
+          'width:100vw;height:100vh;background:#fff;overflow:hidden;';
+
+        function closeReview() {
+          document.removeEventListener('keydown', reviewKeyHandler, true);
+          if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        }
+
+        function showHistoryPage() {
+          overlay.innerHTML =
+            '<div class="jspsych-instructions-page">' + priorPages[historyCursor] + '</div>' +
+            '<div class="jspsych-instructions-nav" aria-label="Instruction navigation">' +
+              '<button id="practice-history-prev" class="jspsych-btn">&lt; Prev</button>' +
+              '<button id="practice-history-next" class="jspsych-btn">Next &gt;</button>' +
+            '</div>';
+
+          overlay.querySelector('#practice-history-prev').addEventListener('click', function() {
+            if (historyCursor > 0) historyCursor--;
+            showHistoryPage();
+          });
+
+          overlay.querySelector('#practice-history-next').addEventListener('click', function() {
+            if (historyCursor < priorPages.length - 1) {
+              historyCursor++;
+              showHistoryPage();
+            } else {
+              closeReview();
+            }
+          });
+        }
+
+        function reviewKeyHandler(event) {
+          if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight' && event.key !== ' ') return;
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+
+          if (event.key === 'ArrowLeft') {
+            if (historyCursor > 0) historyCursor--;
+            showHistoryPage();
+          } else if (historyCursor < priorPages.length - 1) {
+            historyCursor++;
+            showHistoryPage();
+          } else {
+            closeReview();
+          }
+        }
+
+        document.addEventListener('keydown', reviewKeyHandler, true);
+        display_element.appendChild(overlay);
+        showHistoryPage();
+      }
+
+      var prevBtn = navEl.querySelector('#practice-prev-btn');
+      prevBtn.addEventListener('click', openPriorInstructionReview);
 
       var nextBtn = navEl.querySelector('#practice-next-btn');
       nextBtn.addEventListener('click', function () {
         if (_num_moves === 0) {
           // Participant hasn't slid yet — flash the tip instead of advancing.
+          tipEl.textContent = movementPrompt;
           tipEl.style.opacity = '1';
           setTimeout(function () { tipEl.style.opacity = '0'; }, 2200);
         } else {

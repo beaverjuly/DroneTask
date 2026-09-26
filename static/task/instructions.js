@@ -3,22 +3,19 @@
 // ═══════════════════════════════════════════════════════════════════
 // A — Game-accurate mock-up library
 // ═══════════════════════════════════════════════════════════════════
-var MOCK_SCENE = {
-  width:    '80vw',
-  height:   '80vh',
-  maxWidth: '1400px'
-};
-
 function mockFrame(innerHTML, frameStyle, scale) {
   scale = scale || 1;
-  var w = (80 * scale) + 'vw';
-  var h = (80 * scale) + 'vh';
+  // Keep demonstrations at the same 16:9 shape on tall, wide, and zoomed
+  // browser windows. The vh-based width cap prevents a wide screen from
+  // making the scene taller than the instruction row can comfortably hold.
+  var viewportWidth = (80 * scale).toFixed(2) + 'vw';
+  var heightBoundWidth = (128 * scale).toFixed(2) + 'vh';
+  var pixelWidth = Math.round(1400 * scale) + 'px';
   return (
     '<div class="instruction-mock-frame" style="' +
       'position:relative;' +
-      'width:' + w + ';' +
-      'height:' + h + ';' +                  // ← explicit vh, not padding-bottom
-      'max-width:' + MOCK_SCENE.maxWidth + ';' +
+      'width:min(' + viewportWidth + ',' + heightBoundWidth + ',' + pixelWidth + ');' +
+      'height:auto;aspect-ratio:16 / 9;flex-shrink:0;' +
       'margin:18px auto;border-radius:14px;overflow:hidden;' +
       'box-shadow:0 12px 30px rgba(0,0,0,.28);' +
       'border:2px solid rgba(255,255,255,.08);' +
@@ -199,8 +196,9 @@ function mockPlanet(hue, sat, planetNum, droneX, collectorX, scale) {
   scale  = scale       || 0.22;
   droneX = droneX      || 50;
   collectorX = collectorX || droneX;
-  var w   = (80 * scale) + 'vw';
-  var h   = (80 * scale) + 'vh';
+  var viewportWidth = (80 * scale).toFixed(2) + 'vw';
+  var heightBoundWidth = (128 * scale).toFixed(2) + 'vh';
+  var pixelWidth = Math.round(1400 * scale) + 'px';
   var sky = 'linear-gradient(to bottom,' +
     'hsl(' + hue + ',' + sat + '%,12%) 0%,' +
     'hsl(' + hue + ',' + sat + '%,22%) 35%,' +
@@ -211,7 +209,8 @@ function mockPlanet(hue, sat, planetNum, droneX, collectorX, scale) {
     'hsl(' + hue + ',' + (sat + 5) + '%,62%) 0%,' +
     'hsl(' + hue + ',' + sat + '%,52%) 100%)';
   return (
-    '<div style="position:relative;width:' + w + ';height:' + h + ';' +
+    '<div style="position:relative;width:min(' + viewportWidth + ',' +
+      heightBoundWidth + ',' + pixelWidth + ');height:auto;aspect-ratio:16 / 9;' +
       'border-radius:12px;overflow:hidden;flex-shrink:0;' +
       'box-shadow:0 6px 20px rgba(0,0,0,.4);' +
       'border:2px solid rgba(255,255,255,.12);' +
@@ -231,7 +230,7 @@ function mockPlanet(hue, sat, planetNum, droneX, collectorX, scale) {
       '</div>' +
       '<div style="position:absolute;bottom:24%;left:50%;transform:translateX(-50%);' +
         'font-size:9px;font-weight:700;color:rgba(255,255,255,.6);letter-spacing:.6px;' +
-        'text-transform:uppercase;white-space:nowrap;">Planet ' + planetNum + '</div>' +
+        'white-space:nowrap;">Planet ' + planetNum + '</div>' +
     '</div>'
   );
 }
@@ -295,7 +294,7 @@ function blockIntroHTML(lines, accentColor, turnLabel) {
       'box-shadow:0 6px 18px rgba(0,0,0,.06);">' +
       (turnLabel
         ? '<div style="font-size:13px;font-weight:700;color:#999;letter-spacing:.5px;' +
-          'text-transform:uppercase;margin-bottom:10px;">' + turnLabel + '</div>'
+          'margin-bottom:10px;">' + turnLabel + '</div>'
         : '') +
       '<div class="instruction-intro-main">' + mainLine + '</div>' +
       '<ul class="instruction-intro-list" style="list-style:none;">' + bullets + '</ul>' +
@@ -310,6 +309,26 @@ function pill(text, bg, fg) {
   return (
     '<span style="display:inline-block;padding:2px 10px;border-radius:999px;' +
       'background:' + bg + ';color:' + fg + ';font-weight:700;font-size:14px;">' + text + '</span>'
+  );
+}
+
+function supplyScoreScaleCard(label, accent, background, border, leftScore, rightScore, leftColor, rightColor) {
+  return (
+    '<div style="box-sizing:border-box;width:min(520px,88vw);margin:18px auto 0;' +
+      'padding:18px 22px;border-radius:14px;background:' + background + ';' +
+      'border:2px solid ' + border + ';box-shadow:0 8px 22px rgba(15,23,42,.08);">' +
+      '<div style="font-size:20px;font-weight:800;color:' + accent + ';margin-bottom:8px;">' +
+        pill(label, accent, '#fff') +
+      '</div>' +
+      '<div style="font-size:var(--instruction-body-size);line-height:1.42;color:#1f2937;">' +
+        '<strong>0 pieces</strong> caught&nbsp;&nbsp;→&nbsp;&nbsp;<strong>10 pieces</strong> caught' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;gap:18px;margin-top:8px;' +
+        'font-size:18px;font-weight:800;">' +
+        '<span style="color:' + leftColor + ';">' + leftScore + '</span>' +
+        '<span style="color:' + rightColor + ';">' + rightScore + '</span>' +
+      '</div>' +
+    '</div>'
   );
 }
 
@@ -437,7 +456,7 @@ function memoryItemIntroExamples() {
         return (
           '<div class="memory-item-demo-card" style="min-width:0;text-align:center;">' +
             '<div style="font-size:13px;font-weight:800;letter-spacing:.045em;' +
-              'text-transform:uppercase;color:#64748b;margin-bottom:4px;">' +
+              'color:#64748b;margin-bottom:4px;">' +
               example.label +
             '</div>' +
             mockGame({
@@ -499,10 +518,7 @@ var inst1 = {
           // label above-right, arrow points to rail line
           callout(70, 63, 58, 78, 'Rail'),
         ]
-      ) +
-      '<div style="font-size:13px;color:#888;text-align:center;margin-top:-6px;">' +
-        'These labels only appear during instructions.' +
-      '</div>',
+      ),
 
     pageBody(null, [
       keyLine('You should use the <strong>right (→) and left (←)</strong> arrow keys to move the collector.')
@@ -537,89 +553,66 @@ var inst2_locking_and_bag = {
     // P1: locking
     pageBody(null, [
       keyLine('After you position the collector, it will turn <strong style="color:#475569;">grey</strong>.'),
-      'At this time you can no longer move the collector.',
-      'A new turn begins when the collector turns white again.',
-      'At this time you are once again able to move the collector.'
+      'At this time you can <strong>no longer move</strong> the collector.',
+      'A new turn begins when the collector <strong>turns white</strong> again.',
+      'At this time you are once again <strong>able to move</strong> the collector.'
     ]) +
       '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:16px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         '<div style="flex:1;min-width:280px;">' +
           '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
-            '<span class="instruction-emphasis">MOVABLE · white</span></div>' +
+            '<span class="instruction-emphasis">Movable · white</span></div>' +
           mockGame({ droneX: 50, collectorX: 50, collectorLocked: false },
             [callout(78, 75, 56, 78, 'movable', '#fff3a3')], 0.45) +
         '</div>' +
         '<div style="flex:1;min-width:280px;">' +
           '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
-            '<span class="instruction-emphasis">LOCKED · grey</span></div>' +
+            '<span class="instruction-emphasis">Locked · grey</span></div>' +
           mockGame({ droneX: 50, collectorX: 50, collectorLocked: true },
             [callout(78, 75, 56, 78, 'locked', '#cccccc')], 0.45) +
         '</div>' +
       '</div>',
 
-    // P2: bag drops + score
+    // P2: green supply drops + score
     pageBody(null, [
-      keyLine('You will then see the drone dropping a supply.'),
+      keyLine('You will then see a drone dropping supplies.'),
       'The supply breaks into pieces near the rail and the pieces fall.',
-      'Your score is determined by the number of pieces that you catch in the collector.',
-      'You will see your score on the screen after the pieces fall at the end of each turn.',
-      'If you align the collector perfectly, you will catch all ten pieces!',
-      'Otherwise, you will catch fewer depending on how far off the collector is.'
+      'Your score is determined by the <strong>number of pieces</strong> that you catch in the collector.',
+      'You will <strong>see your score</strong> on the screen after the pieces fall at the end of each turn.',
+      'If you align the collector perfectly, you will <strong>catch all ten pieces</strong>!',
+      'Otherwise, you will <strong>catch fewer</strong> depending on how far off the collector is.'
     ]) +
       catchOutcomeDemos(),
 
     // P3: keep responding — repeat the same outcome demonstration
     pageBody(null, [
       [
-        'If you <strong>do not move the collector</strong> on one or two turns,',
+        'If you do not move the collector on one or two turns,',
         'we assume you are <em>happy with its position</em>.'
       ],
-      'However, you should not leave the collector in one place for ' +
+      'However, you should <strong>not</strong> leave the collector in one place for ' +
         '<strong>more than a few turns</strong>.',
       [
-        'If you do, we will <em>warn you</em>,',
-        'and if you persist, we may have to <strong>end the game early!</strong>'
+        'If you do, we will warn you,',
+        'and if you persist, we may have to end the game early!'
       ]
     ]) + catchOutcomeDemos(),
 
-    // P4: supply-colour rule
+    // P4: introduce and fully explain green before green practice.
     pageBody(null, [
-      keyLine('Your goal never changes: ' + emphasis('catch as many pieces as you can') + '.')
+      keyLine('First, you will practice with green supplies.'),
+      'Green supplies <strong>add points</strong> to your score.',
+      'On each green turn, you earn from <strong>0 to +10 points</strong>.',
+      [
+        'The <em>more</em> pieces you catch,',
+        'the <em>more</em> points you earn.'
+      ],
+      'Your goal is to <strong>catch as many pieces as you can</strong>.'
     ]) +
-      '<div style="display:flex;gap:18px;justify-content:center;flex-wrap:wrap;' +
-        'margin-top:16px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
-
-        '<div style="flex:1;min-width:250px;padding:18px 22px;' +
-          'border-radius:14px;background:#f6fff7;border:2px solid #d8efdc;">' +
-          '<div style="font-size:20px;font-weight:800;color:#0a7f2e;margin-bottom:8px;">' +
-            pill('Green supply', '#0a7f2e', '#fff') + '</div>' +
-          '<div style="font-size:var(--instruction-body-size);line-height:1.42;color:#1f2937;">' +
-            instructionLines([
-              'When the supply is green, you earn from 0 to +10 points on each turn.',
-              'The more pieces you catch, the more points you earn.'
-            ]) +
-            '<span style="font-size:14px;color:#555;">Best: ' + green('+10') + ' &nbsp;·&nbsp; Worst: ' + gold('0') + '</span>' +
-          '</div>' +
-          mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
-            bagX: 50, valence: 'reward', showFragments: true, scoreText: '+10' }, null, 0.45) +
-        '</div>' +
-
-        '<div style="flex:1;min-width:250px;padding:18px 22px;' +
-          'border-radius:14px;background:#fff7f7;border:2px solid #f0d7d7;">' +
-          '<div style="font-size:20px;font-weight:800;color:#b00020;margin-bottom:8px;">' +
-            pill('Red supply', '#b00020', '#fff') + '</div>' +
-          '<div style="font-size:var(--instruction-body-size);line-height:1.42;color:#1f2937;">' +
-            instructionLines([
-              'When the supply is red, your score is from −10 to 0 points on each turn.',
-              'The more pieces you catch, the fewer points you lose.'
-            ]) +
-            '<span style="font-size:14px;color:#555;">Best: ' + gold('0') + ' &nbsp;·&nbsp; Worst: ' + red('−10') + '</span>' +
-          '</div>' +
-          mockGame({ droneX: 50, collectorX: 50, collectorLocked: true,
-            bagX: 50, valence: 'loss', showFragments: true, scoreText: '0' }, null, 0.45) +
-        '</div>' +
-
-      '</div>' +
+      supplyScoreScaleCard(
+        'Green supply', '#0a7f2e', '#f6fff7', '#d8efdc',
+        '0 points', '+10 points', '#b58a00', '#0a7f2e'
+      ) +
       '<div style="font-size:17px;text-align:center;margin-top:16px;">' +
         emphasis('Your bonus is determined by your final score across the game.') +
       '</div>',
@@ -634,13 +627,16 @@ var inst2_locking_and_bag = {
 var block_intro_green_seen = {
   type: 'instructions',
   pages: [
-    blockIntroHTML([
-      'For these <strong>3 practice turns</strong>, the supplies will be green.',
-      '<strong>Now give it a try.</strong>',
-      'Notice that you can only move the collector when it is white.',
-      pill('Green supply', '#0a7f2e', '#fff') +
-        ' You will see how many points you earn on the screen, from ' + green('0 to +10') + '.'
-    ], '#0a7f2e', 'Practice · green supply')
+    pageBody(null, [
+      keyLine('For these 3 practice turns, the supplies will be green.')
+    ]) +
+      supplyScoreScaleCard(
+        'Green supply', '#0a7f2e', '#f6fff7', '#d8efdc',
+        '0 points', '+10 points', '#b58a00', '#0a7f2e'
+      ) +
+      '<div class="instruction-start-hint">' +
+        'Press <strong>space or click Next</strong> to begin.' +
+      '</div>'
   ],
   key_forward: ' ',
   show_clickable_nav: true,
@@ -648,18 +644,46 @@ var block_intro_green_seen = {
   button_label_next: 'Next'
 };
 
-// ── Block-intros: red bag, drone visible ───────────────────────────
+// ── Red-supply lesson: reuse the green scoring-screen structure ────
+var inst2_red_supply = {
+  type: 'instructions',
+  pages: [
+    pageBody(null, [
+      keyLine('Next, you will practice with red supplies.'),
+      'Red supplies <strong>reduce loss</strong> of points.',
+      [
+        'The <em>more</em> pieces you catch,',
+        'the <em>fewer</em> points you lose.'
+      ],
+      'Your goal is to <strong>catch as many pieces as you can</strong>.'
+    ]) +
+      supplyScoreScaleCard(
+        'Red supply', '#b00020', '#fff7f7', '#f0d7d7',
+        '−10 points', '−0 points', '#b00020', '#b58a00'
+      ) +
+      '<div style="font-size:17px;text-align:center;margin-top:16px;">' +
+        emphasis('Your bonus is determined by your final score across the game.') +
+      '</div>'
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
+
+// ── Block-intro: red bag, drone visible ────────────────────────────
 var block_intro_red_seen = {
   type: 'instructions',
   pages: [
-    blockIntroHTML([
-      'For these <strong>3 practice turns</strong>, the supplies will be red.',
-      '<strong>Now give it a try.</strong>',
-      'Notice that you can only move the collector when it is white.',
-      pill('Red supply', '#b00020', '#fff') +
-        ' You will see your score on the screen, from ' + red('−10 to 0') + '.',
-      'The more pieces you catch, the fewer points you lose.'
-    ], '#b00020', 'Practice · red supply')
+    pageBody(null, [
+      keyLine('For these 3 practice turns, the supplies will be red.')
+    ]) +
+      supplyScoreScaleCard(
+        'Red supply', '#b00020', '#fff7f7', '#f0d7d7',
+        '−10 points', '−0 points', '#b00020', '#b58a00'
+      ) +
+      '<div class="instruction-start-hint">' +
+        'Press <strong>space or click Next</strong> to begin.' +
+      '</div>'
   ],
   key_forward: ' ',
   show_clickable_nav: true,
@@ -707,8 +731,8 @@ var inst3_drone_disappears = {
     pageBody(null, [
       keyLine('You may have noticed that the drone can also move unpredictably.'),
       [
-        'The best prediction for its position on one turn is its position on the previous turn,',
-        'but it may move to a new location at any time.'
+        'The <em>best guess</em> for its position on one turn is its position on the <strong>previous turn</strong>,',
+        'but it may move to a <strong>new location</strong> at any time.'
       ]
     ]) +
       '<div class="instruction-movement-comparison" style="display:grid;align-items:start;' +
@@ -719,7 +743,7 @@ var inst3_drone_disappears = {
         '<div class="instruction-sequence-group" style="min-width:0;background:rgba(255,255,255,.07);' +
           'border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:10px 8px 6px;">' +
           '<div style="text-align:center;font-size:16px;letter-spacing:.3px;margin-bottom:6px;">' +
-            '<span class="instruction-emphasis">BEST PREDICTION: PREVIOUS POSITION</span></div>' +
+            '<span class="instruction-emphasis">Best prediction: previous position</span></div>' +
           '<div class="instruction-sequence-grid instruction-sequence-grid-three" ' +
             'style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;">' +
             (function () {
@@ -742,13 +766,13 @@ var inst3_drone_disappears = {
 
         '<!-- Arrow divider -->' +
         '<div class="instruction-sequence-or" style="display:flex;align-items:center;padding-top:38px;' +
-          'font-size:14px;font-weight:800;color:#64748b;flex-shrink:0;">OR</div>' +
+          'font-size:14px;font-weight:800;color:#64748b;flex-shrink:0;">or</div>' +
 
         '<!-- Group 2: jump phase -->' +
         '<div class="instruction-sequence-group" style="min-width:0;background:rgba(255,220,100,.08);' +
           'border:1px solid rgba(255,220,100,.25);border-radius:12px;padding:10px 8px 6px;">' +
           '<div style="text-align:center;font-size:16px;letter-spacing:.3px;margin-bottom:6px;">' +
-            '<span class="instruction-emphasis">MAY MOVE TO A NEW LOCATION</span></div>' +
+            '<span class="instruction-emphasis">May move to a new location</span></div>' +
           '<div class="instruction-sequence-grid instruction-sequence-grid-two" ' +
             'style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;">' +
             (function () {
@@ -795,27 +819,27 @@ var inst3_drone_disappears = {
 
     // P2: drone disappears
     pageBody(null, [
-      'We are almost ready for the full game, but there are just a few important differences.',
+      'We are almost ready for the full game, but there are just a few <em>important differences</em>.',
       keyLine([
-        'Most importantly, in the full game, you cannot actually see the drone,',
+        'In the full game, you cannot actually see the drone,',
         'only the supplies that it drops!'
       ]),
       [
         'Your movement of the collector is exactly the same as before—',
-        'but you have to estimate where the drone is located based on where it has been.'
+        'but you have to <strong>guess</strong> where the drone is located based on where it has been.'
       ]
     ]) +
       '<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;' +
         'margin-top:10px;width:80vw;max-width:1400px;margin-left:auto;margin-right:auto;">' +
         '<div style="flex:1;min-width:280px;">' +
           '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
-            '<span class="instruction-emphasis">PRACTICE: DRONE SHOWN</span></div>' +
+            '<span class="instruction-emphasis">Practice: drone shown</span></div>' +
           mockGame({ droneX: 55, collectorX: 50, collectorLocked: true,
             bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
         '</div>' +
         '<div style="flex:1;min-width:280px;">' +
           '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
-            '<span class="instruction-emphasis">FULL GAME: DRONE HIDDEN</span></div>' +
+            '<span class="instruction-emphasis">Full game: drone hidden</span></div>' +
           mockGame({ collectorX: 50, collectorLocked: true,
             bagX: 57, valence: 'reward', showFragments: true, scoreText: '+8' }, null, 0.45) +
         '</div>' +
@@ -831,14 +855,17 @@ var inst3_drone_disappears = {
 var block_intro_green_hidden = {
   type: 'instructions',
   pages: [
-    blockIntroHTML([
-      '<strong>Now give it a try.</strong>',
-      'You will play 3 practice turns with the drone hidden.',
-      'Your goal is to catch as many pieces as you can by moving the collector to where you think ' +
-        'the pieces will land.',
-      pill('Green supply', '#0a7f2e', '#fff') +
-        ' Catching more pieces earns more points, from ' + green('0 to +10') + ' points per turn.'
-    ], '#0a7f2e', 'Practice · green supply · drone hidden')
+    pageBody(null, [
+      keyLine('Now give it a try.'),
+      'You will play 3 practice turns with the <strong>drone hidden</strong>.'
+    ]) +
+      supplyScoreScaleCard(
+        'Green supply', '#0a7f2e', '#f6fff7', '#d8efdc',
+        '0 points', '+10 points', '#b58a00', '#0a7f2e'
+      ) +
+      '<div class="instruction-start-hint">' +
+        'Press <strong>space or click Next</strong> to begin.' +
+      '</div>'
   ],
   key_forward: ' ',
   show_clickable_nav: true,
@@ -941,9 +968,9 @@ var inst4_full_game = {
     pageBody(null, [
       keyLine('The full game will have <strong>4 different planets</strong>.'),
       'Each planet will have a drone.',
-      'Wind conditions and drone movement can differ between planets.',
+      '<strong>Wind conditions and drone movement can differ</strong> between planets.</strong>',
       'You will be reminded each time the planet and drone change.',
-      'On each planet, the supplies will all be ' + green('green') + ' or all be ' + red('red') + '.',
+      'On each planet, the supplies will <em>all</em> be ' + green('green') + ' or <em>all</em> be ' + red('red') + '.',
       '<strong>In both cases, your goal is to catch as many pieces as you can.</strong>'
     ]) +
 
@@ -961,7 +988,6 @@ var inst4_full_game = {
               '<div style="flex:1;min-width:0;text-align:center;">' +
                 mockPlanet(p.hue, p.sat, i + 1, p.droneX, p.collectorX, 0.22) +
                 '<div style="font-size:12px;color:#666;margin-top:6px;font-style:italic;">' +
-                  'planet and drone' +
                 '</div>' +
               '</div>'
             );
@@ -974,8 +1000,7 @@ var inst4_full_game = {
         '<div style="flex:1;min-width:200px;padding:10px 16px;border-radius:10px;' +
           'background:#f6fff7;border:1.5px solid #c6e8cc;font-size:15px;">' +
           instructionLines([
-            pill('Green supply', '#0a7f2e', '#fff') +
-              ' Catching more pieces means ' + green('earning more points') + '.',
+            pill('Green supply', '#0a7f2e', '#fff') ,
             '<span style="font-size:13px;color:#555;">Best: ' + green('+10') +
               '&nbsp;·&nbsp;Worst: ' + gold('0') + '</span>'
           ]) +
@@ -983,8 +1008,7 @@ var inst4_full_game = {
         '<div style="flex:1;min-width:200px;padding:10px 16px;border-radius:10px;' +
           'background:#fff7f7;border:1.5px solid #f0c8c8;font-size:15px;">' +
           instructionLines([
-            pill('Red supply', '#b00020', '#fff') +
-              ' Catching more pieces means ' + red('losing fewer points') + '.',
+            pill('Red supply', '#b00020', '#fff') ,
             '<span style="font-size:13px;color:#555;">Best: ' + gold('0') +
               '&nbsp;·&nbsp;Worst: ' + red('−10') + '</span>'
           ]) +
@@ -1003,9 +1027,9 @@ pageBody(null, [
 // P3: item questions overview
 pageBody(null, [
   [
-    'You will be asked which item in a pair appeared first,',
-    'how far apart in time you feel the two items were during the game,',
-    'and when you feel another item appeared between them.'
+    'You will be asked which item in a pair <strong>appeared first</strong>,',
+    '<strong>how far apart</strong> in time you feel the two items were during the game,',
+    'and <strong>when</strong> you feel another item <strong>appeared between</strong> them.'
   ],
   '<em class="memory-no-score-emphasis">These questions will not affect your score.</em>'
 ]) +
@@ -1077,7 +1101,7 @@ pageBody(null, [
 pageBody(null, [
   [
     'Use <strong>← →</strong> to place the highlighted item',
-    'where you feel it appeared between the two reference items during the game.'
+    'where you feel it <strong>appeared between</strong> two other items during the game.'
   ],
   'Try it now by pressing <strong>← or →</strong>.'
 ]) +
@@ -1118,8 +1142,11 @@ var quiz = {
     glowSquaresScreen(
       pageBody(null, [
         keyLine('You will now see some questions testing your understanding of the game.', 'glow-title'),
-        'You should answer all of them correctly to proceed.',
-        'If any answer is incorrect, review the relevant instructions and then answer that question again.',
+        'You should answer all of them <strong>correctly</strong> to proceed.',
+        [
+          'If any answer is incorrect,',
+          '<strong>review the relevant instructions</strong> and then answer that question again.'
+        ],
         '<span class="glow-title" style="display:inline-block;font-weight:800;' +
           'animation:glow-pop .62s cubic-bezier(.2,.8,.3,1.1) both,' +
           'glow-pulse 2.2s ease-in-out .62s infinite;">Good luck!</span>'

@@ -6,7 +6,7 @@
   <!-- Load libraries -->
   <script src="static/lib/jquery-3.7.1/jquery-3.7.1.min.js"></script>
   <script src="static/lib/jspsych-6.3.1/jspsych.js"></script>
-  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-instructions.js?v=instruction-layout-20260923" type="text/javascript"></script>
+  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-instructions.js?v=instruction-navigation-20260925b" type="text/javascript"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-html-keyboard-response.js" type="text/javascript"></script>
 
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-call-function.js" type="text/javascript"></script>
@@ -73,9 +73,12 @@
   <meta http-equiv="Expires" content="0">
   <style>
     :root {
-      --instruction-title-size: clamp(24px, 2vw, 28px);
-      --instruction-body-size: clamp(16px, 1.22vw, 18px);
-      --instruction-small-size: clamp(13px, 1vw, 15px);
+      /* Keep headings clearly identifiable without making body copy feel
+         visually secondary. The compact ratio also travels better across
+         laptop, desktop, and large external displays. */
+      --instruction-title-size: clamp(23px, 1.8vw, 26px);
+      --instruction-body-size: clamp(17px, 1.28vw, 19px);
+      --instruction-small-size: clamp(14px, 1.02vw, 16px);
     }
 
     @keyframes memory-slow-pop {
@@ -249,6 +252,9 @@
       box-sizing: border-box;
       width: 100%;
       min-height: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
       overflow-x: hidden;
       overflow-y: auto;
       overscroll-behavior: contain;
@@ -256,6 +262,21 @@
       padding: clamp(12px, 2.2vh, 26px) clamp(12px, 2vw, 44px)
                clamp(16px, 2.5vh, 30px);
       text-align: center;
+    }
+
+    /* Flexible top and bottom spacers place short pages at reading eye-line.
+       They collapse to zero when a page is taller than the available row, so
+       long pages still begin at the top and remain fully scrollable. */
+    .jspsych-instructions-page::before,
+    .jspsych-instructions-page::after {
+      content: "";
+      display: block;
+      flex: 1 1 0;
+      min-height: 0;
+    }
+
+    .jspsych-instructions-page > * {
+      flex-shrink: 0;
     }
 
     .instruction-copy {
@@ -1010,7 +1031,7 @@
     button_label_previous: "Prev",
     button_label_next: "Next",
     data: {
-      task_version: 'v3.6-emphasis-hierarchy',
+      task_version: 'v3.10.3-balanced-instruction-type',
       stimuli_version: stimuli_version,
 
       true_vol: factors_vol,
@@ -1221,8 +1242,8 @@
         var supplyColor = (blockValence === 'loss') ? 'red' : 'green';
         var supplyColorHex = (blockValence === 'loss') ? '#dc2626' : '#16a34a';
         var scoreRule = (blockValence === 'loss')
-          ? 'The more pieces you catch, the fewer points you lose.'
-          : 'The more pieces you catch, the more points you earn.';
+          ? 'The <em>more</em> pieces you catch, the <em>fewer</em> points you lose.'
+          : 'The <em>more</em> pieces you catch, the <em>more</em> points you earn.';
 
         // Look up this block's sky-gradient theme (defined in trial.js)
         var blockTheme = (typeof BLOCK_THEMES !== 'undefined') ? BLOCK_THEMES[j] : null;
@@ -1241,11 +1262,11 @@
               'display:inline-block;padding:5px 14px;border-radius:999px;' +
               'background:rgba(255,255,255,.15);color:rgba(255,255,255,.8);' +
               'font-size:13px;font-weight:800;letter-spacing:.04em;' +
-              'text-transform:uppercase;margin-bottom:14px;">' +
+              'margin-bottom:14px;">' +
               'Planet ' + planetNum + ' of 4' +
             '</div>' +
 
-            '<div class="glow-title" style="font-size:30px;font-weight:850;margin-bottom:10px;color:#fff;">' +
+            '<div class="glow-title" style="font-size:26px;font-weight:850;margin-bottom:10px;color:#fff;">' +
               'A new planet and drone' +
             '</div>' +
 
@@ -1260,7 +1281,7 @@
               'border:1px solid ' + (blockValence === 'loss' ? 'rgba(255,130,130,.35)' : 'rgba(130,255,160,.3)') + ';' +
               'font-size:17px;margin-bottom:18px;color:#fff;">' +
               '<strong style="color:' + (blockValence === 'loss' ? '#fecaca' : '#bbf7d0') + ';">' +
-                supplyColor.toUpperCase() + ' SUPPLIES</strong><br>' +
+                supplyColor + ' supplies</strong><br>' +
               '<span style="font-size:15px;color:rgba(255,255,255,.7);">' + scoreRule + '</span>' +
             '</div>' +
 
@@ -1520,7 +1541,7 @@
                 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
                 'line-height:1.65;color:#e2e8f0;">' +
 
-                '<div class="glow-title" style="font-size:32px;font-weight:850;margin-bottom:14px;color:#fff;">' +
+                '<div class="glow-title" style="font-size:27px;font-weight:850;margin-bottom:14px;color:#fff;">' +
                   'Planet ' + blockNum + ' complete' +
                 '</div>' +
 
@@ -1538,7 +1559,7 @@
               '</div>',
               { minHeight: '22vh', glowColor: _mcGlowColor, density: 5 }
             )
-          : '<div style="text-align:center;padding:40px;color:#fff;font-size:30px;">' +
+          : '<div style="text-align:center;padding:40px;color:#fff;font-size:27px;">' +
               'Planet ' + blockNum + ' complete<br>' +
               '<span style="font-size:18px;">You will now complete a memory task based on the items that appeared on this planet.</span><br>' +
               '<span style="font-size:16px;">Press any key to continue. Continues automatically in 15 seconds.</span></div>'
@@ -1582,13 +1603,13 @@
                   'max-width:610px;margin:0 auto 14px;">' +
                   '<div style="padding:13px 16px;border-radius:14px;background:rgba(255,255,255,.12);' +
                     'border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 24px rgba(0,0,0,.15);">' +
-                    '<div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;' +
+                    '<div style="font-size:11px;font-weight:800;letter-spacing:.08em;' +
                       'color:rgba(255,255,255,.68);margin-bottom:2px;">Start each response within</div>' +
                     '<div style="font-size:30px;font-weight:900;line-height:1.1;color:#fff;text-shadow:0 0 16px rgba(' + _mcGlowColor + ',.72);">5 seconds</div>' +
                   '</div>' +
                   '<div style="padding:13px 16px;border-radius:14px;background:rgba(255,255,255,.12);' +
                     'border:1px solid rgba(255,255,255,.22);box-shadow:0 8px 24px rgba(0,0,0,.15);">' +
-                    '<div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;' +
+                    '<div style="font-size:11px;font-weight:800;letter-spacing:.08em;' +
                       'color:rgba(255,255,255,.68);margin-bottom:2px;">Slider auto-submits after</div>' +
                     '<div style="font-size:30px;font-weight:900;line-height:1.1;color:#fff;text-shadow:0 0 16px rgba(' + _mcGlowColor + ',.72);">7 seconds</div>' +
                     '<div style="font-size:11px;color:rgba(255,255,255,.62);margin-top:2px;">from your first arrow press</div>' +
@@ -1742,7 +1763,10 @@
           }
         },
         {
-          timeline: [addSmoothTransitions(inst2_locking_and_bag)],
+          timeline: [
+            addSmoothTransitions(inst2_locking_and_bag),
+            addSmoothTransitions(inst2_red_supply)
+          ],
           conditional_function: function() {
             var d = getLastTrialOfType(trialType);
             return !!(d && d.done === false && d.review_topic === 'inst2');
@@ -1829,6 +1853,7 @@
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst2_locking_and_bag));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(block_intro_green_seen));
   instructions_loop = instructions_loop.concat(practice2);
+  instructions_loop = instructions_loop.concat(addSmoothTransitions(inst2_red_supply));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(block_intro_red_seen));
   instructions_loop = instructions_loop.concat(practice3);
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst3_drone_disappears));

@@ -283,13 +283,7 @@ jsPsych.plugins['comprehension'] = (function() {
 
   function renderAll(state, justReviewedTopic) {
     var html = buildStyles();
-    html += '<div class="comp-shell"><div class="comp-card">';
-    html +=   '<p class="comp-subtitle">';
-    html +=     'Answer <strong>all questions correctly</strong> before you start playing.<br>';
-    html +=     'If an answer is incorrect, click it to review the relevant instructions, ';
-    html +=     'and then <strong>change your answer</strong>. You may continue until all answers are correct.<br>';
-    html +=   '</p>';
-    html += '</div>';
+    html += '<div class="comp-shell">';
 
     if (justReviewedTopic) {
       html += '<div class="comp-banner">';
