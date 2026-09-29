@@ -347,30 +347,32 @@ var STIMULUS_IMAGE_POOL = [
 ];
 
 // ── Tutorial-only stimuli ────────────────────────────────────────
-// The task constructs 10 practice turns: one movement warm-up followed by
-// three 3-turn scored blocks. Every configured turn retains a different object
-// identity for data consistency, but all practice items remain visually hidden.
+// The task constructs 13 practice turns: one movement warm-up followed by
+// four 3-turn scored blocks. Every configured turn uses a different object
+// identity. Items stay hidden until the dedicated item-visible practice block.
 //
 // These inanimate object concepts are absent from all 200 real-game PNG identities and
 // from the main-task fallback-emoji pool in preload.js.
 var PRACTICE_EMOJI = [
   "🔑", "🔔", "💡", "🔨", "🔧",
-  "📌", "📎", "✂️", "📏", "📐"
+  "📌", "📎", "✂️", "📏", "📐",
+  "🧲", "🧯", "🪜"
 ];
 
 var PRACTICE_STIMULUS_CONCEPTS = [
   "key", "bell", "light-bulb", "hammer", "wrench",
-  "pushpin", "paperclip", "scissors", "straight-ruler", "triangular-ruler"
+  "pushpin", "paperclip", "scissors", "straight-ruler", "triangular-ruler",
+  "magnet", "fire-extinguisher", "ladder"
 ];
 
 var PRACTICE_STIMULUS_ITEMS = PRACTICE_EMOJI.map(function (emoji, index) {
   return { emoji: emoji, concept: PRACTICE_STIMULUS_CONCEPTS[index] };
 });
 
-// The item-introduction screen uses the three identities assigned to the first
-// scored practice block. The later memory-question examples use a different
-// trio from the same practice-only pool, so the two instruction screens never
-// repeat an item identity.
+// The item-introduction screen uses one trio from the practice-only pool. The
+// item-visible green practice and later memory-question examples share a
+// different trio, so participants answer examples about items they actually
+// saw without repeating item a/b/c from the static introduction.
 var MEMORY_ITEM_INTRO_EMOJI = {
   first:  PRACTICE_EMOJI[1], // 🔔
   second: PRACTICE_EMOJI[2], // 💡
@@ -384,12 +386,12 @@ var MEMORY_QUESTION_DEMO_EMOJI = {
 };
 
 (function validateTutorialStimuli() {
-  var expectedPracticeCount = 10;
+  var expectedPracticeCount = 13;
   var uniquePracticeEmoji = new Set(PRACTICE_EMOJI);
   if (PRACTICE_EMOJI.length !== expectedPracticeCount ||
       uniquePracticeEmoji.size !== expectedPracticeCount ||
       PRACTICE_STIMULUS_CONCEPTS.length !== expectedPracticeCount) {
-    throw new Error('Practice stimulus configuration must contain 10 unique object emoji.');
+    throw new Error('Practice stimulus configuration must contain 13 unique object emoji.');
   }
 
   var scoredPracticeEmoji = new Set(PRACTICE_EMOJI.slice(1));

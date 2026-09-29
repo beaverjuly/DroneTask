@@ -104,13 +104,7 @@ jsPsych.plugins['comprehension'] = (function() {
       text: 'For <strong>red supplies</strong>, catching more pieces means losing fewer points.',
       options: ['True', 'False'],
       correct: 'True',
-      topic: 'inst2'
-    },
-    {
-      text: 'The memory task asks <strong>three questions</strong>: which item appeared first, how far apart in time two items felt, and when another item appeared between them. These answers do not affect your score.',
-      options: ['True', 'False'],
-      correct: 'True',
-      topic: 'inst4'
+      topic: 'red'
     }
   ];
 
@@ -118,9 +112,10 @@ jsPsych.plugins['comprehension'] = (function() {
     inst1: 'game goal',
     inst2: 'collector & supplies',
     inst3: 'wind and drone movement',
-    inst4: 'full game and memory task'
+    inst4: 'full game and memory task',
+    red: 'red-supply scoring'
   };
-  var STATE_VERSION = 'reference-aligned-13-v1';
+  var STATE_VERSION = 'reference-aligned-12-v2';
 
   function freshState() {
     return {

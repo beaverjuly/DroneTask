@@ -63,7 +63,7 @@ function buildDevTimeline(cfg) {
     console.log('[DEV] stage: combined comprehension check only');
     timeline.push({
       type: 'html-keyboard-response',
-      stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Comprehension check (13 questions). Press any key.</p>',
+      stimulus: '<p style="font-size:18px;padding:40px;"><strong>[DEV]</strong> Comprehension check (12 questions). Press any key.</p>',
       choices: jsPsych.ALL_KEYS
     });
     timeline = timeline.concat(cfg.comprehensionTimeline);

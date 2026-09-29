@@ -43,7 +43,7 @@
     );
   </script>
 
-  <link href="static/task/game.min.css" rel="stylesheet" type="text/css"></link>
+  <link href="static/task/game.min.css?v=practice-motion-20260929b" rel="stylesheet" type="text/css"></link>
   <script>
     document.write(
       '<script src="static/task/ui-helpers.js?v='     + window.__APP_VER + '"><\/script>' +
@@ -133,6 +133,135 @@
       box-shadow: 0 0 18px rgba(255,255,255,.52),
         0 0 8px rgba(255,255,255,.20);
       opacity: 1;
+    }
+
+    .memory-overview-grid {
+      box-sizing: border-box;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      align-items: stretch;
+      gap: clamp(10px, 1.25vw, 16px);
+      width: min(92vw, 1100px);
+      height: clamp(300px, 46vh, 340px);
+      margin: clamp(14px, 2.2vh, 20px) auto 0;
+    }
+
+    .memory-overview-grid > * {
+      min-width: 0;
+      height: 100%;
+    }
+
+    /* The three memory-question try-outs share this grid so the prompt,
+       demonstration, and repeated notices stay in the same reading order and
+       position on every screen. */
+    .memory-practice-screen {
+      box-sizing: border-box;
+      width: min(86vw, 680px);
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: auto clamp(250px, 35vh, 300px) auto;
+      align-content: center;
+      gap: clamp(7px, 1.15vh, 11px);
+      text-align: center;
+    }
+
+    .memory-practice-prompt {
+      min-height: 48px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #111827;
+      font-size: var(--instruction-body-size);
+      line-height: 1.35;
+    }
+
+    .memory-practice-try-badge {
+      margin-top: 4px;
+    }
+
+    .memory-practice-try-badge.is-visible { opacity: 1; }
+
+    .memory-practice-demo,
+    .memory-practice-demo > * { min-height: 0; height: 100%; }
+
+    .memory-practice-panel-title {
+      min-height: 2.8em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 8px;
+      font-size: var(--instruction-body-size);
+      font-weight: 750;
+      line-height: 1.28;
+      text-align: center;
+      text-shadow: 0 2px 10px rgba(0,0,0,.45);
+    }
+
+    .memory-practice-notices {
+      display: grid;
+      justify-items: center;
+      align-content: start;
+      gap: 6px;
+    }
+
+    .memory-practice-timing {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 9px 14px;
+      border: 1px solid #cbd0d6;
+      border-radius: 10px;
+      background: linear-gradient(to bottom,#f3f4f6,#e5e7eb);
+      color: #4b5563;
+      font-size: var(--instruction-small-size);
+      line-height: 1.42;
+      text-align: center;
+    }
+
+    .memory-practice-timing strong { font-weight: 800; }
+
+    .memory-order-options {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: clamp(18px, 4vw, 34px);
+      min-height: calc(100% - 3.4em);
+    }
+
+    .memory-choice-option {
+      box-sizing: border-box;
+      min-width: 132px;
+      padding: 8px 10px;
+      border: 2px solid transparent;
+      border-radius: 16px;
+      transition: border-color .16s ease, background .16s ease, box-shadow .16s ease, transform .16s ease;
+    }
+
+    .memory-choice-option.is-selected {
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,.9);
+      background: rgba(255,255,255,.10);
+      box-shadow: 0 0 18px rgba(255,255,255,.30);
+    }
+
+    @media (max-height: 700px) {
+      .memory-practice-screen {
+        grid-template-rows: auto clamp(230px, 34vh, 250px) auto;
+      }
+      .memory-practice-panel-title { min-height: 2.5em; margin-bottom: 5px; }
+      .memory-order-options { min-height: calc(100% - 3em); }
+    }
+
+    @media (max-width: 780px) {
+      .memory-overview-grid {
+        grid-template-columns: minmax(0, 1fr);
+        width: min(88vw, 440px);
+        height: auto;
+      }
+
+      .memory-overview-grid > * {
+        min-height: 260px;
+      }
     }
 
     .memory-item-demo-grid {
@@ -542,7 +671,8 @@
       height: 85.625%;
     }
 
-    .practice-tip {
+    .practice-tip,
+    .memory-practice-try-badge {
       grid-row: 2;
       align-self: center;
       justify-self: center;
@@ -1031,7 +1161,7 @@
     button_label_previous: "Prev",
     button_label_next: "Next",
     data: {
-      task_version: 'v3.10.3-balanced-instruction-type',
+      task_version: 'v3.11.0-item-practice-before-red',
       stimuli_version: stimuli_version,
 
       true_vol: factors_vol,
@@ -1095,7 +1225,7 @@
 
   // ──────────────────────────────────────────────────────────────
   // Randomized practice-position helpers
-  // Used only for practice blocks 1–4.
+  // Used only for practice blocks 1–5.
   // Main-task latent trajectories remain unchanged.
   // ──────────────────────────────────────────────────────────────
   function clampPracticeX(x) {
@@ -1112,36 +1242,74 @@
 
   function makePracticeDronePath(numTrials) {
     var path = [];
-    var anchor1 = randBetween(32, 68);
+    var firstDirection = randSign();
+    var smallStep = randBetween(3, 7);
+    var largeReverseStep = randBetween(18, 30);
 
+    // Choose the first location from the interval that guarantees the first
+    // three positions remain within the usable scene without clamping. This
+    // preserves a genuinely small 1→2 move and a much larger reversed 2→3
+    // move, while the broad random ranges keep the route from being rote.
+    var anchorMin;
+    var anchorMax;
+    if (firstDirection > 0) {
+      anchorMin = 14 + largeReverseStep - smallStep;
+      anchorMax = 86 - smallStep;
+    } else {
+      anchorMin = 14 + smallStep;
+      anchorMax = 86 + smallStep - largeReverseStep;
+    }
+
+    var anchor1 = randBetween(anchorMin, anchorMax);
     path.push(anchor1);
 
     if (numTrials >= 2) {
-      path.push(clampPracticeX(anchor1 + randBetween(-4, 4)));
+      path.push(anchor1 + firstDirection * smallStep);
     }
 
-    var anchor2 = null;
+    var anchor3 = null;
     if (numTrials >= 3) {
-      var move = randSign() * randBetween(10, 16);
-      anchor2 = clampPracticeX(anchor1 + move);
-
-      if (Math.abs(anchor2 - anchor1) < 9) {
-        anchor2 = clampPracticeX(anchor1 - move);
-      }
-
-      path.push(anchor2);
+      anchor3 = path[1] - firstDirection * largeReverseStep;
+      path.push(anchor3);
     }
 
     for (var i = 3; i < numTrials; i++) {
-      path.push(clampPracticeX(anchor2 + randBetween(-4, 4)));
+      path.push(clampPracticeX(anchor3 + randBetween(-7, 7)));
     }
 
     return path;
   }
 
-  function makeRandomPracticeBag(droneX) {
-    var wind = randBetween(-6, 6);
-    return clampPracticeX(droneX + wind);
+  function shufflePracticeValues(values) {
+    var shuffled = values.slice();
+    for (var i = shuffled.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var tmp = shuffled[i];
+      shuffled[i] = shuffled[j];
+      shuffled[j] = tmp;
+    }
+    return shuffled;
+  }
+
+  function makePracticeDropOffsets(numTrials) {
+    var offsets = [];
+    var sides = [];
+
+    if (numTrials === 1) {
+      sides = [randSign()];
+    } else {
+      // Guarantee that both sides of the drone are demonstrated, but shuffle
+      // their order so participants cannot learn a left-right alternation.
+      sides = [-1, 1];
+      while (sides.length < numTrials) sides.push(randSign());
+      sides = shufflePracticeValues(sides);
+    }
+
+    for (var i = 0; i < numTrials; i++) {
+      offsets.push(sides[i] * randBetween(3.5, 6.5));
+    }
+
+    return offsets;
   }
 
   var make_trials = function(practice_no, block_order) {
@@ -1161,17 +1329,13 @@
     // ────────────────────────────────────────────────────────────
     // Practice block configuration.
     //
-    // Drone visibility (`show_drone`):
-    //   practice 1, 2, 3 — drone VISIBLE (drone-visible warmup)
-    //   practice 4       — drone HIDDEN (matches main task)
-    //
-    // Item visibility (`hideStimulus`):
-    //   practices 1–4 — items HIDDEN (items are introduced only after
-    //                   all three scored practice blocks are complete)
-    //
-    // Valence is set per-trial below; practice 3 uses 'loss'.
+    // Practice 1: one-turn movement warm-up, green, drone visible, item hidden.
+    // Practice 2: three green turns, drone visible, items hidden.
+    // Practice 3: three green turns, drone hidden, items hidden.
+    // Practice 4: three green turns, drone hidden, items visible.
+    // Practice 5: three red turns, drone hidden, items visible.
     // ────────────────────────────────────────────────────────────
-    var hideStimulus = (practice_no >= 1 && practice_no <= 4);
+    var hideStimulus = (practice_no >= 1 && practice_no <= 3);
 
     if (practice_no == 1) {
       is_moving_practice = true;
@@ -1180,14 +1344,15 @@
       missed_threshold = 10;
       num_trials = 1;
       block_order = [0];
-    } else if (practice_no == 2 || practice_no == 3) {
+    } else if (practice_no == 2) {
       show_drone = true;
       num_trials = 3;
       missed_threshold = 2;
       block_order = [0];
-    } else if (practice_no == 4) {
+    } else if (practice_no == 3 || practice_no == 4 || practice_no == 5) {
       show_drone = false;
       num_trials = 3;
+      missed_threshold = 2;
       block_order = [0];
     } else if (practice_no == 0) {
       num_blocks = 4;
@@ -1218,8 +1383,10 @@
     // Tracks previous practice drone position so practice drone locations
     // move a meaningful distance from one supply-drop to another.
     var practiceDronePath = null;
-    if (practice_no >= 1 && practice_no <= 4) {
+    var practiceDropOffsets = null;
+    if (practice_no >= 1 && practice_no <= 5) {
       practiceDronePath = makePracticeDronePath(num_trials);
+      practiceDropOffsets = makePracticeDropOffsets(num_trials);
     }
 
     for (var j = 0; j < num_blocks; j++) {
@@ -1231,10 +1398,10 @@
       // number, while `design_idx` stores the canonical condition identity.
       //
       // Practice valence coverage:
-      // Practice 3 is set to 'loss'.
+      // Practice 5 is the final red/loss block.
       // ────────────────────────────────────────────────────────────
       var design_idx = (practice_no === 0) ? block_order[j] : 0;
-      var practice_valence = (practice_no === 3) ? 'loss' : 'reward';
+      var practice_valence = (practice_no === 5) ? 'loss' : 'reward';
 
       if (block_intro) {
         var planetNum = j + 1;
@@ -1339,16 +1506,14 @@
         var cdur = Array.isArray(supply_duration[idx]) ? supply_duration[idx].slice() : supply_duration.slice();
         var cdist = Array.isArray(supply_distribution[idx]) ? supply_distribution[idx].slice() : supply_distribution.slice();
 
-        // Main task uses per-block shuffled PNGs. Practice uses one dedicated
-        // emoji per configured turn: 1 movement warm-up identity, then 3 × 3
-        // scored-practice identities. All remain visually hidden; the fixed
-        // offsets preserve unique saved identities without introducing items
-        // before the memory instructions.
+        // Main task uses per-block shuffled PNGs. Every practice turn uses a
+        // unique practice-only object emoji. Practices 1–3 keep those objects
+        // hidden; practice 4 reveals the three items reused by the memory
+        // examples; practice 5 uses a separate trio for the final red block.
         var stim_img;
-        if (practice_no >= 1 && practice_no <= 4) {
-          var practiceStimulusOffset = (practice_no === 1)
-            ? 0
-            : 1 + ((practice_no - 2) * 3);
+        if (practice_no >= 1 && practice_no <= 5) {
+          var practiceStimulusOffsets = { 1: 0, 2: 1, 3: 7, 4: 4, 5: 10 };
+          var practiceStimulusOffset = practiceStimulusOffsets[practice_no];
           var practiceStimulusIndex = practiceStimulusOffset + i;
           stim_img = practice_stimulus_images[practiceStimulusIndex];
 
@@ -1363,27 +1528,32 @@
         }
 
         // Practice positions:
-        // - Practices 1–4 use randomized underlying drone positions.
-        // - The bag is stochastically shifted around that drone position.
-        // - Practice 4 keeps the drone hidden through show_drone = false.
+        // - Practices 1–5 use randomized underlying drone positions.
+        // - Each supply has one fixed left/right offset from the drone. Its
+        //   descent is straight and vertical, matching the real game.
+        // - Practices 3–5 keep the drone hidden through show_drone = false.
         // Main-task positions remain the designed latent trajectories.
         var thisDronePosition;
         var thisDroneStartPosition;
         var thisBagPosition;
+        var thisPracticeDropOffset = null;
 
-        if (practice_no >= 1 && practice_no <= 4) {
+        if (practice_no >= 1 && practice_no <= 5) {
           thisDronePosition = practiceDronePath[i % practiceDronePath.length];
 
-          // For visible practice trials, animate from previous drone location
-          // to the current one. On the first trial, start slightly nearby so
-          // participants see motion without a huge jump.
+          // The first visible turn starts in place. Subsequent turns begin at
+          // the exact preceding location, so the drone travels continuously
+          // instead of vanishing and reappearing at the new destination.
           if (i === 0) {
-            thisDroneStartPosition = clampPracticeX(thisDronePosition + randBetween(-8, 8));
+            thisDroneStartPosition = thisDronePosition;
           } else {
             thisDroneStartPosition = practiceDronePath[(i - 1) % practiceDronePath.length];
           }
 
-          thisBagPosition = makeRandomPracticeBag(thisDronePosition);
+          thisPracticeDropOffset = practiceDropOffsets[i % practiceDropOffsets.length];
+          thisBagPosition = clampPracticeX(
+            thisDronePosition + thisPracticeDropOffset
+          );
         } else {
           thisDronePosition = drone_position[design_idx][i];
           thisDroneStartPosition = thisDronePosition;
@@ -1413,7 +1583,9 @@
             trial: i + 1,
             stim_img: stim_img,
             practice_no: practice_no,
-            practice_valence: practice_valence
+            practice_valence: practice_valence,
+            // Retain the historical data-column name for analysis compatibility.
+            practice_wind_offset: thisPracticeDropOffset
           },
           true_vol_param: (practice_no === 0 ? factors_vol[design_idx] : null),
           true_stc_param: (practice_no === 0 ? factors_stc[design_idx] : null),
@@ -1431,8 +1603,11 @@
           bag_position: thisBagPosition,
           drone_position: thisDronePosition,
           drone_start_position: thisDroneStartPosition,
-          animate_drone: (practice_no >= 1 && practice_no <= 3),
-          drone_animation_duration: 900,
+          animate_drone: (practice_no === 1 || practice_no === 2),
+          drone_animation_duration: Math.max(
+            550,
+            Math.min(1350, 450 + Math.abs(thisDronePosition - thisDroneStartPosition) * 32)
+          ),
           show_drone: show_drone,
           is_moving_practice: is_moving_practice,
           missing_msg_warning_number: warning_threshold,
@@ -1505,6 +1680,7 @@
   var practice2 = make_trials(2, block_order);
   var practice3 = make_trials(3, block_order);
   var practice4 = make_trials(4, block_order);
+  var practice5 = make_trials(5, block_order);
   var trials = make_trials(0, block_order);
 
   function create_memory_timeline(blockNum) {
@@ -1763,10 +1939,7 @@
           }
         },
         {
-          timeline: [
-            addSmoothTransitions(inst2_locking_and_bag),
-            addSmoothTransitions(inst2_red_supply)
-          ],
+          timeline: [addSmoothTransitions(inst2_locking_and_bag)],
           conditional_function: function() {
             var d = getLastTrialOfType(trialType);
             return !!(d && d.done === false && d.review_topic === 'inst2');
@@ -1780,10 +1953,21 @@
           }
         },
         {
-          timeline: [addSmoothTransitions(inst4_full_game)],
+          timeline: [
+            addSmoothTransitions(inst4_item_intro),
+            addSmoothTransitions(inst4_memory_questions),
+            addSmoothTransitions(inst4_planets)
+          ],
           conditional_function: function() {
             var d = getLastTrialOfType(trialType);
             return !!(d && d.done === false && d.review_topic === 'inst4');
+          }
+        },
+        {
+          timeline: [addSmoothTransitions(inst2_red_supply)],
+          conditional_function: function() {
+            var d = getLastTrialOfType(trialType);
+            return !!(d && d.done === false && d.review_topic === 'red');
           }
         }
       ],
@@ -1853,13 +2037,21 @@
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst2_locking_and_bag));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(block_intro_green_seen));
   instructions_loop = instructions_loop.concat(practice2);
-  instructions_loop = instructions_loop.concat(addSmoothTransitions(inst2_red_supply));
-  instructions_loop = instructions_loop.concat(addSmoothTransitions(block_intro_red_seen));
-  instructions_loop = instructions_loop.concat(practice3);
   instructions_loop = instructions_loop.concat(addSmoothTransitions(inst3_drone_disappears));
   instructions_loop = instructions_loop.concat(addSmoothTransitions(block_intro_green_hidden));
+  instructions_loop = instructions_loop.concat(practice3);
+  instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_item_intro));
+  // The Bird reference has no separate item-visible-practice intro: its item
+  // page flows into the memory explanation. Keep the added three-turn item
+  // practice here without inventing another source-attributed wording screen.
   instructions_loop = instructions_loop.concat(practice4);
-  instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_full_game));
+  instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_memory_questions));
+  // In the Bird pipeline, the four-environment explanation follows the item
+  // and memory explanation. Keep the four-planet adaptation in that position.
+  instructions_loop = instructions_loop.concat(addSmoothTransitions(inst4_planets));
+  instructions_loop = instructions_loop.concat(addSmoothTransitions(inst2_red_supply));
+  instructions_loop = instructions_loop.concat(addSmoothTransitions(block_intro_red_final));
+  instructions_loop = instructions_loop.concat(practice5);
   instructions_loop = instructions_loop.concat(addSmoothTransitions(quiz));
 
   // Single combined check (loops until all correct — never terminates)

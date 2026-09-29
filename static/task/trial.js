@@ -275,7 +275,7 @@ jsPsych.plugins["trial"] = (function () {
       "</div>";
 
     // Drone indicator (practice only)
-    var showDroneNow = trial.show_drone || trial.show_drone;
+    var showDroneNow = trial.show_drone;
     var droneStart = (
       typeof trial.drone_start_position === "number"
         ? trial.drone_start_position
@@ -288,9 +288,14 @@ jsPsych.plugins["trial"] = (function () {
     }
 
     html +=
-      '<div class="' + droneClass + '" id="drone" style="left:' +
+      '<div class="' + droneClass + ' css-drone-shape" id="drone" style="left:' +
       droneStart +
-      '%;">&#128760;</div>';
+      '%;" aria-hidden="true">' +
+        '<span class="css-drone-arm"></span>' +
+        '<span class="css-drone-body"></span>' +
+        '<span class="css-drone-rotor left"></span>' +
+        '<span class="css-drone-rotor right"></span>' +
+      '</div>';
 
     // PE line is kept in the DOM but never displayed (legacy element).
     html += '<div class="pe-line" id="pe-line" style="display:none;"></div>';
@@ -442,7 +447,7 @@ jsPsych.plugins["trial"] = (function () {
     setTimeout(function () {
       // Keep the drone visible during visible practice trials.
       // Do not reset left here if it has already traveled during the response phase.
-      if (trial.show_drone || trial.show_drone) {
+      if (trial.show_drone) {
         var drone = document.getElementById("drone");
         if (drone) {
           if (!trial.animate_drone) {
@@ -452,8 +457,10 @@ jsPsych.plugins["trial"] = (function () {
         }
       }
 
-      // Place bag dot at the true bag x; the .dropping class animates it from
-      // the top of the game area down to the landing point above the rail.
+      // Place the supply at its fixed wind-shifted x. The ordinary drop
+      // animation changes only its vertical position, matching the real game:
+      // the circle begins a little left or right of the drone and falls
+      // straight down without lateral motion.
       var bagDot = document.getElementById("bag-dot");
       if (bagDot) {
         var bagLeft = clampPercent(trial.bag_position, 12, 88);
@@ -644,8 +651,6 @@ plugin.trial = function (display_element, trial) {
       }
     };
 
-    if (trial.show_drone && !trial.show_drone) trial.show_drone = trial.show_drone;
-
     if (trial.is_moving_practice) {
       trial.no_response_duration = 5000;
     }
@@ -657,7 +662,7 @@ plugin.trial = function (display_element, trial) {
     display_element.innerHTML = make_html(trial);
     setCollectorUnlocked();
 
-    if ((trial.show_drone || trial.show_drone) && trial.animate_drone) {
+    if (trial.show_drone && trial.animate_drone) {
       jsPsych.pluginAPI.setTimeout(function () {
         var drone = display_element.querySelector('#drone');
         if (drone) {
@@ -675,7 +680,7 @@ plugin.trial = function (display_element, trial) {
 
           drone.style.transition =
             'left ' + (trial.drone_animation_duration || 900) +
-            'ms cubic-bezier(.22,.61,.36,1), opacity 0.3s';
+            'ms cubic-bezier(.22,.61,.36,1)';
           drone.style.left = trial.drone_position + '%';
         }
       }, 80);
@@ -990,7 +995,12 @@ plugin.trial = function (display_element, trial) {
         stim_fallback_emoji:   _stim_fallback_emoji
       };
 
-      display_element.innerHTML = "";
+      // Keep the visible practice drone painted until the next practice turn
+      // replaces the scene synchronously. This avoids a blank/flicker frame
+      // between its old and new positions.
+      if (!(trial.show_drone && trial.animate_drone)) {
+        display_element.innerHTML = "";
+      }
       display_element.classList.remove('jspsych-moving-practice-layout');
       jsPsych.finishTrial(trial_data);
     };

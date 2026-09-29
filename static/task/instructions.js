@@ -32,6 +32,27 @@ function mockFrame(innerHTML, frameStyle, scale) {
   );
 }
 
+function droneShapeParts() {
+  return (
+    '<span class="css-drone-arm"></span>' +
+    '<span class="css-drone-body"></span>' +
+    '<span class="css-drone-rotor left"></span>' +
+    '<span class="css-drone-rotor right"></span>'
+  );
+}
+
+function instructionDroneShape(leftPct, topPct, scale) {
+  var visualScale = Math.max(0.52, (typeof scale === 'number') ? scale : 1);
+  return (
+    '<div class="css-drone-shape" aria-hidden="true" style="position:absolute;' +
+      'left:' + leftPct + '%;top:' + topPct + '%;z-index:12;opacity:.94;' +
+      'transform:translateX(-50%) scale(' + visualScale + ');' +
+      'transform-origin:50% 0;">' +
+      droneShapeParts() +
+    '</div>'
+  );
+}
+
 function buildScene(opts) {
   opts = opts || {};
   var realTrialLayout = !!opts.realTrialLayout;
@@ -77,18 +98,13 @@ function buildScene(opts) {
   }
 
   if (typeof droneX === 'number') {
-    var droneFontSize = Math.max(18, Math.round(36 * componentScale));
-    pieces.push(
-      '<div style="position:absolute;left:' + droneX + '%;top:7%;' +
-        'transform:translateX(-50%);font-size:' + droneFontSize + 'px;opacity:.9;' +
-        'filter:drop-shadow(0 4px 8px rgba(0,0,0,.4));">🛸</div>'
-    );
+    pieces.push(instructionDroneShape(droneX, 7, componentScale));
   }
 
   if (scoreText) {
-    var scoreColor = (valence === 'loss')
-      ? (scoreText === '0' ? '#FFD700' : '#FF4444')
-      : '#39FF14';
+    var scoreColor = scoreText === '0'
+      ? '#FFD700'
+      : (valence === 'loss' ? '#FF4444' : '#39FF14');
     var scoreX = (typeof bagX === 'number') ? bagX : 50;
     var scoreFontSize = Math.max(18, Math.round(40 * componentScale));
     pieces.push(
@@ -217,8 +233,7 @@ function mockPlanet(hue, sat, planetNum, droneX, collectorX, scale) {
       'background:' + sky + ';margin:0 auto;">' +
       '<div style="position:absolute;left:0;right:0;bottom:0;height:22%;' +
         'background:' + gnd + ';border-top:1px solid rgba(255,255,255,.18);"></div>' +
-      '<div style="position:absolute;left:' + droneX + '%;top:8%;' +
-        'transform:translateX(-50%);font-size:22px;opacity:.85;">🛸</div>' +
+      instructionDroneShape(droneX, 8, 0.52) +
       '<div style="position:absolute;left:8%;width:84%;top:78%;height:3px;' +
         'transform:translateY(-50%);border-radius:999px;' +
         'background:rgba(255,255,255,.55);box-shadow:0 0 8px rgba(255,255,255,.15);"></div>' +
@@ -320,8 +335,11 @@ function supplyScoreScaleCard(label, accent, background, border, leftScore, righ
       '<div style="font-size:20px;font-weight:800;color:' + accent + ';margin-bottom:8px;">' +
         pill(label, accent, '#fff') +
       '</div>' +
-      '<div style="font-size:var(--instruction-body-size);line-height:1.42;color:#1f2937;">' +
-        '<strong>0 pieces</strong> caught&nbsp;&nbsp;→&nbsp;&nbsp;<strong>10 pieces</strong> caught' +
+      '<div style="display:flex;align-items:center;justify-content:center;gap:14px;' +
+        'font-size:var(--instruction-body-size);line-height:1.42;color:#1f2937;">' +
+        '<span><strong>0 pieces</strong> caught</span>' +
+        '<span aria-hidden="true">→</span>' +
+        '<span><strong>10 pieces</strong> caught</span>' +
       '</div>' +
       '<div style="display:flex;justify-content:space-between;gap:18px;margin-top:8px;' +
         'font-size:18px;font-weight:800;">' +
@@ -437,7 +455,7 @@ function catchOutcomeDemos() {
         '<div style="text-align:center;font-size:14px;margin-bottom:4px;">' +
           '<span class="instruction-emphasis">Catch fewer pieces</span></div>' +
         mockGame({ droneX: 60, collectorX: 35, collectorLocked: true,
-          bagX: 60, valence: 'reward', showFragments: true, scoreText: '+3' }, null, 0.45) +
+          bagX: 60, valence: 'reward', showFragments: true, scoreText: '0' }, null, 0.45) +
       '</div>' +
     '</div>'
   );
@@ -575,7 +593,7 @@ var inst2_locking_and_bag = {
 
     // P2: green supply drops + score
     pageBody(null, [
-      keyLine('You will then see a drone dropping supplies.'),
+      keyLine('You will then see the drone dropping a supply.'),
       'The supply breaks into pieces near the rail and the pieces fall.',
       'Your score is determined by the <strong>number of pieces</strong> that you catch in the collector.',
       'You will <strong>see your score</strong> on the screen after the pieces fall at the end of each turn.',
@@ -587,14 +605,14 @@ var inst2_locking_and_bag = {
     // P3: keep responding — repeat the same outcome demonstration
     pageBody(null, [
       [
-        'If you do not move the collector on one or two turns,',
+        'If you <strong>do not move the collector</strong> on one or two turns,',
         'we assume you are <em>happy with its position</em>.'
       ],
-      'However, you should <strong>not</strong> leave the collector in one place for ' +
+      'However, you should not leave the collector in one place for ' +
         '<strong>more than a few turns</strong>.',
       [
-        'If you do, we will warn you,',
-        'and if you persist, we may have to end the game early!'
+        'If you do, we will <em>warn you</em>,',
+        'and if you persist, we may have to <strong>end the game early!</strong>'
       ]
     ]) + catchOutcomeDemos(),
 
@@ -644,12 +662,14 @@ var block_intro_green_seen = {
   button_label_next: 'Next'
 };
 
-// ── Red-supply lesson: reuse the green scoring-screen structure ────
+// ── Final red-supply lesson: shown after the memory instructions ───
 var inst2_red_supply = {
   type: 'instructions',
   pages: [
     pageBody(null, [
       keyLine('Next, you will practice with red supplies.'),
+      'In the full game, the supplies on some planets will all be ' + green('green') + '.',
+      'On other planets, the supplies will all be ' + red('red') + '.',
       'Red supplies <strong>reduce loss</strong> of points.',
       [
         'The <em>more</em> pieces you catch,',
@@ -670,8 +690,8 @@ var inst2_red_supply = {
   button_label_next: 'Next'
 };
 
-// ── Block-intro: red bag, drone visible ────────────────────────────
-var block_intro_red_seen = {
+// ── Final red practice: hidden drone with items visible ────────────
+var block_intro_red_final = {
   type: 'instructions',
   pages: [
     pageBody(null, [
@@ -731,7 +751,7 @@ var inst3_drone_disappears = {
     pageBody(null, [
       keyLine('You may have noticed that the drone can also move unpredictably.'),
       [
-        'The <em>best guess</em> for its position on one turn is its position on the <strong>previous turn</strong>,',
+        'The <strong>best prediction</strong> for its position on one turn is its position on the previous turn,',
         'but it may move to a <strong>new location</strong> at any time.'
       ]
     ]) +
@@ -873,105 +893,171 @@ var block_intro_green_hidden = {
   button_label_next: 'Next'
 };
 
-var inst4PlacementCleanup = null;
+function memoryPracticeNotices() {
+  return (
+    '<div class="memory-practice-notices">' +
+      '<em class="memory-no-score-emphasis">These questions will not affect your score.</em>' +
+      '<div class="memory-practice-timing">' +
+        '<div>Begin each response within <strong>5 seconds</strong>.</div>' +
+        '<div>For a slider question, after your first move, your answer submits automatically in <strong>7 seconds</strong>.</div>' +
+      '</div>' +
+    '</div>'
+  );
+}
 
-function setupInst4PlacementInteraction() {
-  if (typeof inst4PlacementCleanup === 'function') {
-    inst4PlacementCleanup();
+function memoryPracticePage(kind, demoHTML) {
+  return (
+    '<div class="memory-practice-screen" data-memory-practice="' + kind + '">' +
+      '<div class="memory-practice-prompt">' +
+        '<div>Try it now by pressing <strong>← or →</strong>.</div>' +
+        '<div class="memory-practice-try-badge" role="status" aria-live="polite"></div>' +
+      '</div>' +
+      '<div class="memory-practice-demo">' + demoHTML + '</div>' +
+      memoryPracticeNotices() +
+    '</div>'
+  );
+}
+
+var inst4MemoryPracticeCleanup = null;
+
+function setupInst4MemoryPracticeInteractions() {
+  if (typeof inst4MemoryPracticeCleanup === 'function') {
+    inst4MemoryPracticeCleanup();
   }
 
-  var triedSlider = false;
   var badgeTimeout = null;
 
-  function removeBadge() {
-    var badge = document.getElementById('placement-example-try-badge');
-    if (badge && badge.parentNode) badge.parentNode.removeChild(badge);
+  function activePracticeScreen() {
+    return document.querySelector('.memory-practice-screen[data-memory-practice]');
   }
 
-  function showTryBadge() {
-    removeBadge();
+  function hideTryBadge() {
+    var screen = activePracticeScreen();
+    var badge = screen && screen.querySelector('.memory-practice-try-badge');
+    if (badge) {
+      badge.classList.remove('is-visible');
+      badge.textContent = '';
+    }
+  }
+
+  function showTryBadge(screen) {
+    var badge = screen && screen.querySelector('.memory-practice-try-badge');
+    if (!badge) return;
     if (badgeTimeout !== null) clearTimeout(badgeTimeout);
-
-    var badge = document.createElement('div');
-    badge.id = 'placement-example-try-badge';
-    badge.textContent = 'Try sliding with arrow keys first!';
-    badge.style.cssText =
-      'position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:99999;' +
-      'padding:10px 18px;border-radius:10px;background:#fffbeb;' +
-      'border:1px solid #fde68a;color:#854d0e;font-size:15px;font-weight:600;' +
-      'box-shadow:0 6px 18px rgba(133,77,14,.14);' +
-      'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
-      'transition:opacity .35s ease;pointer-events:none;';
-    document.body.appendChild(badge);
-
-    badgeTimeout = setTimeout(function() {
-      badge.style.opacity = '0';
-      setTimeout(removeBadge, 400);
-    }, 2200);
+    badge.textContent = screen.getAttribute('data-memory-practice') === 'order'
+      ? '← Try choosing with an arrow key first! →'
+      : '← Try sliding with the arrow keys first! →';
+    badge.classList.add('is-visible');
+    badgeTimeout = setTimeout(hideTryBadge, 2200);
   }
 
-  function keyHandler(event) {
-    var knob = document.getElementById('placement-example-slider-knob');
-    if (!knob) return;
-    if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
+  function movePracticeSlider(knob, direction) {
     var current = parseFloat(knob.getAttribute('data-position'));
     if (!isFinite(current)) current = 50;
-    current += event.key === 'ArrowLeft' ? -5 : 5;
+    current += direction === 'ArrowLeft' ? -5 : 5;
     current = Math.max(0, Math.min(100, current));
     knob.setAttribute('data-position', String(current));
     knob.style.left = current + '%';
     knob.classList.add('is-active');
-    triedSlider = true;
-    removeBadge();
+  }
+
+  function recordPracticeResponse(screen, key) {
+    var kind = screen.getAttribute('data-memory-practice');
+    if (kind === 'order') {
+      var selectedChoice = key === 'ArrowLeft' ? 'left' : 'right';
+      Array.prototype.forEach.call(
+        screen.querySelectorAll('.memory-choice-option'),
+        function(choice) {
+          choice.classList.toggle(
+            'is-selected',
+            choice.getAttribute('data-memory-choice') === selectedChoice
+          );
+        }
+      );
+    } else {
+      var knobId = kind === 'distance'
+        ? 'memory-distance-practice-slider-knob'
+        : 'placement-example-slider-knob';
+      var knob = document.getElementById(knobId);
+      if (!knob) return false;
+      movePracticeSlider(knob, key);
+    }
+
+    screen.setAttribute('data-practiced', 'true');
+    hideTryBadge();
+    return true;
+  }
+
+  function keyHandler(event) {
+    var screen = activePracticeScreen();
+    if (!screen) return;
+
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      recordPracticeResponse(screen, event.key);
+      return;
+    }
+
+    // Slider examples explicitly advertise Enter/Space confirmation.  Honor
+    // that affordance here (and let it work consistently on every try-out)
+    // without allowing an accidental skip before an arrow-key response.
+    if (event.key === 'Enter' || event.key === ' ' || event.code === 'Space') {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      if (screen.getAttribute('data-practiced') !== 'true') {
+        showTryBadge(screen);
+        return;
+      }
+      var nextButton = document.getElementById('jspsych-instructions-next');
+      if (nextButton) nextButton.click();
+    }
   }
 
   function clickGuard(event) {
     var button = event.target.closest
       ? event.target.closest('#jspsych-instructions-next')
       : null;
-    if (!button || !document.getElementById('placement-example-slider') || triedSlider) return;
+    var screen = activePracticeScreen();
+    if (!button || !screen || screen.getAttribute('data-practiced') === 'true') return;
 
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-    showTryBadge();
+    showTryBadge(screen);
   }
 
   document.addEventListener('keydown', keyHandler, true);
   document.addEventListener('click', clickGuard, true);
 
-  inst4PlacementCleanup = function() {
+  inst4MemoryPracticeCleanup = function() {
     document.removeEventListener('keydown', keyHandler, true);
     document.removeEventListener('click', clickGuard, true);
     if (badgeTimeout !== null) clearTimeout(badgeTimeout);
-    removeBadge();
-    inst4PlacementCleanup = null;
+    hideTryBadge();
+    inst4MemoryPracticeCleanup = null;
   };
 }
 
-function cleanupInst4PlacementInteraction() {
-  if (typeof inst4PlacementCleanup === 'function') {
-    inst4PlacementCleanup();
+function cleanupInst4MemoryPracticeInteractions() {
+  if (typeof inst4MemoryPracticeCleanup === 'function') {
+    inst4MemoryPracticeCleanup();
   }
 }
 
-// ── inst4: Full game + memory ──────────────────────────────────────
-var inst4_full_game = {
+// ── inst4: Item practice, memory task, and full-game blocks ────────
+var inst4_planets = {
   type: 'instructions',
   pages: [
 
-    // P1: four planets; the two wind/movement parameter sets are crossed with valence.
+    // Four planets; red scoring is intentionally introduced later.
     pageBody(null, [
       keyLine('The full game will have <strong>4 different planets</strong>.'),
       'Each planet will have a drone.',
-      '<strong>Wind conditions and drone movement can differ</strong> between planets.</strong>',
-      'You will be reminded each time the planet and drone change.',
-      'On each planet, the supplies will <em>all</em> be ' + green('green') + ' or <em>all</em> be ' + red('red') + '.',
-      '<strong>In both cases, your goal is to catch as many pieces as you can.</strong>'
+      '<strong>Wind conditions and drone movement can differ</strong> between planets.',
+      'You will be reminded each time the planet and drone change.'
     ]) +
 
       '<div style="display:flex;gap:14px;justify-content:center;align-items:flex-start;' +
@@ -993,48 +1079,42 @@ var inst4_full_game = {
             );
           }).join('');
         })() +
-      '</div>' +
+      '</div>'
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
 
-      '<div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;' +
-        'margin-top:20px;max-width:680px;margin-left:auto;margin-right:auto;">' +
-        '<div style="flex:1;min-width:200px;padding:10px 16px;border-radius:10px;' +
-          'background:#f6fff7;border:1.5px solid #c6e8cc;font-size:15px;">' +
-          instructionLines([
-            pill('Green supply', '#0a7f2e', '#fff') ,
-            '<span style="font-size:13px;color:#555;">Best: ' + green('+10') +
-              '&nbsp;·&nbsp;Worst: ' + gold('0') + '</span>'
-          ]) +
-        '</div>' +
-        '<div style="flex:1;min-width:200px;padding:10px 16px;border-radius:10px;' +
-          'background:#fff7f7;border:1.5px solid #f0c8c8;font-size:15px;">' +
-          instructionLines([
-            pill('Red supply', '#b00020', '#fff') ,
-            '<span style="font-size:13px;color:#555;">Best: ' + gold('0') +
-              '&nbsp;·&nbsp;Worst: ' + red('−10') + '</span>'
-          ]) +
-        '</div>' +
-      '</div>' ,
+var inst4_item_intro = {
+  type: 'instructions',
+  pages: [
+    pageBody(null, [
+      keyLine('You will also notice that on each turn, a distinct item will appear where the pieces fall.'),
+      '<span class="memory-item-note-reminder">' +
+        'You should note these items as they appear, but you ' +
+        '<em>do not need to</em> memorize them.' +
+      '</span>'
+    ]) + memoryItemIntroExamples()
+  ],
+  show_clickable_nav: true,
+  button_label_previous: 'Prev',
+  button_label_next: 'Next'
+};
 
-// P2: first item introduction — after all three practice blocks
-pageBody(null, [
-  keyLine('You will also notice that on each turn, a distinct item will appear where the pieces fall.'),
-  '<span class="memory-item-note-reminder">' +
-    'You should note these items as they appear, but you ' +
-    '<em>do not need to</em> memorize them.' +
-  '</span>'
-]) + memoryItemIntroExamples(),
-
-// P3: item questions overview
+var inst4_memory_questions = {
+  type: 'instructions',
+  pages: [
+// Item questions overview
 pageBody(null, [
   [
     'You will be asked which item in a pair <strong>appeared first</strong>,',
     '<strong>how far apart</strong> in time you feel the two items were during the game,',
-    'and <strong>when</strong> you feel another item <strong>appeared between</strong> them.'
+    'and when you feel another item <strong>appeared between</strong> them.'
   ],
   '<em class="memory-no-score-emphasis">These questions will not affect your score.</em>'
 ]) +
-  '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;' +
-    'width:92vw;max-width:1180px;margin:18px auto 8px auto;">' +
+  '<div class="memory-overview-grid">' +
 
     memoryExamplePanel(
       '<div style="font-size:19px;font-weight:750;text-align:center;margin-bottom:14px;' +
@@ -1083,53 +1163,69 @@ pageBody(null, [
       true,
       true
     ) +
-  '</div>' +
-  '<div style="max-width:760px;margin:14px auto 0;padding:12px 18px;' +
-    'border-radius:10px;background:linear-gradient(to bottom,#f3f4f6,#e5e7eb);' +
-    'border:1px solid #cbd0d6;text-align:center;' +
-    'font-size:14px;color:#4b5563;line-height:1.5;">' +
-    instructionLines([
-      'Begin each response within <strong>5 seconds</strong>.',
-      [
-        'For a slider question, after your first move,',
-        'your answer submits automatically in <strong>7 seconds</strong>.'
-      ]
-    ]) +
-  '</div>' ,
+  '</div>',
 
-// P4: placement example
-pageBody(null, [
-  [
-    'Use <strong>← →</strong> to place the highlighted item',
-    'where you feel it <strong>appeared between</strong> two other items during the game.'
-  ],
-  'Try it now by pressing <strong>← or →</strong>.'
-]) +
-  '<div style="max-width:760px;margin:20px auto 10px auto;">' +
-    memoryExamplePanel(
-      '<div style="font-size:19px;font-weight:750;text-align:center;margin-bottom:18px;' +
-        'text-shadow:0 2px 12px rgba(0,0,0,.5);">When did this item appear between the other two items?</div>' +
-      '<div style="text-align:center;margin-bottom:16px;">' +
-        memoryExampleStim(MEMORY_QUESTION_DEMO_EMOJI.probe, 110, true, true) + '</div>' +
-      memoryExampleTrack(
-        50, MEMORY_QUESTION_DEMO_EMOJI.second, MEMORY_QUESTION_DEMO_EMOJI.first,
-        'Closer to first item', 'Closer to second item', true,
-        { id: 'placement-example-slider', labelInset: '0', labelWrap: true, initiallyDormant: true }
-      ) +
-      '<div style="font-size:16px;color:rgba(255,255,255,.72);text-align:center;margin-top:14px;' +
-        'text-shadow:0 1px 6px rgba(0,0,0,.45);">← → to adjust<br>' +
-        '<strong style="color:#fff;">Press Enter or Space to confirm</strong></div>',
-      false,
-      true
-    ) +
-  '</div>'
+// P2: first-item response practice
+memoryPracticePage(
+  'order',
+  memoryExamplePanel(
+    '<div class="memory-practice-panel-title">Which item in the pair appeared first during the game?</div>' +
+    '<div class="memory-order-options" id="memory-order-practice">' +
+      '<div class="memory-choice-option" data-memory-choice="left">' +
+        memoryExampleStim(MEMORY_QUESTION_DEMO_EMOJI.first, 90, false, true) +
+        '<div style="font-size:28px;font-weight:800;margin-top:8px;">←</div>' +
+      '</div>' +
+      '<div class="memory-choice-option" data-memory-choice="right">' +
+        memoryExampleStim(MEMORY_QUESTION_DEMO_EMOJI.second, 90, false, true) +
+        '<div style="font-size:28px;font-weight:800;margin-top:8px;">→</div>' +
+      '</div>' +
+    '</div>',
+    true,
+    true
+  )
+),
+
+// P3: temporal-distance response practice
+memoryPracticePage(
+  'distance',
+  memoryExamplePanel(
+    '<div class="memory-practice-panel-title">How far apart in time did you feel these two items were during the game?</div>' +
+    '<div style="display:flex;justify-content:center;gap:18px;margin-bottom:16px;">' +
+      memoryExampleStim(MEMORY_QUESTION_DEMO_EMOJI.first, 64, false, true) +
+      memoryExampleStim(MEMORY_QUESTION_DEMO_EMOJI.second, 64, false, true) +
+    '</div>' +
+    memoryExampleTrack(
+      50, null, null, 'Very close', 'Very far', true,
+      { id: 'memory-distance-practice-slider', initiallyDormant: true }
+    ),
+    true,
+    true
+  )
+),
+
+// P4: temporal-placement response practice
+memoryPracticePage(
+  'placement',
+  memoryExamplePanel(
+    '<div class="memory-practice-panel-title">When did this item appear between the other two items?</div>' +
+    '<div style="text-align:center;margin-bottom:10px;">' +
+      memoryExampleStim(MEMORY_QUESTION_DEMO_EMOJI.probe, 82, true, true) + '</div>' +
+    memoryExampleTrack(
+      50, MEMORY_QUESTION_DEMO_EMOJI.second, MEMORY_QUESTION_DEMO_EMOJI.first,
+      'Closer to first item', 'Closer to second item', true,
+      { id: 'placement-example-slider', labelInset: '0', labelWrap: true, initiallyDormant: true }
+    ),
+    true,
+    true
+  )
+)
   ],
   allow_keys: false,
   show_clickable_nav: true,
   button_label_previous: 'Prev',
   button_label_next: 'Next',
-  on_load: setupInst4PlacementInteraction,
-  on_finish: cleanupInst4PlacementInteraction
+  on_load: setupInst4MemoryPracticeInteractions,
+  on_finish: cleanupInst4MemoryPracticeInteractions
 };
 
 // ═══════════════════════════════════════════════════════════════════
