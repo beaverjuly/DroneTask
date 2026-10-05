@@ -1,0 +1,790 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mouse trajectory quality check | DroneTask lab brief</title>
+  <style>
+    :root {
+      --ink: #1c1c1c;
+      --muted: #5a5a5a;
+      --paper: #f5f5f2;
+      --white: #ffffff;
+      --line: #c9c9c6;
+      --blue: #444444;
+      --blue-dark: #242424;
+      --teal: #4b4b4b;
+      --teal-pale: #ececea;
+      --gold: #666662;
+      --gold-pale: #f0f0ed;
+      --red: #525252;
+      --shadow: none;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%; margin: 0; overflow: hidden;
+      background: #d9d9d6; color: var(--ink);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body { counter-reset: slide; }
+
+    a { color: inherit; }
+
+    .deck { position: relative; width: 100%; height: 100%; }
+
+    .slide {
+      counter-increment: slide;
+      position: absolute; inset: 0; display: none;
+      padding: clamp(38px, 5.2vh, 62px) clamp(48px, 6vw, 92px) 72px;
+      background: var(--paper);
+      overflow: hidden;
+    }
+
+    .slide.active {
+      display: flex; flex-direction: column;
+      animation: slide-in .22s ease-out both;
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .slide::before {
+      content: ""; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      background: #2f2f2f;
+    }
+
+    .eyebrow {
+      margin: 0 0 12px; color: var(--teal); font-size: clamp(13px, 1.2vw, 17px);
+      font-weight: 800; letter-spacing: .12em; text-transform: uppercase;
+    }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    h1 {
+      max-width: 1040px; margin-bottom: 22px;
+      font-size: clamp(48px, 6.2vw, 84px); line-height: .98;
+      letter-spacing: -.052em; font-weight: 820;
+    }
+
+    h2 {
+      margin-bottom: clamp(20px, 3vh, 34px);
+      font-size: clamp(36px, 4.15vw, 58px); line-height: 1.04;
+      letter-spacing: -.035em; font-weight: 800;
+    }
+
+    h3 {
+      margin-bottom: 10px; font-size: clamp(21px, 2vw, 29px);
+      line-height: 1.18; letter-spacing: -.018em;
+    }
+
+    p, li, td, th { font-size: clamp(17px, 1.55vw, 23px); line-height: 1.42; }
+
+    .lede {
+      max-width: 900px; color: var(--muted);
+      font-size: clamp(23px, 2.3vw, 34px); line-height: 1.35;
+    }
+
+    .small { font-size: clamp(14px, 1.08vw, 16px); line-height: 1.4; }
+    .muted { color: var(--muted); }
+    .teal { color: var(--teal); }
+    .blue { color: var(--blue-dark); }
+    .nowrap { white-space: nowrap; }
+
+    .cover { justify-content: center; }
+    .cover h1 { max-width: 950px; }
+    .cover .lede { max-width: 800px; }
+    .cover-rule { width: 104px; height: 8px; margin: 4px 0 28px; border-radius: 99px; background: var(--teal); }
+    .cover-meta {
+      display: flex; flex-wrap: wrap; gap: 12px 28px; margin-top: 42px;
+      color: var(--muted); font-size: clamp(15px, 1.25vw, 19px);
+    }
+    .cover-meta strong { color: var(--ink); }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(30px, 4.2vw, 64px); min-height: 0; flex: 1; }
+    .grid-58 { grid-template-columns: 1.12fr .88fr; }
+    .grid-45 { grid-template-columns: .9fr 1.1fr; }
+    .align-center { align-items: center; }
+    .align-start { align-items: start; }
+
+    .plain-list { margin: 0; padding: 0; list-style: none; }
+    .plain-list li { position: relative; margin: 0 0 16px; padding-left: 26px; }
+    .plain-list li::before {
+      content: ""; position: absolute; left: 0; top: .55em;
+      width: 9px; height: 9px; border-radius: 50%; background: var(--teal);
+    }
+
+    .number-list { margin: 2px 0 0; padding: 0; list-style: none; counter-reset: item; }
+    .number-list li {
+      counter-increment: item; position: relative; margin: 0 0 18px; padding-left: 48px;
+    }
+    .number-list li::before {
+      content: counter(item); position: absolute; left: 0; top: -2px;
+      display: grid; place-items: center; width: 32px; height: 32px;
+      border: 2px solid var(--teal); border-radius: 50%; color: var(--teal);
+      font-size: 16px; font-weight: 800;
+    }
+
+    .callout {
+      border-left: 5px solid var(--teal); padding: 14px 0 14px 20px;
+      color: var(--ink); font-size: clamp(18px, 1.65vw, 24px); line-height: 1.42;
+    }
+    .callout strong { color: var(--teal); }
+
+    .burden {
+      margin: 18px 0; color: var(--muted);
+      font-size: clamp(16px, 1.3vw, 19px); line-height: 1.38;
+    }
+    .burden strong { color: var(--ink); }
+
+    .note {
+      padding: 14px 17px; border: 1px solid var(--line); border-radius: 8px;
+      background: var(--gold-pale); color: #444440;
+      font-size: clamp(14px, 1.15vw, 17px); line-height: 1.42;
+    }
+
+    .demo-shell {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 0;
+    }
+
+    .demo-board {
+      position: relative; width: min(42vw, 500px, 54vh); aspect-ratio: 1;
+      border: 1px solid #cacaca; border-radius: 16px;
+      background-color: #fafaf8;
+      background-image:
+        linear-gradient(rgba(0, 0, 0, .035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, .035) 1px, transparent 1px);
+      background-size: 26px 26px;
+      box-shadow: var(--shadow); overflow: hidden;
+    }
+
+    .demo-target {
+      position: absolute; transform: translate(-50%, -50%);
+      display: grid; place-items: center; width: 8%; aspect-ratio: 1;
+      border: 3px solid white; border-radius: 50%;
+      background: var(--blue); color: white; box-shadow: 0 0 0 2px var(--blue-dark);
+      cursor: pointer; font: 800 12px/1 inherit;
+      transition: left .16s ease, top .16s ease, width .16s ease, background .16s ease;
+    }
+    .demo-target.start { width: 12%; background: #505050; box-shadow: 0 0 0 2px #252525; }
+    .demo-target:focus-visible { outline: 4px solid rgba(70, 70, 70, .30); outline-offset: 5px; }
+    .demo-target.done { width: 16%; background: var(--teal); font-size: 11px; }
+
+    .demo-trail { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    .demo-trail polyline { fill: none; stroke: rgba(45, 45, 45, .40); stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+    .demo-status { margin: 13px 0 0; color: var(--muted); font-size: 15px; font-weight: 700; }
+
+    .text-button, .open-demo {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      min-height: 44px; padding: 10px 17px; border-radius: 9px;
+      border: 1px solid #bcbcbc; background: var(--white); color: var(--ink);
+      font: 750 15px/1.2 inherit; text-decoration: none; cursor: pointer;
+      box-shadow: none;
+    }
+    .text-button:hover, .open-demo:hover { border-color: #666; background: #eeeeeb; }
+    .text-button:focus-visible, .open-demo:focus-visible { outline: 3px solid rgba(70, 70, 70, .28); outline-offset: 3px; }
+
+    .sequence-figure {
+      display: grid; place-items: center; align-self: center;
+      width: min(100%, 520px); aspect-ratio: 1;
+      border: 1px solid var(--line); border-radius: 14px; background: rgba(255, 255, 255, .8);
+      box-shadow: none;
+    }
+    .sequence-figure svg { width: 92%; height: 92%; overflow: visible; }
+    .route-line { fill: none; stroke: #b0b0ad; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+    .route-node { fill: var(--white); stroke: var(--blue); stroke-width: 2.2; }
+    .route-start { fill: var(--teal); stroke: #282828; stroke-width: 2.2; }
+    .route-label { fill: var(--ink); font: 800 4px/1 sans-serif; text-anchor: middle; dominant-baseline: central; }
+    .route-label.start { fill: white; font-size: 2.8px; }
+
+    .source-line {
+      margin-top: auto; padding-top: 15px; border-top: 1px solid var(--line);
+      color: #626262; font-size: clamp(15px, 1vw, 16px); line-height: 1.35;
+    }
+    .source-line a { text-decoration-color: #ababab; text-underline-offset: 2px; }
+
+    .trajectory-figure {
+      position: relative; min-height: 370px; border: 1px solid var(--line); border-radius: 14px;
+      background: rgba(255, 255, 255, .85); box-shadow: none;
+      overflow: hidden;
+    }
+    .trajectory-figure svg { width: 100%; height: 100%; min-height: 370px; }
+    .sample { fill: var(--blue); opacity: .72; }
+    .sample-line { fill: none; stroke: var(--blue); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+    .end-node { fill: var(--white); stroke: var(--teal); stroke-width: 5; }
+    .figure-label { position: absolute; color: var(--muted); font-size: 14px; font-weight: 700; }
+    .figure-label.start { right: 5%; top: 57%; }
+    .figure-label.finish { left: 5%; top: 39%; }
+    .path-evidence {
+      position: absolute; left: 24px; right: 24px; bottom: 17px;
+      display: flex; justify-content: space-between; gap: 18px;
+      color: var(--muted); font-size: clamp(14px, 1vw, 16px); line-height: 1.3;
+    }
+    .path-evidence strong { color: var(--teal); white-space: nowrap; }
+
+    .data-list { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 22px; margin: 18px 0 24px; }
+    .data-item { padding: 0 0 12px; border-bottom: 1px solid var(--line); }
+    .data-item strong { display: block; color: var(--ink); font-size: clamp(16px, 1.3vw, 19px); }
+    .data-item span { color: var(--muted); font-size: clamp(13px, 1vw, 15px); }
+
+    .flow-stack { display: grid; gap: 16px; align-content: center; }
+    .flow-lane {
+      display: grid; grid-template-columns: 170px 1fr; gap: 22px; align-items: center;
+      padding: 18px 0; border-top: 1px solid var(--line);
+    }
+    .flow-lane:last-child { border-bottom: 1px solid var(--line); }
+    .lane-label { font-weight: 800; font-size: clamp(19px, 1.55vw, 23px); }
+    .lane-body { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; }
+    .step {
+      padding: 9px 12px; border: 1px solid #cecece; border-radius: 8px;
+      background: var(--white); color: #383838; font-size: clamp(13px, 1vw, 16px); font-weight: 700;
+    }
+    .step.optional { border-color: #9b9b98; background: var(--teal-pale); color: #303030; }
+    .connector { color: #888888; font-weight: 800; }
+    .code-line {
+      display: block; width: 100%; margin-top: 8px; padding: 9px 11px;
+      border-radius: 7px; background: #e8e8e5; color: #3a3a3a;
+      font: 650 clamp(12px, .95vw, 14px)/1.35 ui-monospace, SFMono-Regular, Menlo, monospace;
+      overflow-wrap: anywhere;
+    }
+
+    .analysis-intro, .criteria-intro {
+      margin: -5px 0 12px; color: var(--muted);
+      font-size: clamp(16px, 1.2vw, 18px); line-height: 1.38;
+    }
+
+    .pipeline-map, .criteria-rationale {
+      width: 100%; border-collapse: collapse; table-layout: fixed;
+    }
+    .pipeline-map th, .criteria-rationale th {
+      padding: 0 12px 8px; border-bottom: 2px solid var(--ink);
+      color: var(--muted); text-align: left; vertical-align: bottom;
+      font-size: clamp(13px, 1vw, 15px); letter-spacing: .055em; text-transform: uppercase;
+    }
+    .pipeline-map td, .criteria-rationale td {
+      padding: 9px 12px; border-bottom: 1px solid var(--line);
+      text-align: left; vertical-align: top;
+      font-size: clamp(15px, 1.12vw, 17px); line-height: 1.28;
+    }
+    .pipeline-map tbody tr:nth-child(even), .criteria-rationale tbody tr:nth-child(even) {
+      background: rgba(0, 0, 0, .018);
+    }
+    .pipeline-map .stage-col { width: 18%; }
+    .pipeline-map .action-col { width: 56%; }
+    .pipeline-map .link-col { width: 26%; }
+    .criteria-rationale .check-col { width: 17%; }
+    .criteria-rationale .rule-col { width: 35%; }
+    .criteria-rationale .why-col { width: 48%; }
+    .stage-name, .check-name { color: var(--ink); font-weight: 800; }
+    .stage-number { display: inline-block; width: 1.35em; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .check-ref { display: block; color: var(--ink); font-weight: 780; }
+    .check-ref + .check-ref { margin-top: 3px; }
+    .check-ref.muted { color: var(--muted); font-weight: 650; }
+    .cell-list {
+      margin: 0; padding-left: 1.08em;
+    }
+    .cell-list li {
+      margin: 0 0 4px; padding-left: 2px;
+      font-size: inherit; line-height: 1.2;
+    }
+    .cell-list li:last-child { margin-bottom: 0; }
+    .cell-list li::marker { color: #666666; font-size: .84em; }
+    .check-list li { color: var(--ink); font-weight: 760; }
+    .check-list .muted { color: var(--muted); font-weight: 650; }
+    .pipeline-note {
+      margin: 11px 0 0; padding-top: 9px; border-top: 1px solid var(--ink);
+      color: var(--muted); font-size: clamp(14px, 1.05vw, 16px); line-height: 1.32;
+    }
+    .pipeline-note strong { color: var(--ink); }
+    .pipeline-notes {
+      display: grid; grid-template-columns: .9fr 1.1fr; gap: 28px;
+      margin-top: 9px; padding-top: 8px; border-top: 1px solid var(--ink);
+    }
+    .pipeline-notes p {
+      margin: 0; color: var(--muted);
+      font-size: clamp(14px, 1.02vw, 16px); line-height: 1.28;
+    }
+    .pipeline-notes strong { display: block; margin-bottom: 2px; color: var(--ink); }
+    .criteria-footer {
+      display: grid; grid-template-columns: 1.08fr .92fr; gap: 28px;
+      margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--ink);
+    }
+    .criteria-footer p { margin: 0; font-size: clamp(14px, 1.03vw, 16px); line-height: 1.3; }
+    .criteria-footer > div { font-size: clamp(14px, 1.03vw, 16px); line-height: 1.3; }
+    .criteria-footer .cell-list { margin-top: 4px; }
+    .criteria-footer strong { color: var(--ink); }
+    .floor-limit { color: var(--muted); }
+
+    .recommendation {
+      margin: 0 0 30px; padding: 20px 0 20px 22px; border-left: 6px solid var(--teal);
+      font-size: clamp(22px, 2vw, 30px); line-height: 1.35; font-weight: 670;
+    }
+
+    .decision-list { margin: 0; padding: 0; list-style: none; }
+    .decision-list li { margin: 0 0 14px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+    .decision-list strong { display: block; font-size: clamp(16px, 1.3vw, 19px); }
+    .decision-list span { color: var(--muted); font-size: clamp(14px, 1vw, 16px); }
+
+    .references { margin: 0; padding: 0; list-style: none; }
+    .references li { margin: 0 0 13px; color: #555555; font-size: clamp(15px, 1.08vw, 17px); line-height: 1.35; }
+    .references strong { color: var(--ink); }
+    .references a { color: var(--blue-dark); text-underline-offset: 2px; }
+
+    .demo-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+
+    .nav {
+      position: fixed; z-index: 30; left: 0; right: 0; bottom: 0;
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+      min-height: 52px; padding: 8px clamp(18px, 3vw, 42px);
+      border-top: 1px solid rgba(120, 120, 120, .38);
+      background: rgba(245, 245, 242, .97); backdrop-filter: blur(10px);
+    }
+    .nav-title { color: var(--muted); font-size: 13px; font-weight: 700; }
+    .nav-controls { display: flex; gap: 8px; }
+    .nav-button {
+      width: 36px; height: 34px; border: 1px solid #c4c4c4; border-radius: 8px;
+      background: var(--white); color: var(--ink); cursor: pointer; font-size: 18px;
+    }
+    .nav-button:hover { border-color: #666; background: #eeeeeb; }
+    .nav-button:focus-visible { outline: 3px solid rgba(70, 70, 70, .28); outline-offset: 2px; }
+    .nav-progress { justify-self: end; display: flex; align-items: center; gap: 12px; }
+    .progress-track { width: min(18vw, 190px); height: 4px; border-radius: 99px; background: #dddddd; overflow: hidden; }
+    .progress-fill { width: 12.5%; height: 100%; background: var(--teal); transition: width .18s ease; }
+    .slide-count { min-width: 42px; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 900px) {
+      .slide { padding-inline: 38px; }
+      .grid-2, .grid-58, .grid-45 { grid-template-columns: 1fr 1fr; gap: 28px; }
+      .flow-lane { grid-template-columns: 120px 1fr; }
+      .demo-board { width: min(45vw, 390px, 50vh); }
+    }
+
+    @media screen and (min-width: 761px) and (max-height: 760px) {
+      .slide { padding-top: 24px; padding-bottom: 64px; }
+      .eyebrow { margin-bottom: 6px; }
+      h2 { margin-bottom: 14px; font-size: clamp(34px, 3.7vw, 47px); }
+      h3 { margin-bottom: 8px; font-size: clamp(19px, 1.8vw, 24px); }
+      p, li, td, th { font-size: clamp(15px, 1.3vw, 17px); line-height: 1.34; }
+      .plain-list li, .number-list li { margin-bottom: 9px; }
+      .callout { padding-block: 10px; }
+      .burden { margin: 12px 0; }
+      .demo-board { width: min(36vw, 380px, 48vh); }
+      .slide-sequence .sequence-figure { width: min(100%, 390px, calc(100vh - 300px)); }
+      .slide-sequence .note { padding: 9px 12px; }
+      .source-line { padding-top: 9px; font-size: 15px; line-height: 1.25; }
+      .trajectory-figure, .trajectory-figure svg { min-height: 275px; }
+      .path-evidence { bottom: 12px; font-size: 14px; }
+      .analysis-intro, .criteria-intro { margin: -2px 0 8px; font-size: 15px; line-height: 1.25; }
+      .pipeline-map th, .criteria-rationale th { padding: 0 9px 6px; font-size: 13px; }
+      .pipeline-map td, .criteria-rationale td { padding: 7px 9px; font-size: 14.5px; line-height: 1.21; }
+      .pipeline-note { margin-top: 8px; padding-top: 7px; font-size: 14px; line-height: 1.22; }
+      .pipeline-notes { gap: 20px; margin-top: 8px; padding-top: 7px; }
+      .pipeline-notes p { font-size: 14px; line-height: 1.22; }
+      .criteria-footer { gap: 20px; margin-top: 8px; padding-top: 7px; }
+      .criteria-footer p { font-size: 14px; line-height: 1.22; }
+      .note { padding: 10px 13px; font-size: 14px; line-height: 1.3; }
+      .slide-final .recommendation { margin-bottom: 14px; padding: 12px 0 12px 16px; font-size: 20px; }
+      .slide-final .decision-list li { margin-bottom: 8px; padding-bottom: 8px; }
+      .slide-final .references li { margin-bottom: 7px; font-size: 15px; line-height: 1.25; }
+      .slide-final .demo-links { margin-top: 11px; }
+    }
+
+    @media (max-width: 760px) {
+      html, body { overflow: auto; }
+      .slide { position: relative; display: none; min-height: 100vh; overflow: visible; padding: 42px 24px 78px; }
+      .slide.active { display: flex; }
+      .grid-2, .grid-58, .grid-45 { grid-template-columns: 1fr; }
+      .demo-board { width: min(86vw, 460px); }
+      .flow-lane { grid-template-columns: 1fr; gap: 8px; }
+      .pipeline-map, .criteria-rationale { min-width: 700px; }
+      .pipeline-notes { grid-template-columns: 1fr; }
+      .nav-title, .progress-track { display: none; }
+      .nav { grid-template-columns: 1fr auto; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .slide.active { animation: none; }
+      .demo-target, .progress-fill { transition: none; }
+    }
+
+    @media print {
+      html, body { width: auto; height: auto; overflow: visible; background: white; }
+      .deck { height: auto; }
+      .slide, .slide.active {
+        position: relative; display: flex; width: 13.333in; height: 7.5in;
+        page-break-after: always; break-after: page; animation: none;
+      }
+      .nav { display: none; }
+      .open-demo, .text-button { box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-label="Mouse trajectory quality check lab presentation">
+    <section class="slide cover active" data-slide="1" aria-hidden="false">
+      <p class="eyebrow">DroneTask pilot proposal</p>
+      <h1>Mouse trajectory quality check</h1>
+      <div class="cover-rule"></div>
+      <p class="lede">An optional end of task measure designed to test whether brief pointer trajectories provide usable data quality information.</p>
+      <div class="cover-meta">
+        <span><strong>Eight</strong> target movements</span>
+        <span><strong>After</strong> the final memory response</span>
+        <span><strong>No</strong> payment or exclusion decisions</span>
+      </div>
+    </section>
+
+    <section class="slide" data-slide="2" aria-hidden="true">
+      <p class="eyebrow">Participant experience</p>
+      <h2>What the participant does</h2>
+      <div class="grid-2 grid-45 align-center">
+        <div>
+          <ol class="number-list">
+            <li>Use your mouse or trackpad to click each circle as it appears.</li>
+            <li>Move at a natural pace. There is no need to rush.</li>
+            <li>After eight circles, report Mouse, Trackpad, or Other.</li>
+          </ol>
+          <p class="burden"><strong>Observed in two developer runs</strong><br>About 10 seconds of clicking and 13–23 seconds from instructions through the device report.</p>
+          <p class="callout"><strong>Only one target is visible at a time.</strong> Try the deck demonstration to the right.</p>
+          <a class="open-demo" href="https://run.pavlovia.org/jiaheyi/DroneTask/?dev=1&amp;stage=mouse-test&amp;consent=0&amp;mouse_qc=1" target="_blank" rel="noopener">Open the live developer module</a>
+        </div>
+        <div class="demo-shell">
+          <div class="demo-board" id="demo-board" aria-label="Interactive eight target demonstration">
+            <svg class="demo-trail" viewBox="0 0 100 100" aria-hidden="true"><polyline id="demo-line" points=""></polyline></svg>
+            <button class="demo-target start" id="demo-target" type="button" aria-label="Start the demonstration">Start</button>
+          </div>
+          <p class="demo-status" id="demo-status" aria-live="polite">Click Start to begin</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide-sequence" data-slide="3" aria-hidden="true">
+      <p class="eyebrow">Acquisition design</p>
+      <h2>Why the sequence is fixed</h2>
+      <div class="grid-2 align-center">
+        <figure class="sequence-figure" aria-label="Fixed route through the start point and eight targets">
+          <svg viewBox="0 0 100 100" role="img" aria-label="Eight movement geometry">
+            <polyline class="route-line" points="50,50 86,50 86,30 14,30 14,78 30,62 58,90 74,90 32,18"></polyline>
+            <circle class="route-start" cx="50" cy="50" r="5.5"></circle>
+            <text class="route-label start" x="50" y="50">Start</text>
+            <circle class="route-node" cx="86" cy="50" r="3.5"></circle><text class="route-label" x="86" y="50">1</text>
+            <circle class="route-node" cx="86" cy="30" r="3.5"></circle><text class="route-label" x="86" y="30">2</text>
+            <circle class="route-node" cx="14" cy="30" r="3.5"></circle><text class="route-label" x="14" y="30">3</text>
+            <circle class="route-node" cx="14" cy="78" r="3.5"></circle><text class="route-label" x="14" y="78">4</text>
+            <circle class="route-node" cx="30" cy="62" r="3.5"></circle><text class="route-label" x="30" y="62">5</text>
+            <circle class="route-node" cx="58" cy="90" r="3.5"></circle><text class="route-label" x="58" y="90">6</text>
+            <circle class="route-node" cx="74" cy="90" r="3.5"></circle><text class="route-label" x="74" y="90">7</text>
+            <circle class="route-node" cx="32" cy="18" r="3.5"></circle><text class="route-label" x="32" y="18">8</text>
+          </svg>
+        </figure>
+        <div>
+          <ul class="plain-list">
+            <li>Every participant completes the same eight movements.</li>
+            <li>The route includes short, medium, and long reaches in horizontal, vertical, and oblique directions.</li>
+            <li>Each trajectory begins at one successful click and ends at the next.</li>
+            <li>The geometry is normalized and versioned so results remain interpretable across screens and task releases.</li>
+          </ul>
+          <p class="note"><strong>Research inspiration, not replication.</strong> We borrow the fixed sequential target structure, use our own geometry, and do not implement the published classifiers.</p>
+        </div>
+      </div>
+      <p class="source-line">Shen et al. 2014 and Acien et al. 2022 use fixed sequential targets. Acien reuses Shen's human data. Fitts 1954 motivates varying movement amplitude while all eight targets remain the same size.</p>
+    </section>
+
+    <section class="slide" data-slide="4" aria-hidden="true">
+      <p class="eyebrow">Measurement</p>
+      <h2>What the module records</h2>
+      <div class="grid-2 grid-58 align-center">
+        <div class="trajectory-figure" aria-label="Actual pointer samples from a long reach in the first developer run">
+          <svg viewBox="0 0 640 390" role="img" aria-label="Actual long mouse trajectory with nonuniform sample spacing">
+            <polyline class="sample-line" points="553.5,206.4 550.0,206.4 535.3,206.4 513.1,206.4 475.9,202.2 407.7,195.1 339.6,191.0 286.7,187.1 202.6,180.7 175.3,178.9 150.0,178.0 137.2,178.0 122.1,178.0 114.1,178.0 107.7,178.0 102.8,178.9 98.7,179.9 95.7,180.7 92.2,182.1 88.5,184.4 84.8,186.7 81.8,188.4 80.0,189.9 79.4,190.4 78.8,191.0 78.8,191.6 78.8,191.9 78.8,192.5 79.0,192.8 79.3,193.1 79.6,193.1 79.9,193.1 79.9,193.1"></polyline>
+            <g>
+              <circle class="sample" cx="550.0" cy="206.4" r="3.7"></circle><circle class="sample" cx="535.3" cy="206.4" r="3.7"></circle><circle class="sample" cx="513.1" cy="206.4" r="3.7"></circle><circle class="sample" cx="475.9" cy="202.2" r="3.7"></circle><circle class="sample" cx="407.7" cy="195.1" r="3.7"></circle><circle class="sample" cx="339.6" cy="191.0" r="3.7"></circle><circle class="sample" cx="286.7" cy="187.1" r="3.7"></circle><circle class="sample" cx="202.6" cy="180.7" r="3.7"></circle><circle class="sample" cx="175.3" cy="178.9" r="3.7"></circle><circle class="sample" cx="150.0" cy="178.0" r="3.7"></circle><circle class="sample" cx="137.2" cy="178.0" r="3.7"></circle><circle class="sample" cx="122.1" cy="178.0" r="3.7"></circle><circle class="sample" cx="114.1" cy="178.0" r="3.7"></circle><circle class="sample" cx="107.7" cy="178.0" r="3.7"></circle><circle class="sample" cx="102.8" cy="178.9" r="3.7"></circle><circle class="sample" cx="98.7" cy="179.9" r="3.7"></circle><circle class="sample" cx="95.7" cy="180.7" r="3.7"></circle><circle class="sample" cx="92.2" cy="182.1" r="3.7"></circle><circle class="sample" cx="88.5" cy="184.4" r="3.7"></circle><circle class="sample" cx="84.8" cy="186.7" r="3.7"></circle><circle class="sample" cx="81.8" cy="188.4" r="3.7"></circle><circle class="sample" cx="80.0" cy="189.9" r="3.7"></circle><circle class="sample" cx="79.4" cy="190.4" r="3.7"></circle><circle class="sample" cx="78.8" cy="191.0" r="3.7"></circle><circle class="sample" cx="78.8" cy="191.6" r="3.7"></circle><circle class="sample" cx="78.8" cy="191.9" r="3.7"></circle><circle class="sample" cx="78.8" cy="192.5" r="3.7"></circle><circle class="sample" cx="79.0" cy="192.8" r="3.7"></circle><circle class="sample" cx="79.3" cy="193.1" r="3.7"></circle><circle class="sample" cx="79.6" cy="193.1" r="3.7"></circle><circle class="sample" cx="79.9" cy="193.1" r="3.7"></circle>
+            </g>
+            <circle class="end-node" cx="553.5" cy="206.4" r="18"></circle>
+            <circle class="end-node" cx="79.9" cy="193.1" r="18"></circle>
+          </svg>
+          <span class="figure-label start">Opening click</span>
+          <span class="figure-label finish">Closing click</span>
+          <div class="path-evidence"><span>Actual T2 to T3 reach from run 1</span><strong>Peak speed 11.0× mean</strong></div>
+        </div>
+        <div>
+          <h3>Per movement</h3>
+          <div class="data-list">
+            <div class="data-item"><strong>Position</strong><span>Normalized x and y coordinates</span></div>
+            <div class="data-item"><strong>Time</strong><span>High resolution event timestamps</span></div>
+            <div class="data-item"><strong>Clicks</strong><span>Successful and missed attempts</span></div>
+            <div class="data-item"><strong>Sampling</strong><span>Dispatched and coalesced counts</span></div>
+          </div>
+          <h3>Per session</h3>
+          <p class="muted">Completion status, self reported device, browser support, viewport, scale, resize, and truncation indicators.</p>
+          <p class="callout"><strong>The browser calculates no score.</strong> The module saves raw observations for later pilot analysis.</p>
+        </div>
+      </div>
+      <p class="source-line">Implementation basis: W3C Pointer Events Level 3 describes browser coalescing and <code>getCoalescedEvents()</code>. Warburton et al. 2025 supports recording input device because mouse and trackpad measures can differ.</p>
+    </section>
+
+    <section class="slide" data-slide="5" aria-hidden="true">
+      <p class="eyebrow">Integration</p>
+      <h2>Optional by design</h2>
+      <div class="grid-2 grid-58 align-center">
+        <div class="flow-stack">
+          <div class="flow-lane">
+            <div class="lane-label">Core version</div>
+            <div class="lane-body">
+              <span class="step">DroneTask</span><span class="connector">›</span>
+              <span class="step">Memory</span><span class="connector">›</span>
+              <span class="step">Demographics</span>
+              <code class="code-line">No flag or mouse_qc=0</code>
+            </div>
+          </div>
+          <div class="flow-lane">
+            <div class="lane-label teal">QC version</div>
+            <div class="lane-body">
+              <span class="step">DroneTask</span><span class="connector">›</span>
+              <span class="step">Memory</span><span class="connector">›</span>
+              <span class="step optional">Mouse QC</span><span class="connector">›</span>
+              <span class="step">Demographics</span>
+              <code class="code-line">mouse_qc=1</code>
+            </div>
+          </div>
+        </div>
+        <div>
+          <ul class="plain-list">
+            <li>The core route does not request the optional JavaScript or stylesheet.</li>
+            <li>The module lives in its own browser and analysis directories.</li>
+            <li>Developer routes report configuration failures clearly.</li>
+            <li>Pilot and production routes preserve the core task if optional assets fail, with the failure recorded in metadata.</li>
+          </ul>
+          <p class="note">Removing <code>static/task/mouse_qc/</code> leaves the core route operational when the flag is absent or set to zero.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide slide-analysis" data-slide="6" aria-hidden="true">
+      <p class="eyebrow">Analysis</p>
+      <h2>Analysis pipeline</h2>
+      <p class="analysis-intro">Each stage produces the input for one or more floor checks.</p>
+      <table class="pipeline-map" aria-label="Analysis stages and the floor checks they feed">
+        <colgroup><col class="stage-col"><col class="action-col"><col class="link-col"></colgroup>
+        <thead><tr><th>Step</th><th>Work</th><th>Check</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="stage-number">1</span><span class="stage-name">Raw task CSV</span></td>
+            <td><ul class="cell-list"><li>QC settings and browser data</li><li>Up to eight raw paths</li><li>Session summary when reached</li></ul></td>
+            <td><ul class="cell-list check-list"><li class="muted">Source record</li></ul></td>
+          </tr>
+          <tr>
+            <td><span class="stage-number">2</span><span class="stage-name">Data splitter</span></td>
+            <td><ul class="cell-list"><li>Metadata, path, and summary tables</li><li>Format change only</li><li>No scoring or exclusion</li></ul></td>
+            <td><ul class="cell-list check-list"><li class="muted">Inputs for C1 to C5</li></ul></td>
+          </tr>
+          <tr>
+            <td><span class="stage-number">3</span><span class="stage-name">Session audit</span></td>
+            <td><ul class="cell-list"><li>Counts every expected session</li><li>Keeps missing summaries and asset failures</li><li>Applies the validity gate</li></ul></td>
+            <td><ul class="cell-list check-list"><li>C1 Completion</li><li class="muted">Valid sample for C2 to C5</li></ul></td>
+          </tr>
+          <tr>
+            <td><span class="stage-number">4</span><span class="stage-name">Feature extraction</span></td>
+            <td><ul class="cell-list"><li>Rebuilds each path between two clicks</li><li>Removes consecutive nearly matching points</li><li>No smoothing or resampling</li><li>Computes points, Δt, length, efficiency, and turning</li></ul></td>
+            <td><ul class="cell-list check-list"><li>C2 Sampling</li><li>C3 Geometry</li></ul></td>
+          </tr>
+          <tr>
+            <td><span class="stage-number">5</span><span class="stage-name">Notebook comparisons</span></td>
+            <td><ul class="cell-list"><li>Distance versus path length</li><li>Observed versus synthetic paths</li><li>Turning versus median Δt</li></ul></td>
+            <td><ul class="cell-list check-list"><li>C3 Geometry</li><li>C4 Synthetic</li><li>C5 Sensitivity</li></ul></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="pipeline-notes">
+        <p><strong>Validity gate</strong>Complete summary, IDs 1 through 8 once, and count 8 when reported. This defines the feature sample.</p>
+        <p><strong>Synthetic references</strong>The same code scores straight constant speed, straight accelerating, and curved paths for the same targets. Separation spans 0, indistinguishable, to 1.</p>
+      </div>
+    </section>
+
+    <section class="slide slide-criteria" data-slide="7" aria-hidden="true">
+      <p class="eyebrow">Proposed pilot decision</p>
+      <h2>Proposed floor checks</h2>
+      <p class="criteria-intro">These lab tolerances target distinct failure modes. The cited papers do not validate these cutoffs.</p>
+      <table class="criteria-rationale" aria-label="Proposed criteria and rationale">
+        <colgroup><col class="check-col"><col class="rule-col"><col class="why-col"></colgroup>
+        <thead><tr><th>Check</th><th>Rule</th><th>Why</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><span class="check-name">C1 Completion</span></td>
+            <td><ul class="cell-list"><li>At least 90% of expected sessions</li><li>Summary status complete</li></ul></td>
+            <td><ul class="cell-list"><li>Tests operational feasibility</li><li>Keeps failures in the denominator</li></ul></td>
+          </tr>
+          <tr>
+            <td><span class="check-name">C2 Sampling</span></td>
+            <td><ul class="cell-list"><li>At least 80% of valid sessions</li><li>Median across eight paths is at least 20 points</li><li>Median Δt is 20 ms or less</li></ul></td>
+            <td><ul class="cell-list"><li>Twenty points support up to 18 heading changes</li><li>20 ms equals a median cadence of at least 50 Hz</li><li>Allows some browser or device loss</li></ul></td>
+          </tr>
+          <tr>
+            <td><span class="check-name">C3 Geometry</span></td>
+            <td><ul class="cell-list"><li>Spearman ρ(distance, path length) &gt; .50</li><li>Pooled median efficiency &lt; .99</li></ul></td>
+            <td><ul class="cell-list"><li>Movement amplitude remains visible</li><li>Excludes nearly perfect straight lines</li></ul></td>
+          </tr>
+          <tr>
+            <td><span class="check-name">C4 Synthetic</span></td>
+            <td><ul class="cell-list"><li>Separation from Type A straight constant speed paths is at least .80 for efficiency or turning</li></ul></td>
+            <td><ul class="cell-list"><li>Easy positive control for path shape</li><li>Separation .80 equals AUC .90 in either direction</li><li>Does not test speed profiles or realistic bots</li></ul></td>
+          </tr>
+          <tr>
+            <td><span class="check-name">C5 Sensitivity</span></td>
+            <td><ul class="cell-list"><li>Absolute Spearman correlation between turning and median sample interval is below .50</li><li>Correlation must be estimable</li></ul></td>
+            <td><ul class="cell-list"><li>Checks whether turning follows sampling cadence</li><li>Missing result is <em>not evaluable</em></li></ul></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="criteria-footer">
+        <div><strong>Developer QA</strong><ul class="cell-list"><li>Combined data pass all computed checks</li><li>16 of 16 paths, no misclicks, and exact duration matching</li><li>About 62 Hz on Mac Chrome and no added coalesced points</li><li>Type A separation .99, curved efficiency .13, curved turning .83</li></ul></div>
+        <div class="floor-limit"><strong>Interpretation</strong><ul class="cell-list"><li>Floor checks show a real and usable recorded signal</li><li>They do not show detection of low quality participants</li><li>C5 needs sample interval variation across browsers and devices</li></ul></div>
+      </div>
+    </section>
+
+    <section class="slide slide-final" data-slide="8" aria-hidden="true">
+      <p class="eyebrow">Recommendation</p>
+      <h2>Pilot the measure with clear limits</h2>
+      <div class="grid-2 grid-58 align-start">
+        <div>
+          <p class="recommendation">Use the module as an optional data quality measure. Do not describe or use it as a validated bot detector.</p>
+          <ul class="decision-list">
+            <li><strong>Confirm coverage</strong><span>Review consent and IRB language for pointer trajectory recording.</span></li>
+            <li><strong>Agree on criteria</strong><span>Approve the proposed floor checks before reviewing group results.</span></li>
+            <li><strong>Complete QA</strong><span>Test mouse, trackpad, and major browsers before the pilot.</span></li>
+            <li><strong>Reassess after the pilot</strong><span>Test whether trajectory outliers coincide with independent signals such as comprehension-check failures, then weigh any added information against the 13–23 second burden.</span></li>
+          </ul>
+          <div class="demo-links">
+            <a class="open-demo" href="https://run.pavlovia.org/jiaheyi/DroneTask/?dev=1&amp;stage=mouse-test&amp;consent=0&amp;mouse_qc=1" target="_blank" rel="noopener">Open live module</a>
+            <a class="text-button" href="05_mouse_trajectory_qc.md" target="_blank" rel="noopener">Open technical design</a>
+          </div>
+        </div>
+        <div>
+          <h3>Key sources</h3>
+          <ol class="references">
+            <li><strong>Shen et al. 2014.</strong> Performance evaluation of anomaly-detection algorithms for mouse dynamics. <a href="https://doi.org/10.1016/j.cose.2014.05.002" target="_blank" rel="noopener">Computers &amp; Security</a>.</li>
+            <li><strong>Acien et al. 2022.</strong> BeCAPTCHA-Mouse: Synthetic mouse trajectories and improved bot detection. <a href="https://doi.org/10.1016/j.patcog.2022.108643" target="_blank" rel="noopener">Pattern Recognition</a>.</li>
+            <li><strong>Fitts 1954.</strong> The information capacity of the human motor system. <a href="https://doi.org/10.1037/h0055392" target="_blank" rel="noopener">Journal of Experimental Psychology</a>.</li>
+            <li><strong>Warburton et al. 2025.</strong> Input device matters for measures of behaviour in online experiments. <a href="https://doi.org/10.1007/s00426-024-02065-1" target="_blank" rel="noopener">Psychological Research</a>.</li>
+            <li><strong>W3C 2026.</strong> <a href="https://www.w3.org/TR/pointerevents3/#coalesced-events" target="_blank" rel="noopener">Pointer Events Level 3</a>.</li>
+          </ol>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="nav" aria-label="Presentation controls">
+    <div class="nav-title">Mouse trajectory quality check</div>
+    <div class="nav-controls">
+      <button class="nav-button" id="prev" type="button" aria-label="Previous slide">‹</button>
+      <button class="nav-button" id="next" type="button" aria-label="Next slide">›</button>
+    </div>
+    <div class="nav-progress">
+      <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+      <span class="slide-count" id="slide-count">1 / 8</span>
+    </div>
+  </nav>
+
+  <script>
+    (function () {
+      var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+      var current = 0;
+      var count = document.getElementById('slide-count');
+      var fill = document.getElementById('progress-fill');
+
+      function show(index, updateHash) {
+        current = Math.max(0, Math.min(slides.length - 1, index));
+        slides.forEach(function (slide, i) {
+          var active = i === current;
+          slide.classList.toggle('active', active);
+          slide.setAttribute('aria-hidden', active ? 'false' : 'true');
+        });
+        count.textContent = (current + 1) + ' / ' + slides.length;
+        fill.style.width = (((current + 1) / slides.length) * 100) + '%';
+        if (updateHash !== false) history.replaceState(null, '', '#' + (current + 1));
+      }
+
+      function isInteractive(target) {
+        return !!target.closest('a, button, input, select, textarea');
+      }
+
+      document.getElementById('prev').addEventListener('click', function () { show(current - 1); });
+      document.getElementById('next').addEventListener('click', function () { show(current + 1); });
+      document.addEventListener('keydown', function (event) {
+        if (isInteractive(event.target)) return;
+        if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
+          event.preventDefault(); show(current + 1);
+        } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+          event.preventDefault(); show(current - 1);
+        } else if (event.key === 'Home') {
+          event.preventDefault(); show(0);
+        } else if (event.key === 'End') {
+          event.preventDefault(); show(slides.length - 1);
+        }
+      });
+
+      window.addEventListener('hashchange', function () {
+        var requested = parseInt(location.hash.slice(1), 10);
+        if (Number.isFinite(requested)) show(requested - 1, false);
+      });
+
+      var initial = parseInt(location.hash.slice(1), 10);
+      show(Number.isFinite(initial) ? initial - 1 : 0, false);
+
+      var demoTarget = document.getElementById('demo-target');
+      var demoStatus = document.getElementById('demo-status');
+      var demoLine = document.getElementById('demo-line');
+      var points = [
+        { x: 50, y: 50, label: 'Start' },
+        { x: 86, y: 50 }, { x: 86, y: 30 }, { x: 14, y: 30 },
+        { x: 14, y: 78 }, { x: 30, y: 62 }, { x: 58, y: 90 },
+        { x: 74, y: 90 }, { x: 32, y: 18 }
+      ];
+      var demoIndex = 0;
+      var trail = [];
+
+      function renderDemo() {
+        var p = points[demoIndex];
+        demoTarget.style.left = p.x + '%';
+        demoTarget.style.top = p.y + '%';
+        demoTarget.classList.toggle('start', demoIndex === 0);
+        demoTarget.classList.toggle('done', demoIndex === points.length - 1 && demoTarget.dataset.finished === '1');
+        if (demoTarget.dataset.finished === '1') {
+          demoTarget.textContent = 'Reset';
+          demoTarget.setAttribute('aria-label', 'Reset the demonstration');
+          demoStatus.textContent = 'Eight of eight complete';
+        } else if (demoIndex === 0) {
+          demoTarget.textContent = 'Start';
+          demoTarget.setAttribute('aria-label', 'Start the demonstration');
+          demoStatus.textContent = 'Click Start to begin';
+        } else {
+          demoTarget.textContent = '';
+          demoTarget.setAttribute('aria-label', 'Circle ' + demoIndex + ' of 8');
+          demoStatus.textContent = 'Circle ' + demoIndex + ' of 8';
+        }
+        demoLine.setAttribute('points', trail.map(function (pt) { return pt.x + ',' + pt.y; }).join(' '));
+      }
+
+      demoTarget.addEventListener('click', function () {
+        if (demoTarget.dataset.finished === '1') {
+          demoIndex = 0; trail = []; demoTarget.dataset.finished = '0'; renderDemo(); return;
+        }
+        if (demoIndex < points.length - 1) {
+          trail.push(points[demoIndex]);
+          demoIndex += 1;
+          renderDemo();
+        } else {
+          trail.push(points[demoIndex]);
+          demoTarget.dataset.finished = '1';
+          renderDemo();
+        }
+      });
+      renderDemo();
+    })();
+  </script>
+</body>
+</html>

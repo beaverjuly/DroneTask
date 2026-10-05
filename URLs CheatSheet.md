@@ -12,15 +12,17 @@ https://run.pavlovia.org/jiaheyi/DroneTask/
 
 ## Advisor Quick Links
 
-- Full pilot, including consent and data saving:
-  <https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1>
+- Full pilot, core only (including consent and data saving):
+  <https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&mouse_qc=0>
+- Full pilot, core + mouse-trajectory QC:
+  <https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&mouse_qc=1>
 - Instructions, practice, and comprehension only:
   <https://run.pavlovia.org/jiaheyi/DroneTask/?dev=1&stage=instructions&consent=0>
 - Comprehension check and review loop only:
   <https://run.pavlovia.org/jiaheyi/DroneTask/?dev=1&stage=comprehension&consent=0>
 
 The `dev=1` links download their test CSV locally and do not save data to
-Pavlovia. The full pilot link saves to Pavlovia.
+Pavlovia. Both full pilot links save to Pavlovia.
 
 -----
 
@@ -31,12 +33,34 @@ your Downloads folder. **Nothing is saved to the Pavlovia server**, even when
 the link points at `run.pavlovia.org`. To force a real save during QA,
 add `&pavlovia_save=1`.
 
-Only **pilot** (`?pilot=1`) and **production** (no params) links save to
-Pavlovia automatically.
+Non-dev **pilot** links (`?pilot=1`, or the root URL because pilot mode is the
+safe default) and **production** links (`?pilot=0`) save to Pavlovia
+automatically.
+
+## Optional mouse-QC switch
+
+`mouse_qc=1` is the only value that enables and loads the optional module.
+The flag is default-off: omit it or use `mouse_qc=0` for the independent core
+task. Off routes make no requests to `static/task/mouse_qc/`, so the module
+directory can be omitted from a core-only deployment.
+
+If a requested module fails to load or build, dev routes stop at a clear
+configuration-error screen. Pilot/production routes continue as core-only and
+stamp `task_variant=core+mouse-qc-load-failed` in the data.
 
 -----
 
 ## LOCAL QA ROUTES (all require `?dev=1&consent=0`)
+
+### Full End-to-End Dev — Core / Mouse-QC Pair
+
+Do not add `ntrials` to these end-to-end checks; the later memory tests require
+the complete encoding data.
+
+```text
+http://localhost:8000/index.html?dev=1&stage=full&latin_group=0&consent=0&mouse_qc=0
+http://localhost:8000/index.html?dev=1&stage=full&latin_group=0&consent=0&mouse_qc=1
+```
 
 ### Instructions + Comprehension
 
@@ -64,12 +88,23 @@ Pavlovia automatically.
 ?dev=1&stage=test&block=2&consent=0
 ```
 
-### Full Block: Encoding + Memory
+### Full Block: Encoding + Memory (Fast Integrated Pair)
 
 ```
-?dev=1&stage=block&block=1&consent=0
-?dev=1&stage=block&block=2&consent=0
+?dev=1&stage=encoding-test&block=1&latin_group=0&consent=0&mouse_qc=0
+?dev=1&stage=encoding-test&block=1&latin_group=0&consent=0&mouse_qc=1
 ```
+
+With `mouse_qc=1`, the module runs after the block's memory portion.
+
+### Mouse-QC Module Only
+
+```text
+?dev=1&stage=mouse-test&consent=0&mouse_qc=1
+```
+
+Aliases: `stage=mouse`, `stage=mouse-qc`, and `stage=mouse-trajectory`.
+The module-only route requires the explicit `mouse_qc=1` flag.
 
 ### Survey / Demographics Only
 
@@ -96,16 +131,20 @@ Same parameters and stages as local.
 
 ## PRODUCTION / PILOT
 
-### Local Full Experiment Pilot
+### Local Full Experiment Pilot — Core / Mouse-QC Pair
 
-```
-http://localhost:8000/index.html?pilot=1
+```text
+http://localhost:8000/index.html?pilot=1&mouse_qc=0
+http://localhost:8000/index.html?pilot=1&mouse_qc=1
 ```
 
-### Pavlovia Pilot (researcher testing — saves to Pavlovia, no Prolific redirect)
+### Pavlovia Pilot — Core / Mouse-QC Pair
 
-```
-https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1
+Researcher testing; both save to Pavlovia and do not redirect to Prolific.
+
+```text
+https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&mouse_qc=0
+https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&mouse_qc=1
 ```
 
 ### Pavlovia Root (pilot mode by default)
@@ -114,10 +153,13 @@ https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1
 https://run.pavlovia.org/jiaheyi/DroneTask/
 ```
 
-### Pavlovia Production (real participants — requires configured Prolific codes)
+### Pavlovia Production — Core / Mouse-QC Pair
 
-```
-https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=0
+Real participants; requires configured Prolific codes.
+
+```text
+https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=0&mouse_qc=0
+https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=0&mouse_qc=1
 ```
 
 -----

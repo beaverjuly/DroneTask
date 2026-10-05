@@ -80,8 +80,10 @@ function initEnvironment(urlParams, devMode, pilotMode) {
  *
  * @param {Object} env  - from initEnvironment()
  * @param {Object} ids  - { PROLIFIC_PID, STUDY_ID, SESSION_ID, workerId, subId }
- * @param {Object} opts - { pilotMode, devMode, showConsent, latinSquareGroup,
- *                          blockOrder, blockOrderLabels }
+ * @param {Object} opts - session, task-version, optional-module, and
+ *                        Latin-square metadata. Do not put raw trajectory
+ *                        samples here; addProperties copies every field to
+ *                        every jsPsych row.
  */
 function buildMetadataStampTrial(env, ids, opts) {
   return {
@@ -96,6 +98,14 @@ function buildMetadataStampTrial(env, ids, opts) {
         pilot_mode:                   opts.pilotMode,
         dev_mode:                     opts.devMode,
         consent_shown:                opts.showConsent,
+        task_version:                 opts.taskVersion,
+        stimuli_version:              opts.stimuliVersion,
+        task_variant:                 opts.taskVariant,
+        mouse_qc_requested:           opts.mouseQcRequested,
+        mouse_qc_enabled:             opts.mouseQcEnabled,
+        mouse_qc_asset_status:        opts.mouseQcAssetStatus,
+        mouse_qc_module_version:      opts.mouseQcModuleVersion,
+        mouse_qc_geometry_version:    opts.mouseQcGeometryVersion,
         data_save_mode:               env.DATA_SAVE_MODE,
         is_pavlovia:                  env.IS_PAVLOVIA,
         is_local_env:                 env.IS_LOCAL_ENV,

@@ -43,6 +43,75 @@
     );
   </script>
 
+  <!-- Optional mouse-trajectory QC module. The exact opt-in flag is parsed
+       here, before any optional assets are created. With mouse_qc absent (or
+       any value other than 1), no link/script element is created, so the core
+       task makes no request to and has no runtime dependency on this folder. -->
+  <script>
+    (function loadOptionalMouseQcModule() {
+      var requested = new URLSearchParams(window.location.search).get('mouse_qc') === '1';
+      var state = {
+        requested: requested,
+        enabled: false,
+        asset_status: requested ? 'loading' : 'not_requested',
+        script_status: requested ? 'loading' : 'not_requested',
+        stylesheet_status: requested ? 'loading' : 'not_requested',
+        module_version: null,
+        geometry_version: null,
+        error: null
+      };
+
+      window.MOUSE_QC_REQUESTED = requested;
+      window.MOUSE_QC_RUNTIME = state;
+
+      if (!requested) {
+        window.MOUSE_QC_ASSETS_READY = Promise.resolve(state);
+        return;
+      }
+
+      function loadAsset(element, kind) {
+        return new Promise(function(resolve) {
+          var settled = false;
+          var timeoutId = window.setTimeout(function() {
+            finish('failed');
+          }, 15000);
+
+          function finish(status) {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timeoutId);
+            state[kind + '_status'] = status;
+            resolve();
+          }
+
+          element.onload = function() { finish('loaded'); };
+          element.onerror = function() { finish('failed'); };
+          document.head.appendChild(element);
+        });
+      }
+
+      var stylesheet = document.createElement('link');
+      stylesheet.rel = 'stylesheet';
+      stylesheet.type = 'text/css';
+      stylesheet.href = 'static/task/mouse_qc/mouse_trajectory.css?v=' + window.__APP_VER;
+
+      var script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.async = false;
+      script.src = 'static/task/mouse_qc/mouse_trajectory.js?v=' + window.__APP_VER;
+
+      window.MOUSE_QC_ASSETS_READY = Promise.all([
+        loadAsset(stylesheet, 'stylesheet'),
+        loadAsset(script, 'script')
+      ]).then(function() {
+        state.asset_status =
+          state.stylesheet_status === 'loaded' && state.script_status === 'loaded'
+            ? 'assets_loaded' : 'asset_load_failed';
+        return state;
+      });
+    })();
+  </script>
+
   <link href="static/task/game.min.css?v=practice-motion-20260929b" rel="stylesheet" type="text/css"></link>
   <script>
     document.write(
@@ -804,6 +873,7 @@
     return (v !== null && v !== '') ? v : fallback;
   }
 
+  var TASK_VERSION = 'v3.12.0-optional-mouse-trajectory-qc';
   var DEV_MODE    = _urlParams.get('dev') === '1';
   var DEV_STAGE   = _urlParams.get('stage') || 'full';
   var DEV_NTRIALS = parseInt(_urlParams.get('ntrials'), 10) || 0;
@@ -1161,7 +1231,7 @@
     button_label_previous: "Prev",
     button_label_next: "Next",
     data: {
-      task_version: 'v3.11.0-item-practice-before-red',
+      task_version: TASK_VERSION,
       stimuli_version: stimuli_version,
 
       true_vol: factors_vol,
@@ -2190,6 +2260,87 @@
       ? buildSurveyTrial()
       : { type: 'survey-demo', button_label: 'Continue' };
 
+    // Resolve and build the optional QC trial exactly once. The core task
+    // never calls the module builder, and an asset/builder failure never
+    // prevents a non-dev pilot or production session from continuing.
+    var _mouseQcState = await window.MOUSE_QC_ASSETS_READY;
+    var mouseQcTrial = null;
+
+    if (_mouseQcState.requested) {
+      _mouseQcState.module_version =
+        (typeof window.MOUSE_TRAJECTORY_MODULE_VERSION === 'string')
+          ? window.MOUSE_TRAJECTORY_MODULE_VERSION : null;
+      _mouseQcState.geometry_version =
+        (window.MOUSE_TRAJECTORY_GEOMETRY &&
+         typeof window.MOUSE_TRAJECTORY_GEOMETRY.version === 'string')
+          ? window.MOUSE_TRAJECTORY_GEOMETRY.version : null;
+
+      if (_mouseQcState.asset_status === 'assets_loaded' &&
+          typeof window.buildMouseTrajectoryTrial === 'function' &&
+          _mouseQcState.module_version && _mouseQcState.geometry_version) {
+        try {
+          mouseQcTrial = window.buildMouseTrajectoryTrial({
+            debugPreview: DEV_MODE
+          });
+          if (!mouseQcTrial || typeof mouseQcTrial !== 'object') {
+            throw new Error('buildMouseTrajectoryTrial() returned no trial object');
+          }
+          _mouseQcState.enabled = true;
+          _mouseQcState.asset_status = 'ready';
+        } catch (mouseQcBuildError) {
+          mouseQcTrial = null;
+          _mouseQcState.enabled = false;
+          _mouseQcState.asset_status = 'builder_error';
+          _mouseQcState.error = String(
+            mouseQcBuildError && mouseQcBuildError.message
+              ? mouseQcBuildError.message : mouseQcBuildError
+          );
+          console.error('[MOUSE-QC] Trial builder failed:', mouseQcBuildError);
+        }
+      } else if (_mouseQcState.asset_status === 'assets_loaded') {
+        _mouseQcState.asset_status = 'builder_unavailable';
+        _mouseQcState.error =
+          'Required builder or version globals were not exposed by the module.';
+        console.error('[MOUSE-QC] ' + _mouseQcState.error);
+      } else {
+        _mouseQcState.error = 'One or more optional module assets failed to load.';
+        console.error('[MOUSE-QC] ' + _mouseQcState.error, _mouseQcState);
+      }
+    }
+
+    window.MOUSE_QC_ENABLED = _mouseQcState.enabled;
+    var TASK_VARIANT = !_mouseQcState.requested
+      ? 'core'
+      : (_mouseQcState.enabled
+          ? 'core+mouse-qc'
+          : 'core+mouse-qc-load-failed');
+
+    function buildMouseQcConfigErrorTrial(message) {
+      var safeMessage = String(message || 'Unknown mouse-QC configuration error')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      return {
+        type: 'html-button-response',
+        stimulus:
+          '<div style="max-width:720px;margin:8vh auto;padding:28px;' +
+          'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+          'border:2px solid #b91c1c;border-radius:10px;background:#fff7f7;color:#1f2937;">' +
+          '<h2 style="color:#991b1b;">Mouse-QC configuration error</h2>' +
+          '<p>The URL requested <code>mouse_qc=1</code>, but the optional module ' +
+          'could not be enabled. No DroneTask trials were started.</p>' +
+          '<p style="font-size:14px;"><strong>Status:</strong> ' +
+          _mouseQcState.asset_status + '<br><strong>Details:</strong> ' + safeMessage + '</p>' +
+          '<p>Fix the module deployment, or remove <code>mouse_qc=1</code> to test ' +
+          'the independent core task.</p></div>',
+        choices: ['End QA run'],
+        data: {
+          trial_category: 'mouse_qc_configuration_error',
+          mouse_qc_configuration_error: true
+        }
+      };
+    }
+
     function buildBlockMemoryTrials() {
       var num_blocks = block_order.length;
       if (num_blocks === 0) return trials;
@@ -2237,6 +2388,10 @@
       'encoding_test':  'block',
       'encoding test':  'block',   // unencoded '+' decodes to this
       'encoding+test':  'block',   // properly percent-encoded (%2B) decodes to this
+      'mouse-test':       'mouse-test',
+      'mouse':            'mouse-test',
+      'mouse-qc':         'mouse-test',
+      'mouse-trajectory': 'mouse-test',
       'gate': 'instructions'
     };
     var _stage = _stageMap[DEV_STAGE] || DEV_STAGE;
@@ -2247,7 +2402,13 @@
     // ── Build task timeline ──
     var _skipPreload = false;
 
-    if (DEV_MODE && _stage !== 'full') {
+    if (DEV_MODE && _mouseQcState.requested && !_mouseQcState.enabled) {
+      // In developer mode, fail loudly and before any task activity. In
+      // pilot/production, the same failure falls through to the independent
+      // core task and is captured by TASK_VARIANT + metadata below.
+      timeline = [buildMouseQcConfigErrorTrial(_mouseQcState.error)];
+      _skipPreload = true;
+    } else if (DEV_MODE && _stage !== 'full') {
       // Dev route: delegate to dev_routes.js
       var _devResult = buildDevTimeline({
         stage:                  _stage,
@@ -2267,6 +2428,8 @@
         survey_demographics:    survey_demographics,
         feedback1:              feedback1,
         finish:                 finish,
+        mouseQcRequested:       _mouseQcState.requested,
+        mouseQcTrial:           mouseQcTrial,
         SHOW_CONSENT:           SHOW_CONSENT
       });
       timeline = _devResult.timeline;
@@ -2296,8 +2459,9 @@
         instructions_loop
       );
       if (_gateTrial) timeline.push(_gateTrial);
+      timeline = timeline.concat(combinedTrials);
+      if (mouseQcTrial) timeline.push(mouseQcTrial);
       timeline = timeline.concat(
-        combinedTrials,
         feedback1,
         survey_demographics,
         finish,
@@ -2320,6 +2484,13 @@
       { PROLIFIC_PID: PROLIFIC_PID, STUDY_ID: STUDY_ID,
         SESSION_ID: SESSION_ID, workerId: workerId, subId: subId },
       { pilotMode: PILOT_MODE, devMode: DEV_MODE, showConsent: SHOW_CONSENT,
+        taskVersion: TASK_VERSION, stimuliVersion: stimuli_version,
+        taskVariant: TASK_VARIANT,
+        mouseQcRequested: _mouseQcState.requested,
+        mouseQcEnabled: _mouseQcState.enabled,
+        mouseQcAssetStatus: _mouseQcState.asset_status,
+        mouseQcModuleVersion: _mouseQcState.module_version,
+        mouseQcGeometryVersion: _mouseQcState.geometry_version,
         latinSquareGroup: latin_square_group,
         blockOrder: block_order, blockOrderLabels: block_order_labels }
     ));

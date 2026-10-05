@@ -29,12 +29,15 @@ DroneTask/
 │   │   ├── data_saving.js      # Pavlovia / CSV persistence
 │   │   ├── dev_routes.js       # dev/QA route handling
 │   │   ├── consent.js          # required USC IRB consent gate
+│   │   ├── mouse_qc/           # optional, default-off mouse-QC module
+│   │   │   ├── mouse_trajectory.js
+│   │   │   └── mouse_trajectory.css
 │   │   └── game.min.css        # task styling
 │   ├── lib/                    # jsPsych 6.3.1 + plugins
 │   ├── js/                     # survey-demo, nivturk, template plugins
 │   └── stimuli/                # 200 object PNGs
 ├── index.html                  # main entry point
-├── URLs_CheatSheet.md          # dev/QA/production link reference
+├── URLs CheatSheet.md          # dev/QA/production link reference
 └── README.md                   # repo-level readme
 ```
 
@@ -123,6 +126,61 @@ All dev routes require `?dev=1`. Add `&consent=0` to skip consent.
 |encoding     |`stage=encoding`     |One encoding block              |
 |test         |`stage=test`         |One memory test (seeded data)   |
 |encoding-test|`stage=encoding-test`|Full block: encoding + memory   |
+|mouse-test   |`stage=mouse-test`   |Mouse-QC module only            |
 |survey       |`stage=survey`       |Demographics survey preview only|
 
-See `URLs_CheatSheet.md` for complete link reference with examples.
+## Optional mouse-trajectory QC
+
+The browser module is isolated in `static/task/mouse_qc/` and is disabled by
+default. It is enabled only by the exact query parameter `mouse_qc=1`.
+Absent, empty, `0`, or any other value runs the core task and does not create
+HTML asset elements or request files from the optional module directory. This
+means the directory can be left out of a deployment—or deleted—without
+affecting core/off routes.
+
+When enabled successfully, the module runs after all game and memory trials
+and before the completion/demographics screens. The `encoding-test` dev route
+also appends it after that block's memory test for faster integrated QA.
+
+|Variant|Query flag|Saved `task_variant`|
+|-------|----------|--------------------|
+|Core|absent or `mouse_qc=0`|`core`|
+|Core + mouse QC|`mouse_qc=1`|`core+mouse-qc`|
+|Requested but unavailable (non-dev)|`mouse_qc=1`|`core+mouse-qc-load-failed`|
+
+Developer routes fail with a configuration-error-only screen if `mouse_qc=1`
+was requested but its assets or builder are unavailable. Pilot/production
+routes continue through the core task so an optional-module deployment error
+does not strand a participant; the failure is recorded in every data row.
+Every row also receives `task_version`, `stimuli_version`,
+`mouse_qc_requested`, `mouse_qc_enabled`, `mouse_qc_asset_status`, and the
+module/geometry versions. Raw trajectories remain confined to the module's own
+trial rows.
+
+### Paired QA and pilot routes
+
+```text
+# Full local dev, core
+http://localhost:8000/index.html?dev=1&stage=full&latin_group=0&consent=0&mouse_qc=0
+
+# Full local dev, core + mouse QC
+http://localhost:8000/index.html?dev=1&stage=full&latin_group=0&consent=0&mouse_qc=1
+
+# Fast integrated QA (one complete encoding + memory block, then mouse QC)
+http://localhost:8000/index.html?dev=1&stage=encoding-test&block=1&latin_group=0&consent=0&mouse_qc=1
+
+# Mouse-QC module only
+http://localhost:8000/index.html?dev=1&stage=mouse-test&consent=0&mouse_qc=1
+
+# Pavlovia pilot, core
+https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&mouse_qc=0
+
+# Pavlovia pilot, core + mouse QC
+https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&mouse_qc=1
+```
+
+See `URLs CheatSheet.md` for the complete route reference.
+
+The standalone lab briefing deck is at
+`design_checks/mouse_qc_lab_brief.html`. Serve the repository locally and open
+`http://localhost:8000/design_checks/mouse_qc_lab_brief.html` to present it.

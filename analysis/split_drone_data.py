@@ -18,11 +18,21 @@ For each participant, produces:
     {pid}_{date}_comprehension.csv
     {pid}_{date}_demographics.csv
     {pid}_{date}_preload_diagnostics.csv
+    {pid}_{date}_mouse_trajectory.csv    (only when QC rows are present)
+    {pid}_{date}_mouse_summary.csv       (only when a QC summary is present)
+    {pid}_{date}_mouse_events.csv        (optional, --explode-mouse)
 """
 import argparse, json, os, re, sys
 import pandas as pd
 
 # ─── Column definitions per table ────────────────────────────
+
+MOUSE_QC_METADATA_COLS = [
+    'task_variant', 'mouse_qc_requested', 'mouse_qc_enabled',
+    'mouse_qc_asset_status', 'mouse_qc_module_version',
+    'mouse_qc_geometry_version', 'mt_status',
+    'mt_pointer_type_self_report',
+]
 
 META_COLS = [
     'workerId', 'subId', 'PROLIFIC_PID', 'STUDY_ID', 'SESSION_ID',
@@ -34,6 +44,7 @@ META_COLS = [
     'preload_elapsed_ms', 'preload_mode',
     'preload_overall_timeout', 'preload_gate_wait_ms',
     'total_supply_caught', 'total_score', 'total_scored_trials',
+    *MOUSE_QC_METADATA_COLS,
     'pavlovia_pid', 'pavlovia_date', 'pavlovia_time',
 ]
 
@@ -112,6 +123,36 @@ COMPREHENSION_COLS = [
 
 DEMOGRAPHICS_COLS = [
     'trial_index', 'time_elapsed', 'rt', 'responses',
+]
+
+# Optional mouse-trajectory QC outputs. Keeping these definitions here makes
+# the splitter independent of the feature-analysis package: core-only data can
+# be split without importing or installing any mouse-QC code.
+MOUSE_TRAJECTORY_COLS = [
+    'trial_index', 'time_elapsed',
+    'trajectory_id', 'movement_label', 'target_start_label', 'target_end_label',
+    'target_start_x', 'target_start_y', 'target_end_x', 'target_end_y',
+    'nominal_length', 'nominal_direction_deg',
+    'movement_orientation', 'movement_length_class',
+    'click_start_x', 'click_start_y', 'click_end_x', 'click_end_y',
+    'trajectory_duration_ms', 'trajectory_completed',
+    'n_samples', 'n_dispatched_events', 'n_coalesced_samples', 'n_misclicks',
+    'samples_truncated', 'pointer_type', 't0_event_ms', 't0_perf_ms',
+    'samples', 'events',
+]
+
+MOUSE_SUMMARY_COLS = [
+    'trial_index', 'time_elapsed',
+    'mt_module_version', 'mt_geometry_version', 'mt_status',
+    'mt_n_targets', 'mt_n_trajectories_completed',
+    'mt_start_latency_ms', 'mt_total_task_ms', 'mt_total_samples',
+    'mt_total_misclicks', 'mt_misclicks_before_start', 'mt_any_truncated',
+    'mt_area_side_px', 'mt_device_pixel_ratio',
+    'mt_viewport_w', 'mt_viewport_h', 'mt_screen_w', 'mt_screen_h',
+    'mt_fullscreen', 'mt_pointer_events_supported', 'mt_coalesced_supported',
+    'mt_pointer_types_api', 'mt_max_touch_points', 'mt_resized_during_task',
+    'mt_pointer_type_self_report', 'mt_pointer_question_rt_ms',
+    'mt_user_agent', 'mt_geometry_json',
 ]
 
 # ─── Filename parsing ─────────────────────────────────────────
@@ -263,7 +304,60 @@ def _build_preload_diagnostics(df, enc, mem):
     return pd.DataFrame(rows)
 
 
-def process_one(filepath, outdir):
+def _json_list(value):
+    """Decode an optional JSON-array cell without coupling to mouse_features."""
+    if not isinstance(value, str) or not value.strip():
+        return []
+    try:
+        decoded = json.loads(value)
+    except (json.JSONDecodeError, TypeError):
+        return []
+    return decoded if isinstance(decoded, list) else []
+
+
+def _explode_mouse_rows(traj, participant_id):
+    """Return one row per valid raw pointer sample/event."""
+    rows = []
+    for _, r in traj.iterrows():
+        base = {
+            'participant_id': participant_id,
+            'trajectory_id': r.get('trajectory_id'),
+            'target_start_x': r.get('target_start_x'),
+            'target_start_y': r.get('target_start_y'),
+            'target_end_x': r.get('target_end_x'),
+            'target_end_y': r.get('target_end_y'),
+        }
+        for sample in _json_list(r.get('samples')):
+            if not isinstance(sample, list) or len(sample) < 4:
+                continue
+            rows.append({
+                **base, 'event_type': 'move', 't_ms': sample[0],
+                'x_norm': sample[1], 'y_norm': sample[2],
+                'pointer_type': r.get('pointer_type'),
+                'coalesced': int(bool(sample[3])), 'button': None,
+            })
+        for event in _json_list(r.get('events')):
+            if not isinstance(event, list) or len(event) < 6:
+                continue
+            rows.append({
+                **base, 'event_type': event[3], 't_ms': event[0],
+                'x_norm': event[1], 'y_norm': event[2],
+                'pointer_type': event[5], 'coalesced': 0,
+                'button': event[4],
+            })
+    columns = [
+        'participant_id', 'trajectory_id', 'target_start_x', 'target_start_y',
+        'target_end_x', 'target_end_y', 'event_type', 't_ms', 'x_norm',
+        'y_norm', 'pointer_type', 'coalesced', 'button',
+    ]
+    if not rows:
+        return pd.DataFrame(columns=columns)
+    return (pd.DataFrame(rows)[columns]
+            .sort_values(['trajectory_id', 't_ms'], kind='stable')
+            .reset_index(drop=True))
+
+
+def process_one(filepath, outdir, explode_mouse=False):
     df = pd.read_csv(filepath)
     fname_pid, fname_date, fname_time = parse_filename(filepath)
 
@@ -275,7 +369,7 @@ def process_one(filepath, outdir):
     written  = []
 
     # 1. Metadata
-    meta_row = {}
+    meta_row = {'participant_id': out_pid}
     for c in META_COLS:
         meta_row[c] = _scalar(df, c)
     meta_row['pavlovia_pid']  = fname_pid
@@ -284,34 +378,38 @@ def process_one(filepath, outdir):
     pd.DataFrame([meta_row]).to_csv(f'{prefix}_metadata.csv', index=False)
     written.append('metadata')
 
+    # Treat trial_type as optional so even unusually sparse legacy exports
+    # still yield their metadata table instead of failing immediately.
+    trial_type = df.get('trial_type', pd.Series('', index=df.index)).fillna('')
+
     # 2. Encoding trials (practice_no == 0)
-    prac_col = df.get('practice_no', pd.Series(dtype=float))
-    enc = df[(df['trial_type'] == 'trial') & (prac_col.fillna(-1) == 0)]
+    prac_col = df.get('practice_no', pd.Series(float('nan'), index=df.index, dtype=float))
+    enc = df[(trial_type == 'trial') & (prac_col.fillna(-1) == 0)]
     if len(enc):
         _keep(enc, ENCODING_COLS).to_csv(f'{prefix}_encoding.csv', index=False)
         written.append(f'encoding ({len(enc)})')
 
     # 3. Memory trials
-    mem = df[df['trial_type'] == 'memory-task']
+    mem = df[trial_type == 'memory-task']
     if len(mem):
         mem = _repair_memory_condition_labels(mem, enc)
         _keep(mem, MEMORY_COLS).to_csv(f'{prefix}_memory.csv', index=False)
         written.append(f'memory ({len(mem)})')
 
     # 4. Practice trials (practice_no > 0)
-    prac = df[(df['trial_type'] == 'trial') & (prac_col.fillna(0) > 0)]
+    prac = df[(trial_type == 'trial') & (prac_col.fillna(0) > 0)]
     if len(prac):
         _keep(prac, PRACTICE_COLS).to_csv(f'{prefix}_practice.csv', index=False)
         written.append(f'practice ({len(prac)})')
 
     # 5. Comprehension
-    comp = df[df['trial_type'].str.contains('comprehension', case=False, na=False)]
+    comp = df[trial_type.str.contains('comprehension', case=False, na=False)]
     if len(comp):
         _keep(comp, COMPREHENSION_COLS).to_csv(f'{prefix}_comprehension.csv', index=False)
         written.append(f'comprehension ({len(comp)})')
 
     # 6. Demographics
-    demo = df[df['trial_type'] == 'survey-demo']
+    demo = df[trial_type == 'survey-demo']
     if len(demo):
         _keep(demo, DEMOGRAPHICS_COLS).to_csv(f'{prefix}_demographics.csv', index=False)
         written.append(f'demographics ({len(demo)})')
@@ -323,6 +421,29 @@ def process_one(filepath, outdir):
         n_failed = (diag['preload_outcome'] == 'failed').sum()
         written.append(f'preload_diagnostics ({n_failed} failed / {len(diag)} URLs)')
 
+    # 8. Optional mouse-trajectory QC tables. No files are emitted for a
+    # core-only session, so downstream core workflows remain unchanged.
+    if 'mt_row' in df.columns:
+        mouse_rows = df[(trial_type == 'mouse-trajectory') |
+                        df['mt_row'].isin(['trajectory', 'summary'])]
+        traj = mouse_rows[mouse_rows['mt_row'] == 'trajectory']
+        summary = mouse_rows[mouse_rows['mt_row'] == 'summary']
+        if len(traj):
+            traj_out = _keep(traj, MOUSE_TRAJECTORY_COLS)
+            traj_out.insert(0, 'participant_id', out_pid)
+            traj_out.to_csv(f'{prefix}_mouse_trajectory.csv', index=False)
+            written.append(f'mouse_trajectory ({len(traj_out)})')
+            if explode_mouse:
+                events = _explode_mouse_rows(traj, out_pid)
+                if len(events):
+                    events.to_csv(f'{prefix}_mouse_events.csv', index=False)
+                    written.append(f'mouse_events ({len(events)})')
+        if len(summary):
+            summary_out = _keep(summary, MOUSE_SUMMARY_COLS)
+            summary_out.insert(0, 'participant_id', out_pid)
+            summary_out.to_csv(f'{prefix}_mouse_summary.csv', index=False)
+            written.append(f'mouse_summary ({len(summary_out)})')
+
     print(f'  [{out_pid} | {fname_date}] → {", ".join(written)}')
     return out_pid
 
@@ -332,6 +453,8 @@ def main():
     ap.add_argument('input', help='Single CSV or directory of CSVs')
     ap.add_argument('-o', '--outdir', default=None,
                     help='Output directory (default: data/clean/ relative to input)')
+    ap.add_argument('--explode-mouse', action='store_true',
+                    help='Also write a long mouse-events table when QC data exist')
     args = ap.parse_args()
 
     if os.path.isfile(args.input):
@@ -355,7 +478,7 @@ def main():
     for f in files:
         print(f'Processing {os.path.basename(f)} ...')
         try:
-            process_one(f, outdir)
+            process_one(f, outdir, explode_mouse=args.explode_mouse)
             ok += 1
         except Exception as e:
             print(f'  ERROR: {e}', file=sys.stderr)

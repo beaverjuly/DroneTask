@@ -43,6 +43,25 @@ function _blockStride(trials, numBlocks) {
   return Math.ceil(trials.length / numBlocks);
 }
 
+function _mouseQcRouteError(message) {
+  return {
+    type: 'html-button-response',
+    stimulus:
+      '<div style="max-width:680px;margin:8vh auto;padding:28px;' +
+      'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
+      'border:2px solid #b91c1c;border-radius:10px;background:#fff7f7;">' +
+      '<h2 style="color:#991b1b;">Mouse-QC route unavailable</h2>' +
+      '<p>' + message + '</p>' +
+      '<p>Use <code>?dev=1&amp;stage=mouse-test&amp;consent=0&amp;mouse_qc=1</code>.</p>' +
+      '</div>',
+    choices: ['End QA run'],
+    data: {
+      trial_category: 'mouse_qc_configuration_error',
+      mouse_qc_configuration_error: true
+    }
+  };
+}
+
 function buildDevTimeline(cfg) {
   var timeline = [];
   var skipPreload = false;
@@ -90,6 +109,23 @@ function buildDevTimeline(cfg) {
     timeline.push(cfg.survey_demographics);
     timeline.push(cfg.finish);
 
+  } else if (stage === 'mouse-test') {
+    // Optional module in isolation. Requiring the exact feature flag keeps
+    // stale/shared links from accidentally collecting mouse trajectories.
+    skipPreload = true;
+    console.log('[DEV] stage: mouse-QC module only');
+    if (!cfg.mouseQcRequested) {
+      timeline.push(_mouseQcRouteError(
+        'This route requires the explicit <code>mouse_qc=1</code> opt-in flag.'
+      ));
+    } else if (!cfg.mouseQcTrial) {
+      timeline.push(_mouseQcRouteError(
+        'The module was requested, but its trial builder was not available.'
+      ));
+    } else {
+      timeline.push(cfg.mouseQcTrial);
+    }
+
   } else if (stage === 'encoding') {
     console.log('[DEV] stage: encoding, block=' + cfg.devBlock);
     timeline.push({
@@ -134,6 +170,7 @@ function buildDevTimeline(cfg) {
     console.log('[DEV] trial stride=' + bStride + ', slicing [' + bStart + ', ' + bEnd + ')');
     timeline = timeline.concat(cfg.trials.slice(bStart, bEnd));
     timeline = timeline.concat(cfg.create_memory_timeline(cfg.devBlockNum));
+    if (cfg.mouseQcTrial) timeline.push(cfg.mouseQcTrial);
     timeline.push({
       type: 'html-keyboard-response',
       stimulus: '<p style="font-size:22px;padding:40px;"><strong>[DEV]</strong> Encoding + Test complete. Press any key.</p>',
@@ -152,8 +189,10 @@ function buildDevTimeline(cfg) {
     }
     timeline = timeline.concat(
       cfg.enter_fullscreen, cfg.welcome, cfg.feedback0, cfg.instructions_loop,
-      combinedTrials, cfg.feedback1, cfg.survey_demographics, cfg.finish
+      combinedTrials
     );
+    if (cfg.mouseQcTrial) timeline.push(cfg.mouseQcTrial);
+    timeline = timeline.concat(cfg.feedback1, cfg.survey_demographics, cfg.finish);
   }
 
   return { timeline: timeline, skipPreload: skipPreload };
