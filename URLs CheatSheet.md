@@ -48,6 +48,34 @@ If a requested module fails to load or build, dev routes stop at a clear
 configuration-error screen. Pilot/production routes continue as core-only and
 stamp `task_variant=core+mouse-qc-load-failed` in the data.
 
+## Optional memory screening
+
+`memory_screen=1` adds 20 initial encoding turns and 10 order memory questions
+after comprehension. At least 6 correct answers unlock the four main blocks.
+Omit the flag or use `memory_screen=0` for the original flow. A requested
+screen cannot be bypassed by missing module assets. It is independent of
+`mouse_qc=1`.
+
+| Use | Link |
+|---|---|
+| Local module only | <http://localhost:8000/index.html?dev=1&stage=memory-screen&consent=0&memory_screen=1> |
+| Local full development with screening | <http://localhost:8000/index.html?dev=1&stage=full&consent=0&memory_screen=1> |
+| Local full development without screening | <http://localhost:8000/index.html?dev=1&stage=full&consent=0&memory_screen=0> |
+| Pavlovia module only after deployment | <https://run.pavlovia.org/jiaheyi/DroneTask/?dev=1&stage=memory-screen&consent=0&memory_screen=1> |
+| Pavlovia pilot with screening after deployment | <https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&memory_screen=1> |
+| Pavlovia pilot without screening | <https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&memory_screen=0> |
+
+The module only route ends after its result. On a full route, a below
+threshold result skips the four blocks and final questionnaire but still saves
+the session. Development routes download CSVs locally. No cutoff or practice
+label is shown to participants. The researcher can configure a separate
+production completion destination in `MEMORY_SCREENING_COMPLETION_URL`.
+Until configured, below threshold production sessions end on a neutral saved
+session message and do not use a success or rejection code.
+
+The specification, design audit, and data separation are consolidated in
+[`design_checks/notebooks/06_memory_screen.ipynb`](design_checks/notebooks/06_memory_screen.ipynb).
+
 -----
 
 ## LOCAL QA ROUTES (all require `?dev=1&consent=0`)

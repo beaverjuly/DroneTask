@@ -1,0 +1,3 @@
+quantity,measure,source_low_mean,screen_mean,source_high_mean,target_midpoint
+Volatility,Mean absolute drone shift when position changes,14.09933333333333,9.05,4.0005999999999995,9.049966666666664
+Stochasticity,Mean absolute rendered landing distance,3.3875199999999994,2.957285,2.5270499999999996,2.9572849999999997

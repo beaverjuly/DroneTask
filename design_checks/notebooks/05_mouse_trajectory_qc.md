@@ -1,7 +1,7 @@
 # 05 — Mouse-dynamics quality-control module (exploratory)
 
 **Status:** pilot measure, exploratory. **Version:** module `mt-1.0.3-2026-10-04`, geometry `g1-2026-09-29`.
-**Code:** `static/task/mouse_qc/mouse_trajectory.js`, `static/task/mouse_qc/mouse_trajectory.css`, `analysis/mouse_qc/mouse_features.py`, `analysis/mouse_qc/mouse_trajectory_analysis.ipynb`, `analysis/split_drone_data.py`.
+**Code:** [`static/task/mouse_qc/mouse_trajectory.js`](../../static/task/mouse_qc/mouse_trajectory.js), [`static/task/mouse_qc/mouse_trajectory.css`](../../static/task/mouse_qc/mouse_trajectory.css), [`analysis/mouse_qc/mouse_features.py`](../../analysis/mouse_qc/mouse_features.py), [`analysis/mouse_qc/mouse_trajectory_analysis.ipynb`](../../analysis/mouse_qc/mouse_trajectory_analysis.ipynb), [`analysis/split_drone_data.py`](../../analysis/split_drone_data.py).
 
 ## 1. Purpose and scope
 
@@ -72,7 +72,7 @@ events:  [[t_ms, x_norm, y_norm, kind, button, pointerType], ...] # kind ∈ dow
 
 **`mt_row = 'summary'`** (1 row): `mt_*` columns listed in `split_drone_data.MOUSE_SUMMARY_COLS`.
 
-`split_drone_data.py` writes `{pid}_{date}_mouse_trajectory.csv`, `{pid}_{date}_mouse_summary.csv`, and with `--explode-mouse` the long table `{pid}_{date}_mouse_events.csv` with exactly the preregistered columns `participant_id, trajectory_id, target_start_x, target_start_y, target_end_x, target_end_y, event_type, t_ms, x_norm, y_norm, pointer_type` (+ `coalesced`, `button`). `mt_status` and `mt_pointer_type_self_report` are also added to the metadata table.
+`split_drone_data.py` routes `{pid}_{date}_mouse_trajectory.csv`, `{pid}_{date}_mouse_summary.csv`, and with `--explode-mouse` the long table `{pid}_{date}_mouse_events.csv` into `analysis/data/mouse_qc/clean/`. The event table retains the preregistered columns `participant_id, trajectory_id, target_start_x, target_start_y, target_end_x, target_end_y, event_type, t_ms, x_norm, y_norm, pointer_type` (+ `coalesced`, `button`). `mt_status` and `mt_pointer_type_self_report` are also added to the metadata table. Derived analysis outputs are under `analysis/data/mouse_qc/derived/`.
 
 ## 7. Proposed pilot analysis (version 1)
 

@@ -6,11 +6,11 @@ This document compares the live drone-task wording with the original bird-task w
 
 | Source | Role |
 |---|---|
-| [`Bird Task 15 Instructions Text.txt`](./Bird%20Task%2015%20Instructions%20Text.txt) | Reference instruction wording. |
-| [`Experiment HTML Text.txt`](./Experiment%20HTML%20Text.txt) | Reference welcome, transitions, and closing wording. |
-| [`birdTask/static/task/comprehension1.js`](../../birdTask/static/task/comprehension1.js) | Ten-question reference comprehension check used by the bird task. |
-| [`static/task/instructions.js`](../static/task/instructions.js) | Live drone instructions. |
-| [`static/task/comprehension.js`](../static/task/comprehension.js) | Live drone comprehension check. |
+| [`Bird Task 15 Instructions Text.txt`](../../../birdTask/static/Bird%20Task%2015%20Instructions%20Text.txt) | Reference instruction wording. |
+| [`Experiment HTML Text.txt`](../../../birdTask/static/Experiment%20HTML%20Text.txt) | Reference welcome, transitions, and closing wording. |
+| [`birdTask/static/task/comprehension1.js`](../../../birdTask/static/task/comprehension1.js) | Ten-question reference comprehension check used by the bird task. |
+| [`static/task/instructions.js`](../../static/task/instructions.js) | Live drone instructions. |
+| [`static/task/comprehension.js`](../../static/task/comprehension.js) | Live drone comprehension check. |
 
 ## Necessary terminology changes
 
@@ -66,6 +66,7 @@ For the inactivity reminder, the live emphasis is: **do not move the collector**
 | Drone visual | Instruction mock-ups and visible practice trials use the same enlarged, neutral CSS drone shape. | Avoids platform-specific emoji rendering and prevents the drone itself from resembling a memory item. |
 | Third memory judgment | “When did this item appear between the other two items?” | Documents the added temporal-placement measure. |
 | Memory timing | Begin within 5 seconds; slider responses auto-submit 7 seconds after the first move. | The same timing notice appears beneath each of the three memory try-outs, matching the live response deadlines. |
+| Optional initial memory assessment | The game begins with green supplies and a hidden drone, followed by an order memory task. | A separate `memory_screen=1` module adds 20 initial turns and 10 order questions after comprehension. The counts and 6 correct criterion come from the collaborator. The hidden drone makes 20 equal shifts of 9.05 percentage points, 10 left and 10 right. This is the rounded midpoint of the main groups’ mean movements when the drone changes position, excluding stationary transitions. Supply distances are calibrated to the midpoint of the main groups, with 10 landings on each side in an irregular order and 20 reserved images. These turns are not labelled as practice. Passing adds a reminder that the drone remains hidden before the four blocks begin. See [the specification and design audit](06_memory_screen.ipynb). |
 
 ## Comprehension alignment
 

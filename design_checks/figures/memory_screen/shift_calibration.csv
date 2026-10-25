@@ -1,0 +1,3 @@
+assignment,low_vol_mean_nonzero_shift,high_vol_mean_nonzero_shift,midpoint,screen_mean_abs_shift,between_group_means
+loss shifted,14.09933333333333,4.0005999999999995,9.049966666666664,9.05,True
+reward shifted,14.09933333333333,4.0005999999999995,9.049966666666664,9.05,True

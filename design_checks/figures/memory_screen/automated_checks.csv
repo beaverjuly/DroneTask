@@ -1,0 +1,38 @@
+check,pass,observed
+20 encoding turns and 10 questions,True,20 / 10
+Hidden target and zero regime changes,True,hidden / 0
+Drone hidden in all encoding trials and phase records,True,"20 hidden trials; phase, entry, and summary metadata agree"
+Entry instructions describe the hidden drone,True,"<p>On this planet, the <strong>drone will be hidden</strong>.</p><p>The supplies will be <strong>green</strong>.</p>"
+All 20 shifts have equal displacement,True,20 shifts of 9.05 percentage points
+Screen mean lies between main volatility groups,True,"source high 4.000600 < screen 9.050000 < source low 14.099333; nonzero main shifts, both assignments"
+Fixed step equals the rounded reference midpoint,True,midpoint 9.049966667; fixed step 9.05
+Main movement calibration excludes stationary transitions,True,15 actual shifts used per block; 34 stationary transitions excluded; no between-block moves
+Movement calibration metric is saved consistently,True,mean_absolute_nonzero_main_drone_shift
+Ten shifts left and ten right,True,10 left / 10 right
+Every turn uses the preceding target,True,baseline plus preceding 19 targets
+Target range and return to baseline,True,31.9 to 68.1; final 50
+Screen positions avoid display clipping,True,"drone, supply and item positions inside renderer bounds"
+Landing offsets match actual geometry,True,live bag positions minus live drone positions
+Ten rendered landings on each side,True,10 left / 10 right / 0 centred
+Landing signs are nonalternating with short runs,True,12 switches / 19 transitions; maximum run 2
+Landing side is uncoupled from drone direction,True,correlation 0.000
+Fixed landing distance and zero signed bias,True,mean absolute 2.957285; signed mean 0.000000
+Noise metric names rendered circle distance,True,mean_absolute_rendered_drone_to_landing_distance
+Screen distance matches main stochasticity midpoint,True,source low 3.387520; screen 2.957285; source high 2.527050; both assignments
+Stochasticity reference includes all 50 outcomes,True,"50 actual circle centres per block, including zero distances"
+Circle and fragment bounds come from live renderer,True,"[12, 88]"
+Small rank correlation with serial position,True,Spearman target -0.023; noise 0.017
+No reused 20 turn main segment in drone_positions,True,none in either shift assignment
+No reused 20 turn main segment in bag_positions,True,none in either shift assignment
+"Concept, alias and Unicode overlap",True,0 main / 0 practice / 0 fallback
+20 unique image bytes absent from main PNGs,True,20 unique / 0 duplicates
+Decoded PNGs have common canvas and visible size,True,20 decoded; 256 pixel canvas / 192 pixel largest visible dimension
+Normed moderate valence and low arousal,True,valence 4.15 to 5.83; arousal 3.11 to 4.74
+Source clarity and visual complexity,True,clarity minimum 3.57; complexity 1.37 to 3.88
+All selected source meanings unambiguous,True,20 of 20
+Every studied identity tested exactly once,True,"[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]"
+Question gap and side balance,True,4 gap 2 / 6 gap 3; 5 left / 5 right
+Geometry invariant across 100 item/test seeds,True,100 of 100
+Different families in every tested pair across seeds,True,1000 of 1000 pairs
+No run of three same family items across seeds,True,100 of 100 sequences
+Item order varies independently of geometry,True,100 different orders

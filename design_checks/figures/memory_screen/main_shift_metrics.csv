@@ -1,0 +1,9 @@
+assignment,condition,valence,vol_param,source_vol_label,n_transitions,n_zero_shifts,n_nonzero_shifts,mean_abs_shift,mean_nonzero_shift
+loss shifted,1,reward,49,high,49,34,15,1.224673469387755,4.0005999999999995
+loss shifted,2,reward,4,low,49,34,15,4.340408163265306,14.178666666666663
+loss shifted,3,loss,49,high,49,34,15,1.2246734693877548,4.0005999999999995
+loss shifted,4,loss,4,low,49,34,15,4.291836734693878,14.019999999999998
+reward shifted,1,reward,49,high,49,34,15,1.2246734693877548,4.0005999999999995
+reward shifted,2,reward,4,low,49,34,15,4.291836734693878,14.019999999999998
+reward shifted,3,loss,49,high,49,34,15,1.224673469387755,4.0005999999999995
+reward shifted,4,loss,4,low,49,34,15,4.340408163265306,14.178666666666663

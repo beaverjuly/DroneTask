@@ -1,116 +1,102 @@
-# DroneTask — Analysis
+# Analysis
 
-Post-processing and analysis tools for DroneTask data collected via Pavlovia.
+Each task component has its own code folder and matching private data folder.
 
-## Folder layout
+| Component | Notebook | Data |
+|---|---|---|
+| Drone task | [drone_analysis.ipynb](drone_task/drone_analysis.ipynb) | `analysis/data/drone_task/` |
+| Mouse QC | [mouse_trajectory_analysis.ipynb](mouse_qc/mouse_trajectory_analysis.ipynb) | `analysis/data/mouse_qc/` |
+| Memory screen | [memory_screen_analysis.ipynb](memory_screen/memory_screen_analysis.ipynb) | `analysis/data/memory_screen/` |
 
-```
-DroneTask/
-├── analysis/
-│   ├── split_drone_data.py     # raw → per-table CSVs (run first)
-│   ├── drone_analysis.ipynb    # main analysis notebook (run second)
-│   ├── mouse_qc/               # optional, self-contained mouse-QC analysis
-│   │   ├── mouse_features.py
-│   │   ├── mouse_trajectory_analysis.ipynb
-│   │   └── README.md
-│   └── README.md               # this file
-└── data/
-    ├── raw/                    # Pavlovia downloads land here (gitignored)
-    └── clean/                  # split output (gitignored)
-```
-
-## Step 1 — Split raw Pavlovia CSVs
-
-Pavlovia exports one wide CSV per session, named:
-
-```
-DroneTask_{participantId}_SESSION_{date}_{time}.csv
-```
-
-`split_drone_data.py` reads each raw CSV and writes the standard tidy tables,
-dropping redundant session-stamped columns repeated on every raw row. If (and
-only if) optional mouse-QC rows are present, it also writes compact trajectory
-and summary tables. Core-only exports require no mouse-QC analysis code.
-
-### Usage
-
-```bash
-# Process every CSV in data/raw/ → data/clean/
-python analysis/split_drone_data.py data/raw/
-
-# Process a single file
-python analysis/split_drone_data.py data/raw/DroneTask_abc123_SESSION_2026-06-21_17h42.11.249.csv
-
-# Custom output directory
-python analysis/split_drone_data.py data/raw/ -o data/clean/
-
-# Optional large, long-form pointer-event table when QC rows are present
-python analysis/split_drone_data.py data/raw/ --explode-mouse
+```text
+analysis/
+├── drone_task/
+│   ├── drone_analysis.ipynb
+│   └── README.md
+├── mouse_qc/
+│   ├── mouse_features.py
+│   ├── mouse_trajectory_analysis.ipynb
+│   └── README.md
+├── memory_screen/
+│   ├── memory_screen_analysis.py
+│   ├── memory_screen_analysis.ipynb
+│   └── README.md
+├── data/
+│   ├── drone_task/       # raw/, clean/, derived/
+│   ├── mouse_qc/         # raw/, clean/, derived/
+│   ├── memory_screen/    # raw/, clean/, derived/
+│   └── README.md
+├── split_drone_data.py   # shared dispatcher
+├── requirements.txt
+└── README.md
 ```
 
-### Output (per participant, named `{pid}_{date}_{table}.csv`)
+## Data preparation
 
-|Table          |Rows|Contents                                                       |
-|---------------|----|---------------------------------------------------------------|
-|`metadata`     |1   |Session IDs, Latin-square group/order, preload stats, totals   |
-|`encoding`     |200 |Main-task game trials: drone/bag/bucket positions, catch, score|
-|`memory`       |~56 |Order judgments, distance estimates, placement errors          |
-|`practice`     |~13 |Practice game trials (same structure as encoding)              |
-|`comprehension`|~4  |Comprehension-check responses, errors, attempts                |
-|`demographics` |1   |Post-task survey responses                                     |
-|`preload_diagnostics`|varies|Per-stimulus preload and fallback diagnostics             |
-|`mouse_trajectory`|up to 8|Optional QC movements; raw samples/events remain JSON       |
-|`mouse_summary`|1|Optional QC completion, device, browser, and geometry metadata      |
-|`mouse_events`|varies|Optional long pointer table; written only with `--explode-mouse`|
+Put full session exports in `analysis/data/drone_task/raw/`. A full export may
+contain all three task components and should have one canonical raw copy.
+Module-only development exports belong in the respective module's raw folder.
+All raw, clean, and derived data folders are gitignored.
 
-The `pid` for filenames is taken from `PROLIFIC_PID` when present, otherwise
-the participant ID parsed out of the Pavlovia filename. The parsed filename
-fields (`pavlovia_pid`, `pavlovia_date`, `pavlovia_time`) are also appended to
-the `metadata` table for provenance. Metadata also preserves the optional QC
-assignment/load fields (`task_variant`, `mouse_qc_requested`,
-`mouse_qc_enabled`, `mouse_qc_asset_status`, module/geometry versions,
-`mt_status`, and the self-reported pointer type). Legacy files leave these
-blank; current core-only runs explicitly record `core` / `not_requested` and
-leave only module-result fields blank.
+From the repository root, install dependencies and split the raw files.
 
-## Analysis notebook
-
-```bash
-pip install pandas numpy scipy statsmodels matplotlib seaborn
-jupyter lab analysis/drone_analysis.ipynb
+```sh
+python -m pip install -r analysis/requirements.txt
+python analysis/split_drone_data.py
 ```
 
-`drone_analysis.ipynb` loads every `*_encoding.csv` and `*_memory.csv` from
-`data/clean/`, concatenates across participants, and runs the full analysis
-pipeline (prediction errors, learning rates, memory segmentation, temporal
-order / distance memory, and subjective duration bias), broken down by the
-volatility / stochasticity / valence design factors. 
+The splitter scans the three raw folders, ignores byte-identical raw copies,
+and writes each table to its module's clean folder. It creates missing data
+directories automatically. To process one source or use another organized data root,
 
-## Optional mouse-trajectory QC analysis
+```sh
+python analysis/split_drone_data.py analysis/data/drone_task/raw/session.csv
+python analysis/split_drone_data.py analysis/data/drone_task/raw/ -o /path/to/analysis-data
+python analysis/split_drone_data.py --explode-mouse
+```
 
-```bash
-python analysis/mouse_qc/mouse_features.py --selftest
+`-o` specifies a data root containing `drone_task/clean`, `mouse_qc/clean`,
+and `memory_screen/clean`. Direct Python calls to `process_one(filepath, outdir)`
+retain flat output for isolated temporary ingestion. Optional `module_dirs`
+enables the same routing used by the CLI.
+
+| Output folder | Tables |
+|---|---|
+| `drone_task/clean` | Metadata, encoding, memory, practice, comprehension, demographics, preload diagnostics |
+| `mouse_qc/clean` | Metadata, mouse trajectory, mouse summary, optional exploded mouse events |
+| `memory_screen/clean` | Metadata, memory screening encoding, order, and summary |
+
+Full-session metadata accompanies each module so requested, disabled,
+technically failed, and interrupted sessions can remain in the appropriate
+audit denominator. Raw files stored in a module-only raw directory contribute
+metadata to that module's inventory. Missing optional rows never become
+successful assessments.
+
+Split filenames retain `{participant}_{date}_{table}.csv`. The metadata table
+preserves source date and time and available assignment, module version, and
+result fields. The memory-screen analysis reads raw files separately to avoid
+same-day session overwrites; a clean-only analysis cannot recover files already
+overwritten by an earlier split.
+
+## Run the notebooks
+
+```sh
+jupyter lab analysis/drone_task/drone_analysis.ipynb
 jupyter lab analysis/mouse_qc/mouse_trajectory_analysis.ipynb
+jupyter lab analysis/memory_screen/memory_screen_analysis.ipynb
 ```
 
-See `analysis/mouse_qc/README.md`. The notebook counts every session assigned
-or requesting QC in the completion denominator, including missing summaries,
-and restricts primary kinematic summaries to completed rows from complete
-eight-trajectory sessions. Skipped and incomplete data are audited separately.
+Each notebook resolves the repository root from its current working directory
+and uses its own data folder. Open it from the repository root, `analysis`, or
+its component directory. Derived outputs belong in that component's `derived`
+folder.
 
-## Design reference
+The main task notebook excludes memory-screen rows from experimental encoding
+and memory analyses. The optional notebooks preserve separate assignment and
+completion audits. The memory-screen notebook independently recomputes the
+6 of 10 criterion, retains omissions and technical failures, and keeps material
+versions separate. See each component's README for analysis-specific controls.
 
-The task uses a Latin-square-counterbalanced 2×2×2 design. The four canonical
-conditions (each a 50-trial block) are:
-
-|condition_id             |Volatility|Stochasticity|Valence|
-|-------------------------|----------|-------------|-------|
-|`A_reward_highVol_lowStc`|high      |low          |reward |
-|`B_reward_lowVol_highStc`|low       |high         |reward |
-|`C_loss_highVol_lowStc`  |high      |low          |loss   |
-|`D_loss_lowVol_highStc`  |low       |high         |loss   |
-
-`latin_square_order` (in `metadata`) records the per-participant presentation
-order; `block` / `display_block` give the order each participant actually saw.
-Always analyse by the **canonical** condition factors (`vol_level`,
-`stc_level`, `valence`), not by display order.
+The [data directory guide](data/README.md) describes placement and overrides.
+The [memory screen design notebook](../design_checks/notebooks/06_memory_screen.ipynb)
+contains the screening specification and figures.

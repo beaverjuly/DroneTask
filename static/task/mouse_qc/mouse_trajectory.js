@@ -9,7 +9,7 @@
 //   window.MOUSE_TRAJECTORY_GEOMETRY       — fixed target geometry (g1)
 //   window.MOUSE_TRAJECTORY_MODULE_VERSION
 //
-// Design (see design_checks/05_mouse_trajectory_qc.md):
+// Design (see design_checks/notebooks/05_mouse_trajectory_qc.md):
 //   * Mirrors the fixed 8-target acquisition paradigm used by
 //     Shen et al. (2014) and Acien et al. (2022, BeCAPTCHA-Mouse):
 //     a central START target, then eight targets shown ONE AT A TIME

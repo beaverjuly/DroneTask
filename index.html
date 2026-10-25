@@ -112,6 +112,56 @@
     })();
   </script>
 
+  <!-- Memory screening is independently opt-in. Off routes do not request
+       this module. A requested screen must load before a participant can
+       enter the four experimental blocks. -->
+  <script>
+    (function loadOptionalMemoryScreening() {
+      var requested = new URLSearchParams(window.location.search).get('memory_screen') === '1';
+      var state = {
+        requested: requested, enabled: false,
+        asset_status: requested ? 'loading' : 'not_requested',
+        module_version: null, error: null
+      };
+      window.MEMORY_SCREENING_RUNTIME = state;
+      if (!requested) {
+        window.MEMORY_SCREENING_ASSETS_READY = Promise.resolve(state);
+        return;
+      }
+      function loadAsset(element) {
+        return new Promise(function(resolve) {
+          var settled = false;
+          var timeout = window.setTimeout(function() { done(false); }, 15000);
+          function done(ok) {
+            if (settled) return;
+            settled = true;
+            window.clearTimeout(timeout);
+            resolve(ok);
+          }
+          element.onload = function() { done(true); };
+          element.onerror = function() { done(false); };
+          document.head.appendChild(element);
+        });
+      }
+      var css = document.createElement('link');
+      css.rel = 'stylesheet';
+      css.href = 'static/task/memory_screening/memory_screening.css?v=' + window.__APP_VER;
+      var script = document.createElement('script');
+      script.async = false;
+      script.src = 'static/task/memory_screening/memory_screening.js?v=' + window.__APP_VER;
+      window.MEMORY_SCREENING_ASSETS_READY = Promise.all([
+        loadAsset(css), loadAsset(script)
+      ]).then(function(results) {
+        state.asset_status = results.every(function(ok) { return ok; })
+          ? 'assets_loaded' : 'asset_load_failed';
+        if (state.asset_status === 'asset_load_failed') {
+          state.error = 'The requested memory screening assets could not be loaded.';
+        }
+        return state;
+      });
+    })();
+  </script>
+
   <link href="static/task/game.min.css?v=practice-motion-20260929b" rel="stylesheet" type="text/css"></link>
   <script>
     document.write(
@@ -873,7 +923,7 @@
     return (v !== null && v !== '') ? v : fallback;
   }
 
-  var TASK_VERSION = 'v3.12.0-optional-mouse-trajectory-qc';
+  var TASK_VERSION = 'v3.13.0-optional-memory-screening';
   var DEV_MODE    = _urlParams.get('dev') === '1';
   var DEV_STAGE   = _urlParams.get('stage') || 'full';
   var DEV_NTRIALS = parseInt(_urlParams.get('ntrials'), 10) || 0;
@@ -973,6 +1023,10 @@
   // ──────────────────────────────────────────────────────────────
   var CODE_SUCCESS = 'REPLACE_WITH_PROLIFIC_SUCCESS_CODE';
   var CODE_REJECT  = 'REPLACE_WITH_PROLIFIC_REJECT_CODE';
+  // Optional study-specific screen-out destination, configured by the
+  // researcher. Blank keeps a neutral saved-session message on screen.
+  // Memory performance never uses the rejection or standard success code.
+  var MEMORY_SCREENING_COMPLETION_URL = '';
 
   // Expose identifiers for nivturk-plugins.js and for the data record.
   window.PARTICIPANT_INFO = {
@@ -2315,6 +2369,113 @@
           ? 'core+mouse-qc'
           : 'core+mouse-qc-load-failed');
 
+    var _memoryScreenState = await window.MEMORY_SCREENING_ASSETS_READY;
+    var memoryScreenModule = null;
+    var memoryScreenResult = {
+      status: _memoryScreenState.requested ? 'pending' : 'not_requested',
+      passed: null
+    };
+    if (_memoryScreenState.requested) {
+      _memoryScreenState.module_version = window.MEMORY_SCREENING_MODULE_VERSION || null;
+      if (_memoryScreenState.asset_status === 'assets_loaded' &&
+          typeof window.buildMemoryScreeningTimeline === 'function' &&
+          _memoryScreenState.module_version) {
+        try {
+          memoryScreenModule = window.buildMemoryScreeningTimeline({
+            devMode: DEV_MODE,
+            seed: DEV_MODE && _urlParams.has('screen_seed')
+              ? _urlParams.get('screen_seed') : 'memory-items|' + workerId,
+            onComplete: function(summary) {
+              memoryScreenResult.status = summary.memory_screening_passed ? 'passed' : 'failed';
+              memoryScreenResult.passed = summary.memory_screening_passed === true;
+            }
+          });
+          if (!memoryScreenModule || !Array.isArray(memoryScreenModule.timeline)) {
+            throw new Error('The memory screening builder returned no timeline.');
+          }
+          // Use fixed emoji images on every machine. A missing/undecodable
+          // screening image is a configuration error, never a substitute item
+          // or a memory failure. All images must be decoded before encoding.
+          var _screenImages = await Promise.all(memoryScreenModule.design.preload_images.map(function(src) {
+            return ensurePreloaded(src);
+          }));
+          if (_screenImages.some(function(entry) { return !entry || !entry.img || entry.failed; })) {
+            throw new Error('One or more memory screening images could not be decoded.');
+          }
+          _memoryScreenState.enabled = true;
+          _memoryScreenState.asset_status = 'ready';
+          window.MEMORY_SCREENING_MODULE = memoryScreenModule;
+        } catch (screenBuildError) {
+          memoryScreenModule = null;
+          _memoryScreenState.asset_status = 'builder_error';
+          _memoryScreenState.error = String(screenBuildError.message || screenBuildError);
+        }
+      } else if (_memoryScreenState.asset_status === 'assets_loaded') {
+        _memoryScreenState.asset_status = 'builder_unavailable';
+        _memoryScreenState.error = 'The memory screening builder or version was unavailable.';
+      }
+      if (!_memoryScreenState.enabled) memoryScreenResult.status = 'configuration_error';
+      TASK_VARIANT += _memoryScreenState.enabled
+        ? '+memory-screening' : '+memory-screening-load-failed';
+    }
+
+    function canEnterMainBlocks() {
+      return !_memoryScreenState.requested || memoryScreenResult.passed === true;
+    }
+
+    function buildMemoryScreenConfigErrorTrial() {
+      return {
+        type: 'html-button-response',
+        stimulus: '<div style="max-width:680px;margin:8vh auto;padding:28px;text-align:center;">' +
+          '<h2>This session could not start</h2>' +
+          '<p>A required part of the task could not be loaded.</p>' +
+          '<p>Please contact the researcher before trying again.</p>' +
+          (DEV_MODE ? '<p><code>memory_screen=1</code> requires the files in ' +
+            '<code>static/task/memory_screening/</code>. Check the browser console.</p>' : '') +
+          '</div>',
+        choices: ['Finish'],
+        data: { trial_category: 'memory_screening_configuration_error',
+          memory_screening_configuration_error: true },
+        on_start: function() {
+          console.error('[MEMORY-SCREENING]', _memoryScreenState.error);
+          jsPsych.data.addProperties({ memory_screening_status: 'configuration_error' });
+        }
+      };
+    }
+
+    function buildMemoryScreenEndTrial() {
+      return {
+        type: 'html-keyboard-response',
+        stimulus: '<div style="max-width:680px;margin:8vh auto;padding:28px;text-align:center;">' +
+          '<h2>Thank you for participating</h2>' +
+          '<p>This session has ended. There are no more tasks to complete.</p>' +
+          '<p>Please keep this tab open while your responses are saved.</p>' +
+          '</div>',
+        choices: jsPsych.NO_KEYS,
+        trial_duration: 800,
+        data: { trial_category: 'memory_screening_early_end', task_phase: 'memory_screening' }
+      };
+    }
+
+    function buildAfterInstructionsTimeline(mainContinuation) {
+      if (!_memoryScreenState.requested) return mainContinuation;
+      var hiddenDroneReminder = {
+        type: 'instructions',
+        pages: [pageBody('The next part of the game will now begin.', [
+          'The <strong>drone will remain hidden</strong>.',
+          'Wind conditions and drone movement <strong>can differ between planets</strong>.'
+        ])],
+        show_clickable_nav: true, allow_backward: false,
+        button_label_next: 'Next',
+        data: { trial_category: 'memory_screening_main_transition' }
+      };
+      return memoryScreenModule.timeline.concat([
+        { timeline: [hiddenDroneReminder].concat(mainContinuation), conditional_function: canEnterMainBlocks },
+        { timeline: [buildMemoryScreenEndTrial()],
+          conditional_function: function() { return memoryScreenResult.status === 'failed'; } }
+      ]);
+    }
+
     function buildMouseQcConfigErrorTrial(message) {
       var safeMessage = String(message || 'Unknown mouse-QC configuration error')
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
@@ -2392,6 +2553,9 @@
       'mouse':            'mouse-test',
       'mouse-qc':         'mouse-test',
       'mouse-trajectory': 'mouse-test',
+      'memory-screen':     'memory-screen',
+      'memory-screening':  'memory-screen',
+      'memory-filter':     'memory-screen',
       'gate': 'instructions'
     };
     var _stage = _stageMap[DEV_STAGE] || DEV_STAGE;
@@ -2402,7 +2566,12 @@
     // ── Build task timeline ──
     var _skipPreload = false;
 
-    if (DEV_MODE && _mouseQcState.requested && !_mouseQcState.enabled) {
+    if (_memoryScreenState.requested && !_memoryScreenState.enabled) {
+      // The requested screening cannot be bypassed by missing assets.
+      // Still reach the common data-saving suffix on every environment.
+      timeline = [buildMemoryScreenConfigErrorTrial()];
+      _skipPreload = true;
+    } else if (DEV_MODE && _mouseQcState.requested && !_mouseQcState.enabled) {
       // In developer mode, fail loudly and before any task activity. In
       // pilot/production, the same failure falls through to the independent
       // core task and is captured by TASK_VARIANT + metadata below.
@@ -2430,6 +2599,11 @@
         finish:                 finish,
         mouseQcRequested:       _mouseQcState.requested,
         mouseQcTrial:           mouseQcTrial,
+        memoryScreenRequested:  _memoryScreenState.requested,
+        memoryScreenModule:     memoryScreenModule,
+        memoryScreenResult:     memoryScreenResult,
+        buildMemoryScreenEndTrial: buildMemoryScreenEndTrial,
+        buildAfterInstructionsTimeline: buildAfterInstructionsTimeline,
         SHOW_CONSENT:           SHOW_CONSENT
       });
       timeline = _devResult.timeline;
@@ -2459,14 +2633,15 @@
         instructions_loop
       );
       if (_gateTrial) timeline.push(_gateTrial);
-      timeline = timeline.concat(combinedTrials);
-      if (mouseQcTrial) timeline.push(mouseQcTrial);
-      timeline = timeline.concat(
+      var mainContinuation = combinedTrials.slice();
+      if (mouseQcTrial) mainContinuation.push(mouseQcTrial);
+      mainContinuation = mainContinuation.concat(
         feedback1,
         survey_demographics,
-        finish,
-        { type: 'fullscreen', fullscreen_mode: false }
+        finish
       );
+      timeline = timeline.concat(buildAfterInstructionsTimeline(mainContinuation));
+      timeline.push({ type: 'fullscreen', fullscreen_mode: false });
     }
 
     // ── Environment detection and data-saving setup ──
@@ -2491,6 +2666,11 @@
         mouseQcAssetStatus: _mouseQcState.asset_status,
         mouseQcModuleVersion: _mouseQcState.module_version,
         mouseQcGeometryVersion: _mouseQcState.geometry_version,
+        memoryScreeningRequested: _memoryScreenState.requested,
+        memoryScreeningEnabled: _memoryScreenState.enabled,
+        memoryScreeningAssetStatus: _memoryScreenState.asset_status,
+        memoryScreeningVersion: _memoryScreenState.module_version,
+        memoryScreeningStatus: memoryScreenResult.status,
         latinSquareGroup: latin_square_group,
         blockOrder: block_order, blockOrderLabels: block_order_labels }
     ));
@@ -2560,6 +2740,8 @@
         var totalScore = 0;
         var mainCount = 0;
         for (var t = 0; t < mainTrials.length; t++) {
+          if (mainTrials[t].memory_screening === true ||
+              mainTrials[t].task_phase === 'memory_screening') continue;
           if (mainTrials[t].practice_no && mainTrials[t].practice_no !== 0) continue;
           if (typeof mainTrials[t].supply_caught === 'number') {
             totalCaught += mainTrials[t].supply_caught;
@@ -2601,6 +2783,8 @@
         CODE_REJECT:       CODE_REJECT,
         getConsentDeclined: function() { return consent_declined; },
         getLowQuality:      function() { return low_quality; },
+        getMemoryScreeningResult: function() { return memoryScreenResult; },
+        memoryScreeningCompletionUrl: MEMORY_SCREENING_COMPLETION_URL,
         verifyUnload:       verify_unload
       })
     });

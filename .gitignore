@@ -1,7 +1,7 @@
 # ── Pavlovia raw data ──────────────────────────────────────────
 # Real Pavlovia filename: DroneTask_{pid}_SESSION_{date}_{time}.csv
-data/raw/
-data/clean/
+analysis/data/*
+!analysis/data/README.md
 DroneTask_*_SESSION_*.csv
 
 # Old pattern kept for backward compatibility
@@ -16,6 +16,7 @@ drone_task_*.csv
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+.venv-design/
 
 # ── OS / editor ────────────────────────────────────────────────
 .DS_Store

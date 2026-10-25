@@ -8,15 +8,39 @@ encoding/memory outputs from `analysis/split_drone_data.py`.
 ## Run
 
 ```bash
-python analysis/split_drone_data.py data/raw/
+python analysis/split_drone_data.py analysis/data/drone_task/raw/
 python analysis/mouse_qc/mouse_features.py --selftest
 jupyter lab analysis/mouse_qc/mouse_trajectory_analysis.ipynb
 ```
 
 Pass `--explode-mouse` to the splitter only when a long, one-row-per-pointer-
 event table is needed. The compact trajectory CSV keeps raw `samples` and
-`events` as JSON and is the notebook's normal input. Set `DRONE_CLEAN_DIR`
-before launching Jupyter to analyse a clean-data directory elsewhere.
+`events` as JSON and is the notebook's normal input. Module-only mouse exports
+can be placed in `analysis/data/mouse_qc/raw/` and passed to the same splitter.
+Mixed full-task raw exports remain in `analysis/data/drone_task/raw/`; the
+splitter routes mouse tables and session metadata into the mouse clean folder.
+
+| Location | Contents |
+|---|---|
+| `analysis/mouse_qc/` | Feature helper and analysis notebook |
+| `analysis/data/mouse_qc/raw/` | Module-only raw exports |
+| `analysis/data/mouse_qc/clean/` | Split trajectory, summary, event, and session metadata tables |
+| `analysis/data/mouse_qc/derived/` | Analysis summaries and derived features |
+
+The notebook resolves the repository whether Jupyter starts from the root,
+`analysis/`, or `analysis/mouse_qc/`. Set `DRONE_CLEAN_DIR` to inspect another
+clean-data directory and `DRONE_DERIVED_DIR` for a separate output location.
+Debug data in a nested folder are not pooled into the default pilot sample.
+For the retained debug run, launch Jupyter with both paths set explicitly.
+
+```bash
+DRONE_CLEAN_DIR="$PWD/analysis/data/mouse_qc/clean/debug_2026-10-04" DRONE_DERIVED_DIR="$PWD/analysis/data/mouse_qc/derived/debug_2026-10-04" jupyter lab analysis/mouse_qc/mouse_trajectory_analysis.ipynb
+```
+
+When no valid complete QC session is present, the notebook still exports the
+session and exclusion audits and marks feature analyses as not evaluated.
+Legacy unknown assignments remain distinct from explicitly disabled sessions
+in the metadata assignment inventory.
 
 ## Pipeline and criterion map
 
@@ -58,4 +82,5 @@ participants. The current notebook treats an unavailable sampling-sensitivity
 correlation as a pass; change that behavior to `not evaluable` before using the
 criterion for a pilot decision.
 
-Derived files are written under `data/clean/derived/` and are gitignored.
+Derived files are written under `analysis/data/mouse_qc/derived/` and are
+gitignored.

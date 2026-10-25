@@ -106,6 +106,11 @@ function buildMetadataStampTrial(env, ids, opts) {
         mouse_qc_asset_status:        opts.mouseQcAssetStatus,
         mouse_qc_module_version:      opts.mouseQcModuleVersion,
         mouse_qc_geometry_version:    opts.mouseQcGeometryVersion,
+        memory_screening_requested:   opts.memoryScreeningRequested,
+        memory_screening_enabled:     opts.memoryScreeningEnabled,
+        memory_screening_asset_status: opts.memoryScreeningAssetStatus,
+        memory_screening_version:     opts.memoryScreeningVersion,
+        memory_screening_status:      opts.memoryScreeningStatus,
         data_save_mode:               env.DATA_SAVE_MODE,
         is_pavlovia:                  env.IS_PAVLOVIA,
         is_local_env:                 env.IS_LOCAL_ENV,
@@ -186,6 +191,35 @@ function buildOnFinishCallback(env, config) {
         '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
         'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
         'background:#fff;">' + declineMsg + '</div>';
+      return;
+    }
+
+    // A screening failure follows the common saving suffix, then ends here.
+    // It is separate from attention/bot rejection and must never fall through
+    // to the full-study success completion code.
+    var memoryResult = typeof config.getMemoryScreeningResult === 'function'
+      ? config.getMemoryScreeningResult() : null;
+    if (memoryResult && (memoryResult.status === 'failed' ||
+                         memoryResult.status === 'configuration_error')) {
+      var screeningFile = env.DATA_SAVE_MODE === 'download'
+        ? downloadCSV(config.PROLIFIC_PID, config.workerId) : null;
+      var isScreenError = memoryResult.status === 'configuration_error';
+      document.body.innerHTML =
+        '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
+        'text-align:center;padding:24px;background:#fff;">' +
+        '<h2>' + (isScreenError ? 'Session could not start' : 'Thank you for participating') + '</h2>' +
+        '<p>' + (isScreenError
+          ? 'A required part of the task could not be loaded. Please contact the researcher.'
+          : 'This session has ended. There are no more tasks to complete.') + '</p>' +
+        '<p>' + (env.DATA_SAVE_MODE === 'download'
+          ? (screeningFile ? 'Your session data have been downloaded.'
+            : 'The data download may have failed. Please contact the researcher.')
+          : 'Your responses have been recorded.') + '</p>' +
+        '<p>You may now close this tab.</p></div>';
+      if (!isScreenError && !config.PILOT_MODE && !config.DEV_MODE &&
+          env.USE_PAVLOVIA && config.memoryScreeningCompletionUrl) {
+        window.location.assign(config.memoryScreeningCompletionUrl);
+      }
       return;
     }
 

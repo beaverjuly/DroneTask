@@ -1,0 +1,3 @@
+assignment,low_stc_mean_abs_distance,high_stc_mean_abs_distance,midpoint,screen_mean_abs_distance,between_group_means,matches_midpoint
+loss shifted,3.3875199999999994,2.5270499999999996,2.9572849999999997,2.957285,True,True
+reward shifted,3.3875199999999994,2.5270499999999996,2.9572849999999997,2.957285,True,True

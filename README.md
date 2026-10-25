@@ -8,12 +8,20 @@ Post-processing and analysis tools for DroneTask data collected via Pavlovia.
 DroneTask/
 ├── analysis/
 │   ├── split_drone_data.py     # raw → per-table CSVs (run first)
-│   ├── drone_analysis.ipynb    # pilot viability analysis (run second)
-│   └── README.md               # this file
-├── data/
-│   ├── raw/                    # Pavlovia downloads land here (gitignored)
-│   └── clean/                  # split output (gitignored)
-│       └── derived/            # analysis outputs (gitignored)
+│   ├── drone_task/             # main task analysis notebook
+│   ├── mouse_qc/               # mouse trajectory notebook and features
+│   ├── memory_screen/          # memory screen notebook and helpers
+│   ├── data/                   # private data, organized by module
+│   │   ├── drone_task/         # raw/, clean/, derived/
+│   │   ├── mouse_qc/           # raw/, clean/, derived/
+│   │   └── memory_screen/      # raw/, clean/, derived/
+│   ├── requirements.txt        # dependencies for all three analyses
+│   └── README.md               # analysis workflow and data routing
+├── design_checks/
+│   ├── notebooks/              # design notebooks and Markdown reviews
+│   ├── scripts/                # shared Python and JavaScript helpers
+│   ├── figures/                # exported figures and audit tables
+│   └── references/             # source data and attribution
 ├── static/
 │   ├── task/
 │   │   ├── ui-helpers.js       # glowSquaresScreen — shared UI helper
@@ -49,20 +57,21 @@ Pavlovia exports one wide CSV per session, named:
 DroneTask_{participantId}_SESSION_{date}_{time}.csv
 ```
 
-`split_drone_data.py` reads each raw CSV and writes **seven tidy tables per
-participant**, dropping redundant columns.
+`split_drone_data.py` reads each raw CSV and routes tidy tables to
+`analysis/data/<module>/clean/`, dropping redundant columns. Main task,
+mouse QC, and memory screen outputs have separate directories.
 
 ### Usage
 
 ```bash
-# Process every CSV in data/raw/ → data/clean/
-python analysis/split_drone_data.py data/raw/
+# Process the three module raw folders into their own clean folders
+python analysis/split_drone_data.py
 
 # Single file
-python analysis/split_drone_data.py data/raw/DroneTask_abc123_SESSION_2026-06-21_17h42.csv
+python analysis/split_drone_data.py analysis/data/drone_task/raw/DroneTask_abc123_SESSION_2026-06-21_17h42.csv
 
-# Custom output directory
-python analysis/split_drone_data.py data/raw/ -o data/clean/
+# Custom data root, containing <module>/clean/ output folders
+python analysis/split_drone_data.py analysis/data/drone_task/raw/ -o /path/to/analysis-data
 ```
 
 ### Output (per participant, named `{pid}_{date}_{table}.csv`)
@@ -87,10 +96,10 @@ pip install pandas
 
 ```bash
 pip install pandas numpy scipy statsmodels matplotlib seaborn
-jupyter lab analysis/drone_analysis.ipynb
+jupyter lab analysis/drone_task/drone_analysis.ipynb
 ```
 
-The notebook loads `data/clean/*_encoding.csv` and `*_memory.csv`,
+The notebook loads `analysis/data/drone_task/clean/*_encoding.csv` and `*_memory.csv`,
 concatenates across participants, and runs the full pilot viability
 pipeline:
 
@@ -128,6 +137,47 @@ All dev routes require `?dev=1`. Add `&consent=0` to skip consent.
 |encoding-test|`stage=encoding-test`|Full block: encoding + memory   |
 |mouse-test   |`stage=mouse-test`   |Mouse-QC module only            |
 |survey       |`stage=survey`       |Demographics survey preview only|
+
+## Optional memory screening
+
+Enable `memory_screen=1` to insert an independent initial assessment after
+comprehension and before the four main blocks. The participant plays 20 green
+supply turns, then answers 10 order questions. At least 6 correct unlocks the
+four blocks. A lower result ends the session through the normal saving flow.
+These initial turns are not labelled as practice and do not contribute to
+main analysis or bonus totals. The module is disabled by default and its
+assets are not loaded on off routes.
+
+| Use | Query parameters |
+|---|---|
+| Module only | `?dev=1&stage=memory-screen&consent=0&memory_screen=1` |
+| Full development with screening | `?dev=1&stage=full&consent=0&memory_screen=1` |
+| Full pilot with screening | `?pilot=1&memory_screen=1` |
+| Full pilot without screening | `?pilot=1&memory_screen=0` |
+
+The module uses a hidden drone that shifts exactly 9.05 percentage points on
+each of 20 turns, with 10 left and 10 right shifts including the first move
+from its baseline. The shift is the rounded midpoint of the main groups’ mean
+absolute movements on turns when the drone changes position. Each main block
+contributes 15 actual shifts; its 34 stationary transitions are excluded.
+Supplies land exactly 2.957285 percentage points from the
+drone, the midpoint of the main blocks’ mean absolute rendered distances, with
+10 left and 10 right landings in an irregular order. These control movement
+size and supply distance without establishing constant psychological surprise.
+Twenty fixed object images were selected using published affect
+and clarity ratings and checked against the practice and main identity pools.
+A passing full route reminds participants that the drone remains hidden.
+The executed [design notebook](design_checks/notebooks/06_memory_screen.ipynb) and
+[exported figures](design_checks/figures/memory_screen/) document the decisions
+and limitations. Its data are
+split into screening encoding, order, and summary tables. A requested module
+that cannot load blocks main entry. Below threshold production outcomes never
+use the ordinary completion or rejection code. A separate destination can be
+configured in `MEMORY_SCREENING_COMPLETION_URL`, otherwise a neutral saved
+session message remains on screen. See
+the consolidated [specification and design audit](design_checks/notebooks/06_memory_screen.ipynb),
+the [separate screen analysis](analysis/memory_screen/memory_screen_analysis.ipynb),
+and [`URLs CheatSheet.md`](URLs%20CheatSheet.md).
 
 ## Optional mouse-trajectory QC
 

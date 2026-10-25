@@ -126,6 +126,41 @@ function buildDevTimeline(cfg) {
       timeline.push(cfg.mouseQcTrial);
     }
 
+  } else if (stage === 'memory-screen') {
+    skipPreload = true;
+    if (!cfg.memoryScreenRequested || !cfg.memoryScreenModule) {
+      timeline.push({
+        type: 'html-button-response',
+        stimulus: '<div style="max-width:680px;margin:8vh auto;text-align:center;">' +
+          '<h2>Memory screening test</h2>' +
+          '<p>This route requires <code>memory_screen=1</code>.</p>' +
+          '<p>Use <code>?dev=1&amp;stage=memory-screen&amp;consent=0&amp;memory_screen=1</code>.</p></div>',
+        choices: ['Finish'],
+        data: { trial_category: 'memory_screening_route_error' }
+      });
+    } else {
+      timeline = timeline.concat(cfg.memoryScreenModule.timeline);
+      timeline.push({
+        timeline: [cfg.buildMemoryScreenEndTrial()],
+        conditional_function: function() { return cfg.memoryScreenResult.status === 'failed'; }
+      });
+      timeline.push({
+        timeline: [{
+          type: 'html-button-response',
+          stimulus: function() {
+            return '<div style="max-width:680px;margin:8vh auto;text-align:center;">' +
+              '<h2>Memory screening test complete</h2>' +
+              '<p>The result meets the 6 of 10 threshold.</p>' +
+              '<p>In a full run, the four experimental blocks would start next.</p></div>';
+          },
+          choices: ['Finish QA run'],
+          data: { trial_category: 'memory_screening_dev_complete' }
+        }],
+        conditional_function: function() { return cfg.memoryScreenResult.passed === true; }
+      });
+      timeline.push({ type: 'fullscreen', fullscreen_mode: false });
+    }
+
   } else if (stage === 'encoding') {
     console.log('[DEV] stage: encoding, block=' + cfg.devBlock);
     timeline.push({
@@ -188,11 +223,13 @@ function buildDevTimeline(cfg) {
       console.log('[CONSENT] consent=0 — consent screen SKIPPED.');
     }
     timeline = timeline.concat(
-      cfg.enter_fullscreen, cfg.welcome, cfg.feedback0, cfg.instructions_loop,
-      combinedTrials
+      cfg.enter_fullscreen, cfg.welcome, cfg.feedback0, cfg.instructions_loop
     );
-    if (cfg.mouseQcTrial) timeline.push(cfg.mouseQcTrial);
-    timeline = timeline.concat(cfg.feedback1, cfg.survey_demographics, cfg.finish);
+    var continuation = combinedTrials.slice();
+    if (cfg.mouseQcTrial) continuation.push(cfg.mouseQcTrial);
+    continuation = continuation.concat(cfg.feedback1, cfg.survey_demographics, cfg.finish);
+    timeline = timeline.concat(cfg.buildAfterInstructionsTimeline
+      ? cfg.buildAfterInstructionsTimeline(continuation) : continuation);
   }
 
   return { timeline: timeline, skipPreload: skipPreload };

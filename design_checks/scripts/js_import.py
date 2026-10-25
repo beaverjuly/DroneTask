@@ -1,8 +1,8 @@
 """
 js_import.py — Parse DroneTask JS source files into Python objects.
 
-Lives alongside the design-check notebooks (currently DroneTask/design_checks/,
-but REPO_ROOT auto-detects regardless of nesting depth — see _find_repo_root).
+Lives in design_checks/scripts, beside the notebooks and figures folders.
+REPO_ROOT auto-detects regardless of nesting depth — see _find_repo_root.
 All three design-check notebooks import from this module instead of
 duplicating parser functions.
 
@@ -19,9 +19,7 @@ import matplotlib.pyplot as plt
 # ── Paths ──
 def _find_repo_root(start, markers=("index.html", "static"), max_up=6):
     """Walk upward from `start` until a folder containing all `markers`
-    is found. Falls back to two levels up if nothing matches, so this
-    works whether design_checks/ sits directly under the repo root or
-    nested under analysis/ or anywhere else."""
+    is found. Raise clearly if no matching repository can be located."""
     p = start
     for _ in range(max_up):
         if all((p / m).exists() for m in markers):
@@ -29,9 +27,10 @@ def _find_repo_root(start, markers=("index.html", "static"), max_up=6):
         if p.parent == p:
             break
         p = p.parent
-    return start.parent.parent  # defensive fallback
+    raise FileNotFoundError(f"Cannot locate DroneTask repository above {start}")
 
-DESIGN_DIR = Path(__file__).resolve().parent
+SCRIPTS_DIR = Path(__file__).resolve().parent
+DESIGN_DIR = SCRIPTS_DIR.parent
 REPO_ROOT = _find_repo_root(DESIGN_DIR)
 FIG_DIR = {
     "game":   DESIGN_DIR / "figures" / "game_trials",

@@ -662,8 +662,12 @@ plugin.trial = function (display_element, trial) {
     display_element.innerHTML = make_html(trial);
     setCollectorUnlocked();
 
+    var droneTravelTimer = null;
     if (trial.show_drone && trial.animate_drone) {
-      jsPsych.pluginAPI.setTimeout(function () {
+      // Collector responses clear jsPsych response timers. Keep drone travel
+      // independent so an early arrow cannot cancel the scheduled movement.
+      droneTravelTimer = setTimeout(function () {
+        droneTravelTimer = null;
         var drone = display_element.querySelector('#drone');
         if (drone) {
           var startX = (
@@ -933,6 +937,7 @@ plugin.trial = function (display_element, trial) {
     };
 
     var end_trial = function (completed) {
+      if (droneTravelTimer !== null) clearTimeout(droneTravelTimer);
       jsPsych.pluginAPI.clearAllTimeouts();
       jsPsych.pluginAPI.cancelAllKeyboardResponses();
 
