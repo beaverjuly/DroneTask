@@ -15,7 +15,7 @@ folders. Full-session metadata is retained in every module for denominator audit
 Pavlovia filename format:
     DroneTask_{participantId}_SESSION_{date}_{time}.csv
 
-For each participant, produces:
+For each distinct session, produces tables with a collision resistant prefix:
     {pid}_{date}_metadata.csv
     {pid}_{date}_encoding.csv
     {pid}_{date}_memory.csv
@@ -37,6 +37,12 @@ import pandas as pd
 ANALYSIS_DIR = Path(__file__).resolve().parent
 DATA_DIR = ANALYSIS_DIR / 'data'
 MODULES = ('drone_task', 'mouse_qc', 'memory_screen')
+
+COMMON_COLS = [
+    'run_uuid', 'row_uuid', 'row_sequence', 'data_schema_version',
+    'task_phase', 'trial_category', 'elapsed_ms', 'utc_timestamp',
+    'session_started_utc', 'session_start_utc', 'build_id',
+]
 
 # ─── Column definitions per table ────────────────────────────
 
@@ -67,7 +73,10 @@ META_COLS = [
     'workerId', 'subId', 'PROLIFIC_PID', 'STUDY_ID', 'SESSION_ID',
     'pilot_mode', 'dev_mode', 'consent_shown',
     'data_save_mode', 'is_pavlovia', 'is_local_env',
-    'latin_square_group', 'latin_square_order',
+    'latin_square_group', 'latin_square_order', 'latin_square_order_labels',
+    'reward_uses_shifted_sequences', 'stimulus_block_orders',
+    'perf_timer_ms_per_call', 'perf_dom_ms_per_op', 'perf_slow_flag',
+    'consent_study_id', 'consent_version_date', 'consent_accepted',
     'task_version', 'stimuli_version',
     'preload_loaded', 'preload_total', 'preload_failed',
     'preload_elapsed_ms', 'preload_mode',
@@ -86,7 +95,7 @@ ENCODING_COLS = [
     'valence', 'stim_img',
     'drone_position', 'bag_position',
     'bucket_start_pos', 'bucket_end_pos', 'bucket_position',
-    'supply_caught', 'score', 'stayed',
+    'supply_caught', 'score', 'stayed', 'completed',
     'num_moves', 'rt_first_move_ms', 'rt_last_move_ms',
     'movement_duration_ms',
     'trial_onset_elapsed', 'trial_duration_ms',
@@ -119,7 +128,10 @@ MEMORY_COLS = [
     'placement_true_position_pct', 'placement_error_from_true_position',
     'middle_item_index', 'middle_item_img', 'middle_item_is_boundary',
     'placement_true_midpoint_pct', 'placement_error_from_true_midpoint',
-    'attempt_number', 'timed_out', 'skipped_pair',
+    'attempt_number', 'distance_attempt_number', 'timed_out', 'skipped_pair',
+    'order_timed_out', 'distance_timed_out', 'placement_timed_out',
+    'order_final_omission', 'distance_final_omission', 'placement_final_omission',
+    'order_attempts_json', 'distance_attempts_json', 'placement_attempts_json',
     # Layout metadata
     'order_keymap_mode', 'order_layout_mode', 'was_legacy_slider_pair',
     # Preload failure tracking
@@ -135,7 +147,7 @@ PRACTICE_COLS = [
     'stim_img',
     'drone_position', 'bag_position',
     'bucket_start_pos', 'bucket_end_pos', 'bucket_position',
-    'supply_caught', 'score', 'stayed',
+    'supply_caught', 'score', 'stayed', 'completed', 'practice_wind_offset',
     'num_moves', 'rt_first_move_ms', 'rt_last_move_ms',
     'movement_duration_ms',
     'trial_onset_elapsed', 'trial_duration_ms',
@@ -153,6 +165,12 @@ COMPREHENSION_COLS = [
 
 DEMOGRAPHICS_COLS = [
     'trial_index', 'time_elapsed', 'rt', 'responses',
+]
+
+INSTRUCTION_COLS = [
+    'trial_index', 'time_elapsed', 'trial_type', 'rt', 'view_history',
+    'screen_id', 'deck_id', 'instruction_version', 'instruction_screen_ids',
+    'instruction_deck_id', 'instruction_deck_version', 'instruction_page_count',
 ]
 
 # Optional mouse-trajectory QC outputs. Keeping these definitions here makes
@@ -243,7 +261,109 @@ def parse_filename(filepath):
     return os.path.splitext(basename)[0], '', ''
 
 def _keep(df, cols):
-    return df[[c for c in cols if c in df.columns]].copy()
+    return df[[c for c in dict.fromkeys(COMMON_COLS + cols) if c in df.columns]].copy()
+
+
+def _sparse_rows(df):
+    """Preserve every populated event field without exporting empty columns."""
+    return df.dropna(axis=1, how='all').copy()
+
+
+def _safe_stem(value):
+    return re.sub(r'[^A-Za-z0-9_.-]+', '_', str(value)).strip('_.') or 'session'
+
+
+def _session_stem(df, filepath, participant, date, time):
+    """Stable reruns replace one session; distinct sessions never share a stem."""
+    run = _last_scalar(df, 'run_uuid')
+    if run is not None and str(run).strip():
+        identity = str(run)
+        suffix = hashlib.sha256(identity.encode('utf-8')).hexdigest()[:10]
+        return '_'.join([_safe_stem(participant), 'run', _safe_stem(identity), suffix])
+    elif time:
+        identity = str(time)
+    else:
+        identity = Path(filepath).stem
+    # A short digest prevents collisions introduced by filename sanitization.
+    suffix = hashlib.sha256(identity.encode('utf-8')).hexdigest()[:10]
+    return '_'.join([_safe_stem(participant), _safe_stem(date or 'nodatetime'),
+                     _safe_stem(identity), suffix])
+
+
+def _json_list(value):
+    if isinstance(value, list):
+        return value
+    if not isinstance(value, str):
+        return []
+    try:
+        result = json.loads(value)
+    except (ValueError, TypeError):
+        return []
+    return result if isinstance(result, list) else []
+
+
+def _instruction_views(instructions):
+    rows = []
+    for _, row in instructions.iterrows():
+        screens = _json_list(row.get('instruction_screen_ids'))
+        for ordinal, view in enumerate(_json_list(row.get('view_history')), 1):
+            if not isinstance(view, dict):
+                continue
+            record = {key: row.get(key) for key in COMMON_COLS + ['trial_index', 'time_elapsed',
+                      'screen_id', 'deck_id', 'instruction_version', 'instruction_deck_id',
+                      'instruction_deck_version'] if key in row.index}
+            record.update(view)
+            record['view_ordinal'] = ordinal
+            page = view.get('page_index')
+            if isinstance(page, int) and 0 <= page < len(screens):
+                record['viewed_screen_id'] = screens[page]
+            rows.append(record)
+    return pd.DataFrame(rows)
+
+
+def _flatten_demographics(demo):
+    output = _keep(demo, DEMOGRAPHICS_COLS)
+    aliases = {'gender-categorical': 'gender_categorical',
+               'gender-free-response': 'gender_free_response', 'weight': 'weight_lbs'}
+    for index, row in demo.iterrows():
+        value = row.get('responses')
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except (ValueError, TypeError):
+                continue
+        if not isinstance(value, dict):
+            continue
+        for key, answer in value.items():
+            column = aliases.get(key, str(key).replace('-', '_'))
+            if isinstance(answer, (list, dict)):
+                column += '_json'
+                answer = json.dumps(answer, ensure_ascii=False)
+            output.loc[index, column] = answer
+    return output
+
+
+def _interaction_rows(df):
+    """Combine explicit events and legacy packed logs without duplicate copies."""
+    category = df.get('trial_category', pd.Series('', index=df.index)).fillna('')
+    explicit = _sparse_rows(df[category.eq('interaction_event')])
+    if len(explicit):
+        return explicit
+    rows, seen = [], set()
+    if 'interactions' not in df:
+        return pd.DataFrame()
+    for _, row in df.iterrows():
+        for event in _json_list(row.get('interactions')):
+            if not isinstance(event, dict):
+                continue
+            identity = json.dumps(event, sort_keys=True)
+            if identity in seen:
+                continue
+            seen.add(identity)
+            record = {key: row.get(key) for key in COMMON_COLS if key in row.index}
+            record.update(event)
+            rows.append(record)
+    return pd.DataFrame(rows)
 
 def _scalar(df, col):
     if col not in df.columns:
@@ -464,18 +584,41 @@ def process_one(filepath, outdir, explode_mouse=False, module_dirs=None):
     df = pd.read_csv(filepath)
     fname_pid, fname_date, fname_time = parse_filename(filepath)
 
-    prolific = _scalar(df, 'PROLIFIC_PID')
-    out_pid  = prolific if prolific and str(prolific).lower() not in ('nan', 'none', '') \
-               else fname_pid
+    # Anonymous audit sessions still have a stable identity across renamed
+    # checkpoint and final files. Never derive that identity from the filename
+    # when a recorded identifier is available.
+    out_pid = fname_pid
+    for field in ('PROLIFIC_PID', 'workerId', 'subId', 'run_uuid'):
+        candidate = _last_scalar(df, field)
+        if candidate is not None and str(candidate).strip().lower() not in ('nan', 'none', 'null', ''):
+            out_pid = str(candidate)
+            break
     out_date = fname_date or 'nodatetime'
     directories = {module: Path((module_dirs or {}).get(module, outdir)) for module in MODULES}
     for directory in set(directories.values()):
         directory.mkdir(parents=True, exist_ok=True)
-    prefixes = {module: str(directory / f'{out_pid}_{out_date}') for module, directory in directories.items()}
+    session_stem = _session_stem(df, filepath, out_pid, out_date, fname_time)
+    prefixes = {module: str(directory / session_stem) for module, directory in directories.items()}
     prefix = prefixes['drone_task']
     mouse_prefix = prefixes['mouse_qc']
     screen_prefix = prefixes['memory_screen']
     written  = []
+
+    run_ids = df.get('run_uuid', pd.Series(dtype=object)).dropna().astype(str).unique()
+    if len(run_ids) > 1:
+        raise ValueError('Raw file contains more than one run_uuid; split runs before ingestion')
+    maximum_sequence = pd.to_numeric(df.get('row_sequence', pd.Series(dtype=float)),
+                                     errors='coerce').max()
+    maximum_sequence = float(maximum_sequence) if pd.notna(maximum_sequence) else float(len(df))
+    prior_metadata = Path(f'{prefix}_metadata.csv')
+    if len(run_ids) == 1 and prior_metadata.exists():
+        prior = pd.read_csv(prior_metadata)
+        prior_sequence = pd.to_numeric(prior.get('source_max_row_sequence', pd.Series(dtype=float)), errors='coerce').max()
+        prior_count = pd.to_numeric(prior.get('source_row_count', pd.Series(dtype=float)), errors='coerce').max()
+        if pd.notna(prior_sequence) and (prior_sequence > maximum_sequence or
+                (prior_sequence == maximum_sequence and pd.notna(prior_count) and prior_count > len(df))):
+            print(f'  [{out_pid}] skipped an older snapshot of run {run_ids[0]}')
+            return out_pid
 
     screening_mask = _memory_screening_mask(df)
     category = df.get('trial_category', pd.Series('', index=df.index)).fillna('')
@@ -483,8 +626,11 @@ def process_one(filepath, outdir, explode_mouse=False, module_dirs=None):
 
     # 1. Metadata
     meta_row = {'participant_id': out_pid}
-    for c in META_COLS:
-        meta_row[c] = _scalar(df, c)
+    dynamic_meta = [c for c in df.columns if c.startswith((
+        'expected_', 'save_', 'consent_', 'perf_', 'build_', 'session_',
+        'instruction_version', 'comprehension_version', 'survey_version'))]
+    for c in dict.fromkeys(COMMON_COLS + META_COLS + dynamic_meta):
+        meta_row[c] = _last_scalar(df, c)
     # Result fields can change from pending to passed/failed after metadata
     # stamping. The completed summary is authoritative; otherwise preserve the
     # latest observed value so an interrupted screen remains auditable.
@@ -494,6 +640,11 @@ def process_one(filepath, outdir, explode_mouse=False, module_dirs=None):
     meta_row['pavlovia_pid']  = fname_pid
     meta_row['pavlovia_date'] = fname_date
     meta_row['pavlovia_time'] = fname_time
+    meta_row['source_sha256'] = hashlib.sha256(Path(filepath).read_bytes()).hexdigest()
+    meta_row['source_filename'] = Path(filepath).name
+    meta_row['session_file_stem'] = session_stem
+    meta_row['source_row_count'] = len(df)
+    meta_row['source_max_row_sequence'] = maximum_sequence
     # Full-session raw files keep metadata in every module's inventory.
     # Module-only raw directories identify a narrower assignment population.
     origin_module = next((p.parent.name for p in Path(filepath).resolve().parents
@@ -536,8 +687,37 @@ def process_one(filepath, outdir, explode_mouse=False, module_dirs=None):
     # 6. Demographics
     demo = df[trial_type == 'survey-demo']
     if len(demo):
-        _keep(demo, DEMOGRAPHICS_COLS).to_csv(f'{prefix}_demographics.csv', index=False)
+        _flatten_demographics(demo).to_csv(f'{prefix}_demographics.csv', index=False)
         written.append(f'demographics ({len(demo)})')
+
+    # Instruction histories and generic event streams remain separate from
+    # scored trials. Sparse event tables retain unfamiliar future fields.
+    instructions = df[(trial_type == 'instructions') |
+                      category.eq('instruction_event')]
+    if len(instructions):
+        _keep(instructions, INSTRUCTION_COLS).to_csv(f'{prefix}_instructions.csv', index=False)
+        written.append(f'instructions ({len(instructions)})')
+        views = _instruction_views(instructions)
+        if len(views):
+            views.to_csv(f'{prefix}_instruction_views.csv', index=False)
+            written.append(f'instruction_views ({len(views)})')
+    interactions = _interaction_rows(df)
+    if len(interactions):
+        interactions.to_csv(f'{prefix}_interactions.csv', index=False)
+        written.append(f'interactions ({len(interactions)})')
+    event_groups = {
+        'session_events': category.isin(['session_manifest', 'session_summary',
+            'save_event', 'instruction_event', 'response_event', 'interaction_event']) |
+            category.str.startswith('session_') | category.str.endswith('_event'),
+        'save_receipts': category.eq('save_event') | category.str.startswith('save_'),
+        'design_manifests': category.eq('design_manifest'),
+        'response_events': category.eq('response_event'),
+    }
+    for name, mask in event_groups.items():
+        events = df[mask]
+        if len(events):
+            _sparse_rows(events).to_csv(f'{prefix}_{name}.csv', index=False)
+            written.append(f'{name} ({len(events)})')
 
     # 7. Preload diagnostics — per-URL success/failure + trial impact
     diag = _build_preload_diagnostics(df, enc, mem)
@@ -635,6 +815,31 @@ def main():
     print(f'Output → {data_root}/<module>/clean/')
     if len(candidates) != len(files):
         print(f'Ignored {len(candidates) - len(files)} exact raw-file copies.')
+
+    # A checkpoint and final file can be cumulative snapshots of one run.
+    # Process the most complete snapshot once rather than count it as another
+    # participant. Legacy exports without run_uuid remain distinct sessions.
+    selected, by_run = [], {}
+    for filename in files:
+        header = pd.read_csv(filename, nrows=0).columns
+        if 'run_uuid' not in header:
+            selected.append(filename)
+            continue
+        columns = [name for name in ['run_uuid', 'row_sequence'] if name in header]
+        values = pd.read_csv(filename, usecols=columns)
+        identities = values.run_uuid.dropna().astype(str).unique()
+        if len(identities) != 1:
+            selected.append(filename)
+            continue
+        sequence = pd.to_numeric(values.get('row_sequence', pd.Series(dtype=float)), errors='coerce').max()
+        rank = (float(sequence) if pd.notna(sequence) else len(values), len(values), str(filename))
+        run = identities[0]
+        if run not in by_run or rank > by_run[run][0]:
+            by_run[run] = (rank, filename)
+    selected.extend(record[1] for record in by_run.values())
+    if len(selected) != len(files):
+        print(f'Consolidated {len(files) - len(selected)} older cumulative run snapshots.')
+    files = sorted(selected)
 
     ok, failed = 0, []
     for f in files:

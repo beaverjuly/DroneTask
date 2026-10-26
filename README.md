@@ -51,14 +51,18 @@ DroneTask/
 
 ## Step 1 — Split raw Pavlovia CSVs
 
-Pavlovia exports one wide CSV per session, named:
+Current recordings use a run UUID rather than participant identifiers in
+the raw filename. A checkpoint can coexist with the final recording.
 
 ```
-DroneTask_{participantId}_SESSION_{date}_{time}.csv
+drone_task_{run_uuid}_final.csv
+drone_task_{run_uuid}_checkpoint.csv
+drone_task_{run_uuid}_final.receipt.json
 ```
 
-`split_drone_data.py` reads each raw CSV and routes tidy tables to
-`analysis/data/<module>/clean/`, dropping redundant columns. Main task,
+The splitter also accepts older `DroneTask_{participantId}_SESSION_...csv`
+exports. It consolidates cumulative snapshots by run and routes tidy tables to
+`analysis/data/<module>/clean/`, retaining analysis and recording fields. Main task,
 mouse QC, and memory screen outputs have separate directories.
 
 ### Usage
@@ -74,7 +78,13 @@ python analysis/split_drone_data.py analysis/data/drone_task/raw/DroneTask_abc12
 python analysis/split_drone_data.py analysis/data/drone_task/raw/ -o /path/to/analysis-data
 ```
 
-### Output (per participant, named `{pid}_{date}_{table}.csv`)
+### Output
+
+Clean filenames include the participant and run UUID with a short identity
+digest. Legacy files use the complete source timestamp. When migrating older
+clean tables, regenerate into an empty output directory to avoid keeping both
+old and new names for the same run. See [analysis/README.md](analysis/README.md)
+for the complete table inventory and preservation rules.
 
 |Table                |Rows|Contents                                                      |
 |---------------------|----|--------------------------------------------------------------|

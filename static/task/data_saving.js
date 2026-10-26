@@ -10,12 +10,6 @@
 //   buildMetadataStampTrial(env, ids)
 //     → call-function trial that runs jsPsych.data.addProperties()
 //
-//   buildPavloviaPrefixTrial()
-//     → pavlovia init trial
-//
-//   buildPavloviaSuffixTrial(participantId)
-//     → pavlovia finish trial
-//
 //   downloadCSV(prolificPid, workerId)
 //     → triggers browser CSV download, returns filename or null
 //
@@ -56,7 +50,7 @@ function initEnvironment(urlParams, devMode, pilotMode) {
   console.log('──────────────────────────────');
 
   if (USE_PAVLOVIA) {
-    console.log('[Pavlovia] init + finish trials will be inserted. DATA_SAVE_MODE = pavlovia.');
+    console.log('[Pavlovia] Session initialization and acknowledged final saving enabled.');
   } else {
     console.log('[Pavlovia] skipped — ' +
       (IS_LOCAL_ENV ? 'local environment' :
@@ -138,11 +132,13 @@ function downloadCSV(prolificPid, workerId) {
       new Date().toISOString().replace(/[:.]/g, '-') + '.csv';
     var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     var link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    var downloadUrl = URL.createObjectURL(blob);
+    link.href = downloadUrl;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(function(){URL.revokeObjectURL(downloadUrl);},30000);
     console.log('[DATA] CSV downloaded: ' + filename + ' (' + csv.length + ' bytes)');
     return filename;
   } catch (e) {
@@ -163,106 +159,13 @@ function downloadCSV(prolificPid, workerId) {
  */
 function buildOnFinishCallback(env, config) {
   return function() {
+    if (window.DroneDataRecorderActive) {
+      return window.DroneDataRecorderActive.finalize(config);
+    }
+    // A missing recorder is a configuration error, never evidence of saving.
     window.removeEventListener('beforeunload', config.verifyUnload);
-
-    // Append interaction log to the last data row.
-    var interaction_data = jsPsych.data.getInteractionData();
-    jsPsych.data.addDataToLastTrial({ interactions: interaction_data.json() });
-
-    // 0. Device incompatible.
-    if (window._device_incompatible) {
-      console.log('[COMPAT] Participant screened out — device incompatible.');
-      if (env.DATA_SAVE_MODE === 'download') downloadCSV(config.PROLIFIC_PID, config.workerId);
-      return;
-    }
-
-    // 1. Declined consent.
-    if (config.getConsentDeclined()) {
-      var declineMsg = config.PILOT_MODE
-        ? '<h2>You have declined to participate</h2>' +
-          '<p>Thank you for your interest. No data has been saved.</p>' +
-          '<p style="font-size:14px;color:#555;">You may now close this tab.</p>'
-        : '<h2>You have declined to participate</h2>' +
-          '<p>Thank you for your interest. No data has been saved.</p>' +
-          '<p style="font-size:14px;color:#555;">Please return to Prolific and ' +
-          'select "Return study" so you are not charged for this session. ' +
-          'You may now close this tab.</p>';
-      document.body.innerHTML =
-        '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
-        'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
-        'background:#fff;">' + declineMsg + '</div>';
-      return;
-    }
-
-    // A screening failure follows the common saving suffix, then ends here.
-    // It is separate from attention/bot rejection and must never fall through
-    // to the full-study success completion code.
-    var memoryResult = typeof config.getMemoryScreeningResult === 'function'
-      ? config.getMemoryScreeningResult() : null;
-    if (memoryResult && (memoryResult.status === 'failed' ||
-                         memoryResult.status === 'configuration_error')) {
-      var screeningFile = env.DATA_SAVE_MODE === 'download'
-        ? downloadCSV(config.PROLIFIC_PID, config.workerId) : null;
-      var isScreenError = memoryResult.status === 'configuration_error';
-      document.body.innerHTML =
-        '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
-        'text-align:center;padding:24px;background:#fff;">' +
-        '<h2>' + (isScreenError ? 'Session could not start' : 'Thank you for participating') + '</h2>' +
-        '<p>' + (isScreenError
-          ? 'A required part of the task could not be loaded. Please contact the researcher.'
-          : 'This session has ended. There are no more tasks to complete.') + '</p>' +
-        '<p>' + (env.DATA_SAVE_MODE === 'download'
-          ? (screeningFile ? 'Your session data have been downloaded.'
-            : 'The data download may have failed. Please contact the researcher.')
-          : 'Your responses have been recorded.') + '</p>' +
-        '<p>You may now close this tab.</p></div>';
-      if (!isScreenError && !config.PILOT_MODE && !config.DEV_MODE &&
-          env.USE_PAVLOVIA && config.memoryScreeningCompletionUrl) {
-        window.location.assign(config.memoryScreeningCompletionUrl);
-      }
-      return;
-    }
-
-    // 2. Download mode (local / dev).
-    if (env.DATA_SAVE_MODE === 'download') {
-      var savedFile = downloadCSV(config.PROLIFIC_PID, config.workerId);
-      document.body.innerHTML =
-        '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
-        'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
-        'background:#fff;">' +
-        '<h2>Session Complete</h2>' +
-        (savedFile
-          ? '<p style="font-size:16px;">Data saved as<br><code style="font-size:13px;' +
-            'background:#f0f0f0;padding:2px 8px;border-radius:4px;">' + savedFile + '</code></p>'
-          : '<p style="font-size:16px;color:#d9534f;">CSV download may have failed. ' +
-            'Check browser downloads.</p>') +
-        '<p style="font-size:13px;color:#777;">' +
-        (config.DEV_MODE ? '[DEV] ' : '') + 'save_mode=' + env.DATA_SAVE_MODE + '</p>' +
-        '<p style="font-size:14px;color:#555;">You may now close this tab.</p>' +
-        '</div>';
-      console.log('[DATA] on_finish complete — mode=' + env.DATA_SAVE_MODE);
-      return;
-    }
-
-    // 3. Pavlovia pilot.
-    if (config.PILOT_MODE) {
-      console.log('[MODE] Pilot complete — data uploaded via Pavlovia finish trial.');
-      document.body.innerHTML =
-        '<div style="max-width:640px;margin:10vh auto;font-family:sans-serif;' +
-        'text-align:center;padding:24px;border:1px solid #ddd;border-radius:8px;' +
-        'background:#fff;">' +
-        '<h2>Thank you for participating!</h2>' +
-        '<p style="font-size:16px;">Your responses have been recorded.</p>' +
-        '<p style="font-size:14px;color:#555;">You may now close this tab.</p>' +
-        '</div>';
-      return;
-    }
-
-    // 4. Pavlovia production: Prolific redirect.
-    if (config.getLowQuality()) {
-      redirect_reject(config.workerId, config.assignmentId, config.hitId, config.CODE_REJECT);
-    } else {
-      redirect_success(config.workerId, config.assignmentId, config.hitId, config.CODE_SUCCESS);
-    }
+    downloadCSV(config.PROLIFIC_PID, config.workerId);
+    document.body.innerHTML = '<div style="max-width:640px;margin:12vh auto;text-align:center;font:18px/1.6 system-ui">' +
+      '<h1>Recording could not be confirmed</h1><p>A recovery CSV was offered for download. Keep that file and contact the researcher before closing this tab.</p></div>';
   };
 }

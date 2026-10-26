@@ -24,6 +24,33 @@ https://run.pavlovia.org/jiaheyi/DroneTask/
 The `dev=1` links download their test CSV locally and do not save data to
 Pavlovia. Both full pilot links save to Pavlovia.
 
+## Recording audit
+
+| Purpose | Link |
+|---|---|
+| Full recording rehearsal with both optional modules | <https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&memory_screen=1&mouse_qc=1&audit_full=1> |
+| Full pilot with the normal memory criterion | <https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=1&memory_screen=1&mouse_qc=1> |
+
+Use the first link for yourself and friends when collecting complete audit
+samples. It retains the screening score and criterion result but allows a
+below threshold result to continue to all four blocks. This exception applies
+only to the explicit pilot audit route. Consent, comprehension, movement
+checks, memory timing and the screening criterion itself remain in effect.
+The second link can end after screening if fewer than six answers are correct.
+Neither link redirects to Prolific or requires invented participant IDs.
+
+At the end, press Thumbs up and wait for the saving result. Download the CSV
+and save receipt using their separate buttons. A server confirmation means
+the upload was acknowledged. A local download alone remains unconfirmed.
+If saving fails, retry or download the recovery recording before closing.
+
+Place each CSV and its matching `.receipt.json` in
+`analysis/data/drone_task/raw/`. Keep filenames unchanged when possible.
+Run [07_data_saving.ipynb](design_checks/notebooks/07_data_saving.ipynb),
+or run `python design_checks/scripts/data_saving_audit.py` from the repository
+root. The audit groups cumulative snapshots by run and keeps interrupted
+recordings distinct from completed sessions.
+
 -----
 
 ## Data-saving
@@ -35,7 +62,9 @@ add `&pavlovia_save=1`.
 
 Non-dev **pilot** links (`?pilot=1`, or the root URL because pilot mode is the
 safe default) and **production** links (`?pilot=0`) save to Pavlovia
-automatically.
+through the acknowledged saving flow. Cloud confirmation requires a running
+Pavlovia experiment and a successful server response. Pavlovia preview mode
+may instead offer a local CSV; the final screen reports that distinction.
 
 ## Optional mouse-QC switch
 

@@ -43,10 +43,11 @@
 //   * mt_status and mt_pointer_type_self_report are also added via
 //     jsPsych.data.addProperties() so they land on every row and in the
 //     metadata table.
+//   Completed trajectories are written immediately for recovery. The
+//   terminal summary is written after the device question.
 //   NOTE: because the 8 trajectory rows share the summary's
-//   trial_index, jsPsych's per-trial on_finish(data) callback would
-//   receive trajectory row 1, not the summary. Do not attach on_finish
-//   to this trial; read the summary via mt_row === 'summary' instead.
+//   trial_index, use row_uuid or (run_uuid, trajectory_id) for identity.
+//   The bundled core passes the terminal summary to on_finish callbacks.
 //
 // Dev route:  ?dev=1&stage=mouse-test&consent=0&mouse_qc=1
 //             (adds a post-task overlay of the recorded paths)
@@ -233,7 +234,7 @@
       };
     }
     refreshRect();
-    function onResize() { resizedDuringTask = recording; refreshRect(); }
+    function onResize() { resizedDuringTask = resizedDuringTask || recording; refreshRect(); }
 
     function rel(e) {
       return {
@@ -350,6 +351,7 @@
         traj.completed = false;
         traj.duration_ms = null;
         trajectories.push(traj);
+        persistTrajectory(traj);
         traj = null;
       }
       endTask();
@@ -407,6 +409,7 @@
         traj.duration_ms = r1(e.timeStamp - traj.t0_event);
         traj.completed = true;
         trajectories.push(traj);
+        persistTrajectory(traj);
         traj = null;
         // … and open the next one (or finish).
         advanceTarget(e);
@@ -572,20 +575,11 @@
       }
     }
 
-    // ── Serialise + write rows ───────────────────────────────────
-    function writeAndFinish(tEndPerf, pointerChoice, pointerRt) {
-      var ptypesSeen = {};
-      var totalSamples = 0, totalMisclicks = 0, nCompleted = 0, anyTruncated = false;
-
-      for (var i = 0; i < trajectories.length; i++) {
-        var t = trajectories[i];
-        for (var k in t.ptypes) if (t.ptypes.hasOwnProperty(k)) ptypesSeen[k] = true;
-        totalSamples += t.samples.length;
-        totalMisclicks += t.n_misclicks;
-        if (t.completed) nCompleted++;
-        if (t.truncated) anyTruncated = true;
-
-        jsPsych.data.write({
+    var writtenTrajectories = {};
+    function persistTrajectory(t) {
+      if (writtenTrajectories[t.id]) return;
+      writtenTrajectories[t.id] = true;
+      jsPsych.data.write({
           mt_row: 'trajectory',
           trajectory_id: t.id,
           movement_label: t.from_label + '->' + t.to_label,
@@ -617,7 +611,23 @@
           // events:  [t_ms, x_norm, y_norm, kind, button, pointerType]
           samples: JSON.stringify(t.samples),
           events:  JSON.stringify(t.events)
-        });
+      });
+    }
+
+    // ── Serialise + write rows ───────────────────────────────────
+    function writeAndFinish(tEndPerf, pointerChoice, pointerRt) {
+      var ptypesSeen = {};
+      var totalSamples = 0, totalMisclicks = 0, nCompleted = 0, anyTruncated = false;
+
+      for (var i = 0; i < trajectories.length; i++) {
+        var t = trajectories[i];
+        for (var k in t.ptypes) if (t.ptypes.hasOwnProperty(k)) ptypesSeen[k] = true;
+        totalSamples += t.samples.length;
+        totalMisclicks += t.n_misclicks;
+        if (t.completed) nCompleted++;
+        if (t.truncated) anyTruncated = true;
+
+        persistTrajectory(t);
       }
 
       var ptypeList = [];

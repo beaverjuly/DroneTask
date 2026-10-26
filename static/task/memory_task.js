@@ -738,6 +738,22 @@ jsPsych.plugins['memory-task'] = (function() {
     var responded = false;
     var orderTimeoutID = null;
     var distancePromptShown = false;
+    var stageHistories = { order: [], distance: [], placement: [] };
+
+    function recordStage(stage, details) {
+      var event = {
+        trial_category: 'response_event', task_phase: 'memory', module: 'memory',
+        block: block, display_block: block, pair_index: trial.pair_index,
+        trial1_index: idx1, trial2_index: idx2,
+        design_idx: _designIdx, canonical_design_idx: _designIdx,
+        condition_id: _conditionId, response_stage: stage
+      };
+      Object.keys(details).forEach(function(key) { event[key] = details[key]; });
+      stageHistories[stage].push(details);
+      // Persist each completed subresponse before the next question starts.
+      // This does not finish the three-part memory trial or change its timing.
+      jsPsych.data.write(event);
+    }
 
     function _showTimeoutBadge(parentEl) {
       var badge = document.createElement('div');
@@ -784,9 +800,12 @@ jsPsych.plugins['memory-task'] = (function() {
       var start_time = performance.now();
       var hasInteracted = false;
       var currentSide = null;
+      var firstInteractionRt = null;
+      var visibleRt = null;
 
       waitForCardAssets([leftChoice.cardObj, rightChoice.cardObj], function() {
         wrap.style.visibility = 'visible';
+        visibleRt = Math.round(performance.now() - start_time);
       });
 
       function resetChoiceFrame(choice) {
@@ -821,6 +840,13 @@ jsPsych.plugins['memory-task'] = (function() {
         order_choice_side = currentSide;
         order_choice_img = (currentSide === 'left') ? left_img : right_img;
         order_correct = (order_choice_img === true_first_img);
+        recordStage('order', {
+          response_attempt: attempt_number, first_interaction_rt_ms: firstInteractionRt,
+          submitted_rt_ms: order_rt, submit_method: 'arrow_key',
+          stage_visible_rt_ms: visibleRt, stage_timed_out: false, final_omission: false,
+          response_value: currentSide, order_choice_side: currentSide,
+          order_choice_img: order_choice_img, order_correct: order_correct
+        });
         window.__memorySuppressKeysUntil = performance.now() + 350;
         _fadeTransition(function() { renderDistancePrompt(); });
       }
@@ -839,6 +865,7 @@ jsPsych.plugins['memory-task'] = (function() {
 
         if (side) {
           e.preventDefault();
+          if (firstInteractionRt === null) firstInteractionRt = Math.round(performance.now() - start_time);
           hasInteracted = true;
           currentSide = side;
           highlightSide(side);
@@ -855,6 +882,13 @@ jsPsych.plugins['memory-task'] = (function() {
         } else {
           responded = true;
           timed_out = true;
+          recordStage('order', {
+            response_attempt: attempt_number, first_interaction_rt_ms: null,
+            submitted_rt_ms: Math.round(performance.now() - start_time),
+            stage_visible_rt_ms: visibleRt, submit_method: 'timeout',
+            stage_timed_out: true, final_omission: attempt_number >= 2,
+            response_value: null, order_choice_side: null, order_correct: null
+          });
           document.removeEventListener('keydown', keyHandler);
           _showTimeoutBadge(wrap);
           setTimeout(function() {
@@ -948,6 +982,9 @@ jsPsych.plugins['memory-task'] = (function() {
       var submitted = false;
       var distTimeoutID = null;
       var distAutoSubmitArmed = false;
+      var firstInteractionRt = null;
+      var adjustmentCount = 0;
+      var visibleRt = null;
 
       function updateThumb() {
         thumb.style.left = curVal + '%';
@@ -963,14 +1000,21 @@ jsPsych.plugins['memory-task'] = (function() {
 
       waitForCardAssets([l, r], function() {
         wrap.style.visibility = 'visible';
+        visibleRt = Math.round(performance.now() - start_time);
       });
 
-      function submitDistance() {
+      function submitDistance(method) {
         if (submitted || !hasPlaced) return;
         submitted = true;
         clearTimeout(distTimeoutID);
         document.removeEventListener('keydown', handleKey);
         distance_rt = Math.round(performance.now() - start_time);
+        recordStage('distance', {
+          response_attempt: distance_attempt_number, first_interaction_rt_ms: firstInteractionRt,
+          submitted_rt_ms: distance_rt, stage_visible_rt_ms: visibleRt,
+          submit_method: method || 'automatic_after_first_move', stage_timed_out: false,
+          final_omission: false, response_value: curVal, adjustment_count: adjustmentCount
+        });
         window.__memorySuppressKeysUntil = performance.now() + 350;
         _fadeTransition(function() { renderSliderScreen(curVal, true_distance); });
       }
@@ -979,7 +1023,7 @@ jsPsych.plugins['memory-task'] = (function() {
         if (distAutoSubmitArmed) return;
         distAutoSubmitArmed = true;
         clearTimeout(distTimeoutID);
-        distTimeoutID = setTimeout(submitDistance, POST_INTERACTION_AUTOSUBMIT_MS);
+        distTimeoutID = setTimeout(function() { submitDistance('automatic_after_first_move'); }, POST_INTERACTION_AUTOSUBMIT_MS);
       }
 
       function handleKey(e) {
@@ -987,19 +1031,23 @@ jsPsych.plugins['memory-task'] = (function() {
         if (e.repeat && !hasPlaced) return;
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
+          if (firstInteractionRt === null) firstInteractionRt = Math.round(performance.now() - start_time);
+          adjustmentCount++;
           hasPlaced = true;
           curVal = Math.max(0, curVal - (e.shiftKey ? FINE_STEP : STEP));
           updateThumb();
           armDistanceAutoSubmit();
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
+          if (firstInteractionRt === null) firstInteractionRt = Math.round(performance.now() - start_time);
+          adjustmentCount++;
           hasPlaced = true;
           curVal = Math.min(100, curVal + (e.shiftKey ? FINE_STEP : STEP));
           updateThumb();
           armDistanceAutoSubmit();
         } else if ((e.key === 'Enter' || e.key === ' ') && hasPlaced) {
           e.preventDefault();
-          submitDistance();
+          submitDistance('keyboard_confirm');
         }
       }
 
@@ -1008,7 +1056,7 @@ jsPsych.plugins['memory-task'] = (function() {
       distTimeoutID = setTimeout(function() {
         if (submitted) return;
         if (hasPlaced) {
-          submitDistance();
+          submitDistance('automatic_after_first_move');
           return;
         }
 
@@ -1017,6 +1065,13 @@ jsPsych.plugins['memory-task'] = (function() {
         distance_rt = Math.round(performance.now() - start_time);
         window.__memorySuppressKeysUntil = performance.now() + 350;
         timed_out = true;
+        recordStage('distance', {
+          response_attempt: distance_attempt_number, first_interaction_rt_ms: null,
+          submitted_rt_ms: distance_rt, stage_visible_rt_ms: visibleRt,
+          submit_method: 'timeout', stage_timed_out: true,
+          final_omission: distance_attempt_number >= 2, response_value: null,
+          adjustment_count: adjustmentCount
+        });
         _showTimeoutBadge(wrap);
         setTimeout(function() {
           if (distance_attempt_number < 2) {
@@ -1146,6 +1201,9 @@ jsPsych.plugins['memory-task'] = (function() {
       var sliderTimeoutID = null;
       var placementSubmitted = false;
       var placementAutoSubmitArmed = false;
+      var firstInteractionRt = null;
+      var adjustmentCount = 0;
+      var visibleRt = null;
 
       function updateThumb() {
         thumb.style.left = curVal + '%';
@@ -1161,13 +1219,21 @@ jsPsych.plugins['memory-task'] = (function() {
 
       waitForCardAssets([probeCard, leftAnchor, rightAnchor], function() {
         wrap.style.visibility = 'visible';
+        visibleRt = Math.round(performance.now() - start_time);
       });
 
-      function submitPlacement() {
+      function submitPlacement(method) {
         if (placementSubmitted || !hasPlaced) return;
         placementSubmitted = true;
         placement_slider_value = curVal;
         placement_rt = Math.round(performance.now() - start_time);
+        recordStage('placement', {
+          response_attempt: 1, first_interaction_rt_ms: firstInteractionRt,
+          submitted_rt_ms: placement_rt, stage_visible_rt_ms: visibleRt,
+          submit_method: method || 'automatic_after_first_move', stage_timed_out: false,
+          final_omission: false, response_value: curVal, adjustment_count: adjustmentCount,
+          placement_probe_index: placementProbeIndex, placement_probe_img: middleStim
+        });
         clearTimeout(sliderTimeoutID);
         document.removeEventListener('keydown', handleKey);
         window.__memorySuppressKeysUntil = performance.now() + 350;
@@ -1178,7 +1244,7 @@ jsPsych.plugins['memory-task'] = (function() {
         if (placementAutoSubmitArmed) return;
         placementAutoSubmitArmed = true;
         clearTimeout(sliderTimeoutID);
-        sliderTimeoutID = setTimeout(submitPlacement, POST_INTERACTION_AUTOSUBMIT_MS);
+        sliderTimeoutID = setTimeout(function() { submitPlacement('automatic_after_first_move'); }, POST_INTERACTION_AUTOSUBMIT_MS);
       }
 
       function handleKey(e) {
@@ -1187,6 +1253,8 @@ jsPsych.plugins['memory-task'] = (function() {
 
         if (e.key === 'ArrowLeft') {
           e.preventDefault();
+          if (firstInteractionRt === null) firstInteractionRt = Math.round(performance.now() - start_time);
+          adjustmentCount++;
           hasPlaced = true;
           var step = e.shiftKey ? FINE_STEP : STEP;
           curVal = Math.max(0, curVal - step);
@@ -1194,6 +1262,8 @@ jsPsych.plugins['memory-task'] = (function() {
           armPlacementAutoSubmit();
         } else if (e.key === 'ArrowRight') {
           e.preventDefault();
+          if (firstInteractionRt === null) firstInteractionRt = Math.round(performance.now() - start_time);
+          adjustmentCount++;
           hasPlaced = true;
           var step2 = e.shiftKey ? FINE_STEP : STEP;
           curVal = Math.min(100, curVal + step2);
@@ -1201,7 +1271,7 @@ jsPsych.plugins['memory-task'] = (function() {
           armPlacementAutoSubmit();
         } else if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          submitPlacement();
+          submitPlacement('keyboard_confirm');
         }
       }
 
@@ -1210,7 +1280,7 @@ jsPsych.plugins['memory-task'] = (function() {
       sliderTimeoutID = setTimeout(function() {
         if (placementSubmitted) return;
         if (hasPlaced) {
-          submitPlacement();
+          submitPlacement('automatic_after_first_move');
           return;
         }
 
@@ -1220,6 +1290,13 @@ jsPsych.plugins['memory-task'] = (function() {
         timed_out = true;
         _showTimeoutBadge(wrap);
         placement_slider_value = null;
+        recordStage('placement', {
+          response_attempt: 1, first_interaction_rt_ms: null,
+          submitted_rt_ms: placement_rt, stage_visible_rt_ms: visibleRt,
+          submit_method: 'timeout', stage_timed_out: true, final_omission: true,
+          response_value: null, adjustment_count: adjustmentCount,
+          placement_probe_index: placementProbeIndex, placement_probe_img: middleStim
+        });
         setTimeout(function() {
           finishTrial(dist_est_value, true_distance, false);
         }, 3000);
@@ -1284,6 +1361,15 @@ jsPsych.plugins['memory-task'] = (function() {
 
         attempt_number: attempt_number,
         distance_attempt_number: distance_attempt_number,
+        order_timed_out: stageHistories.order.some(function(r) { return r.stage_timed_out; }),
+        distance_timed_out: stageHistories.distance.some(function(r) { return r.stage_timed_out; }),
+        placement_timed_out: stageHistories.placement.some(function(r) { return r.stage_timed_out; }),
+        order_final_omission: stageHistories.order.length ? stageHistories.order[stageHistories.order.length - 1].final_omission : null,
+        distance_final_omission: stageHistories.distance.length ? stageHistories.distance[stageHistories.distance.length - 1].final_omission : null,
+        placement_final_omission: stageHistories.placement.length ? stageHistories.placement[stageHistories.placement.length - 1].final_omission : null,
+        order_attempts_json: JSON.stringify(stageHistories.order),
+        distance_attempts_json: JSON.stringify(stageHistories.distance),
+        placement_attempts_json: JSON.stringify(stageHistories.placement),
         timed_out: timed_out,
         skipped_pair: skipped || false,
 

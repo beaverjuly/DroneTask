@@ -321,6 +321,19 @@ jsPsych.plugins['comprehension'] = (function() {
       window.__compState = freshState();
     }
     var state = window.__compState;
+    function logComprehension(eventName, idx, value) {
+      if (!window.DroneDataRecorderActive) return;
+      window.DroneDataRecorderActive.record('instruction_event', {
+        task_phase: 'comprehension', event_name: eventName,
+        comprehension_version: STATE_VERSION,
+        question_id: typeof idx === 'number' ? 'comp_' + (idx + 1) : null,
+        question_index: typeof idx === 'number' ? idx + 1 : null,
+        question_topic: typeof idx === 'number' ? PROMPTS[idx].topic : null,
+        response_value: value === undefined ? null : value,
+        comprehension_attempt: state.attempts,
+        response_elapsed_ms: Math.round(performance.now() - startTime)
+      });
+    }
 
     var allComp = jsPsych.data.get().filter({ trial_type: 'comprehension' }).values();
     var lastComp = allComp.length > 0 ? allComp[allComp.length - 1] : null;
@@ -357,6 +370,7 @@ jsPsych.plugins['comprehension'] = (function() {
       if (radio.tagName !== 'INPUT' || radio.type !== 'radio') return;
       var idx = parseInt(radio.name.slice(1), 10);
       state.responses[idx] = radio.value;
+      logComprehension('answer_change', idx, radio.value);
 
       if (state.attempts > 0 && state.correctness[idx] === false && state.reviewed[idx]) {
         if (radio.value === PROMPTS[idx].correct) {
@@ -375,6 +389,7 @@ jsPsych.plugins['comprehension'] = (function() {
       if (!isFinite(idx) || idx < 0 || idx >= PROMPTS.length) return;
       snapshotEditable();
       state.reviewed[idx] = true;
+      logComprehension('review_requested', idx, state.responses[idx]);
       finishWith({
         done: false,
         review_topic: PROMPTS[idx].topic,
@@ -415,6 +430,7 @@ jsPsych.plugins['comprehension'] = (function() {
           }
         }
         state.attempts += 1;
+        logComprehension('answers_submitted', null, state.responses.slice());
         if (allCorrect) {
           showSuccessAnimation(function() { finishWith({ done: true }); });
         } else {
@@ -430,6 +446,7 @@ jsPsych.plugins['comprehension'] = (function() {
       }
 
       state.attempts += 1;
+      logComprehension('answers_submitted', null, state.responses.slice());
       showSuccessAnimation(function() { finishWith({ done: true }); });
     }
 
@@ -497,6 +514,7 @@ jsPsych.plugins['comprehension'] = (function() {
         prompts: PROMPTS.map(function(q) { return q.text; }),
         topics: PROMPTS.map(function(q) { return q.topic; }),
         attempts: state.attempts,
+        comprehension_version: STATE_VERSION,
         rt: performance.now() - startTime
       };
       if (extra.done) {

@@ -5,8 +5,8 @@
 
   <!-- Load libraries -->
   <script src="static/lib/jquery-3.7.1/jquery-3.7.1.min.js"></script>
-  <script src="static/lib/jspsych-6.3.1/jspsych.js"></script>
-  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-instructions.js?v=instruction-navigation-20260925b" type="text/javascript"></script>
+  <script src="static/lib/jspsych-6.3.1/jspsych.js?v=terminal-row-20261026"></script>
+  <script src="static/lib/jspsych-6.3.1/plugins/jspsych-instructions.js?v=instruction-recording-20261026" type="text/javascript"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-html-keyboard-response.js" type="text/javascript"></script>
 
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-call-function.js" type="text/javascript"></script>
@@ -16,18 +16,15 @@
   <link href="static/lib/jspsych-6.3.1/css/jspsych.css" rel="stylesheet" type="text/css"></link>
 
   <!-- Pavlovia integration plugin (place in static/lib/) -->
-  <script src="static/lib/jspsych-pavlovia-3.2.5.js" type="text/javascript"></script>
+  <script src="static/lib/jspsych-pavlovia-3.2.5.js?v=acknowledged-saving-20261026" type="text/javascript"></script>
 
   <!-- Helper plug-ins -->
-  <script src="static/js/jspsych-survey-demo.js" type="text/javascript"></script>
+  <script src="static/js/jspsych-survey-demo.js?v=array-responses-20261026" type="text/javascript"></script>
   <script src="static/js/nivturk-plugins.js" type="text/javascript"></script>
   <script src="static/js/jspsych-survey-template.js" type="text/javascript"></script>
 
-  <!-- Auto cache-buster: injects ?v=<deployment-timestamp> into every
-       task-script src below. Generated once at page load so every script
-       in a single page-view shares the same version string, but every
-       new visit forces a fresh fetch. Place this BEFORE the script tags
-       it parameterises. -->
+  <!-- Required scripts use explicit deployment versions and parser order.
+       Optional module assets share a timestamp generated per page visit. -->
   <script>
     window.__APP_VER = (function () {
       var d = new Date();
@@ -37,11 +34,11 @@
              pad(d.getUTCHours()) + pad(d.getUTCMinutes()) +
              pad(d.getUTCSeconds());
     })();
-    document.write(
-      '<script src="static/task/trial.js?v='        + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/memory_task.js?v='  + window.__APP_VER + '"><\/script>'
-    );
+
   </script>
+  <script src="static/task/trial.js?v=recording-20261026"></script>
+  <script src="static/task/memory_task.js?v=recording-20261026"></script>
+
 
   <!-- Optional mouse-trajectory QC module. The exact opt-in flag is parsed
        here, before any optional assets are created. With mouse_qc absent (or
@@ -163,28 +160,20 @@
   </script>
 
   <link href="static/task/game.min.css?v=practice-motion-20260929b" rel="stylesheet" type="text/css"></link>
-  <script>
-    document.write(
-      '<script src="static/task/ui-helpers.js?v='     + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/stimuli.js?v='          + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/stimuli-details.js?v='  + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/comprehension.js?v='   + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/instructions.js?v='     + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/latin_square.js?v='     + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/preload.js?v='          + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/data_saving.js?v='      + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/dev_routes.js?v='       + window.__APP_VER + '"><\/script>' +
-      '<script src="static/task/survey.js?v='          + window.__APP_VER + '"><\/script>'
-    );
-  </script>
+  <script src="static/task/ui-helpers.js?v=recording-20261026"></script>
+  <script src="static/task/stimuli.js?v=recording-20261026"></script>
+  <script src="static/task/stimuli-details.js?v=recording-20261026"></script>
+  <script src="static/task/comprehension.js?v=recording-20261026"></script>
+  <script src="static/task/instructions.js?v=recording-20261026"></script>
+  <script src="static/task/latin_square.js?v=recording-20261026"></script>
+  <script src="static/task/preload.js?v=recording-20261026"></script>
+  <script src="static/task/data_saving.js?v=recording-20261026"></script>
+  <script src="static/task/data_recorder.js?v=recording-20261026"></script>
+  <script src="static/task/dev_routes.js?v=recording-20261026"></script>
+  <script src="static/task/survey.js?v=recording-20261026"></script>
 
   <!-- Required consent gate. Runtime fails closed if this script is unavailable. -->
-  <script>
-    document.write(
-      '<script src="static/task/consent.js?v=' + window.__APP_VER +
-      '" onerror="console.error(\'[CONSENT] Required consent.js failed to load\')"><\/script>'
-    );
-  </script>
+  <script src="static/task/consent.js?v=recording-20261026"></script>
 
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -923,7 +912,7 @@
     return (v !== null && v !== '') ? v : fallback;
   }
 
-  var TASK_VERSION = 'v3.13.0-optional-memory-screening';
+  var TASK_VERSION = 'v3.14.0-acknowledged-data-saving';
   var DEV_MODE    = _urlParams.get('dev') === '1';
   var DEV_STAGE   = _urlParams.get('stage') || 'full';
   var DEV_NTRIALS = parseInt(_urlParams.get('ntrials'), 10) || 0;
@@ -949,6 +938,9 @@
   // Default is pilot mode (opt-in to production) for safety.
   // ──────────────────────────────────────────────────────────────
   var PILOT_MODE = _urlParams.get('pilot') !== '0';
+  // Explicit pilot recording route only. The memory criterion remains
+  // unchanged and is recorded even when this route continues for auditing.
+  var AUDIT_FULL = PILOT_MODE && !DEV_MODE && _urlParams.get('audit_full') === '1';
   console.log('[MODE] PILOT_MODE = ' + PILOT_MODE +
               '  (set ?pilot=0 in the URL for production / Prolific redirects)');
 
@@ -1074,7 +1066,7 @@
   if (typeof buildConsentTrial === 'function' && SHOW_CONSENT) {
     consent_trial = [buildConsentTrial({
       onDecline: function() { consent_declined = true; jsPsych.endExperiment(); },
-      onBot:     function() { low_quality = true; jsPsych.endExperiment(); }
+      onBot:     function() { low_quality = true; if(window.DroneDataRecorderActive) window.DroneDataRecorderActive.setExit('consent_bot_check'); jsPsych.endExperiment(); }
     })];
   } else if (!SHOW_CONSENT) {
     console.log('[CONSENT] DEV_MODE + consent=0 \u2014 consent screen SKIPPED.');
@@ -1778,6 +1770,7 @@
               // participant just gets repeated reminders until they move on.
               if (practice_no === 0 && total_missed_responses >= missed_threshold) {
                 low_quality = true;
+                if (window.DroneDataRecorderActive) window.DroneDataRecorderActive.setExit('prolonged_inactivity');
                 jsPsych.endExperiment();
               }
             }
@@ -1989,6 +1982,7 @@
     func: function() {},
     on_finish: function(trial) {
       low_quality = true;
+      if (window.DroneDataRecorderActive) window.DroneDataRecorderActive.setExit('practice_movement_check');
       jsPsych.endExperiment();
     }
   };
@@ -2420,7 +2414,8 @@
     }
 
     function canEnterMainBlocks() {
-      return !_memoryScreenState.requested || memoryScreenResult.passed === true;
+      return !_memoryScreenState.requested || memoryScreenResult.passed === true ||
+        (AUDIT_FULL && memoryScreenResult.status === 'failed');
     }
 
     function buildMemoryScreenConfigErrorTrial() {
@@ -2472,7 +2467,7 @@
       return memoryScreenModule.timeline.concat([
         { timeline: [hiddenDroneReminder].concat(mainContinuation), conditional_function: canEnterMainBlocks },
         { timeline: [buildMemoryScreenEndTrial()],
-          conditional_function: function() { return memoryScreenResult.status === 'failed'; } }
+          conditional_function: function() { return memoryScreenResult.status === 'failed' && !AUDIT_FULL; } }
       ]);
     }
 
@@ -2697,9 +2692,7 @@
         jsPsych.data.addProperties({
           perf_timer_ms_per_call: Math.round(timerMs * 1000) / 1000,
           perf_dom_ms_per_op: Math.round(domMs * 1000) / 1000,
-          perf_slow_flag: slow,
-          stimulus_block_orders: window._stimulus_block_orders
-            ? window._stimulus_block_orders.join('|||') : null
+          perf_slow_flag: slow
         });
         if (slow) console.warn('[PERF] Slow machine detected: timer=' + timerMs.toFixed(3) + 'ms, dom=' + domMs.toFixed(3) + 'ms');
       }
@@ -2759,19 +2752,40 @@
       }
     });
 
-    // ── Suffix: Pavlovia finish (must be last) ──
-    if (_env.USE_PAVLOVIA) {
-      timeline.push({
-        type: 'pavlovia',
-        command: 'finish',
-        participantId: PROLIFIC_PID || workerId
+    // Finalization lives in on_finish so normal and early exits share the
+    // same acknowledged save. A trailing timeline trial can be skipped.
+    (function labelInstructionDecks(nodes, path, seen) {
+      nodes.forEach(function(node, i) {
+        if (!node || typeof node !== 'object' || seen.has(node)) return;
+        seen.add(node); var id=path+'_'+i;
+        if (node.type==='instructions') {
+          node.data=Object.assign({},node.data || {});
+          node.data.screen_id=node.data.screen_id || 'screen'+id;
+        }
+        if (Array.isArray(node.timeline)) labelInstructionDecks(node.timeline,id,seen);
       });
-    }
+    })(timeline,'',new WeakSet());
+    var recorder = window.DroneDataRecorderActive = DroneDataRecorder.create({
+      jsPsych: jsPsych, env: _env, participantId: PROLIFIC_PID || workerId,
+      taskVersion: TASK_VERSION, pilotMode: PILOT_MODE, devMode: DEV_MODE,
+      showConsent: SHOW_CONSENT, stage: DEV_MODE ? _stage : 'full', devNtrials: DEV_NTRIALS, auditFull: AUDIT_FULL,
+      mouseQcRequested: _mouseQcState.requested, mouseQcEnabled: _mouseQcState.enabled,
+      memoryScreeningRequested: _memoryScreenState.requested, memoryScreeningEnabled: _memoryScreenState.enabled,
+      designManifest: {
+        stimulus_block_orders: window._stimulus_block_orders,
+        block_order: block_order, block_order_labels: block_order_labels,
+        reward_uses_shifted_sequences: reward_uses_shifted_sequences,
+        drone_positions: main_drone_position, supply_positions: main_bag_position
+      }
+    });
 
     // ── Launch ──
     jsPsych.init({
       timeline: timeline,
       show_progress_bar: true,
+      on_trial_start: function(trial) { recorder.onTrialStart(trial); },
+      on_data_update: function(data) { recorder.onDataUpdate(data); },
+      on_interaction_data_update: function(data) { recorder.onInteraction(data); },
       on_finish: buildOnFinishCallback(_env, {
         PROLIFIC_PID:      PROLIFIC_PID,
         workerId:          workerId,

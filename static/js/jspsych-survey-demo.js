@@ -621,7 +621,19 @@ jsPsych.plugins['survey-demo'] = (function() {
   function objectifyForm(formArray) {
     var returnArray = {};
     for (var i = 0; i < formArray.length; i++) {
-      returnArray[formArray[i].name] = formArray[i].value;
+      var name = formArray[i].name;
+      var value = formArray[i].value;
+      // Checkbox groups must retain every selected value, including a single
+      // selection, so the recorded type does not change with response count.
+      if (name === 'race') {
+        if (!Array.isArray(returnArray[name])) returnArray[name] = [];
+        returnArray[name].push(value);
+      } else if (Object.prototype.hasOwnProperty.call(returnArray, name)) {
+        if (!Array.isArray(returnArray[name])) returnArray[name] = [returnArray[name]];
+        returnArray[name].push(value);
+      } else {
+        returnArray[name] = value;
+      }
     }
     return returnArray;
   }

@@ -1,532 +1,301 @@
 /**
  * jsPsych plugin for pavlovia.org
- *
- * This plugin handles communications with the pavlovia.org server: it opens and closes sessions,
- * and uploads data to the server.
- *
- * @author Alain Pitiot
- * @version 2020.5
- * @copyright (c) 2020 Ilixa Ltd. ({@link http://ilixa.com})
- * @license Distributed under the terms of the MIT License
+ * Original author Alain Pitiot, copyright (c) 2020 Ilixa Ltd., MIT License.
+ * Local revision 2026.10.26 waits for server acknowledgements. Checkpoints
+ * save snapshots without closing the current Pavlovia session.
  */
-
-
-jsPsych.plugins['pavlovia'] = (function() {
-
-	/**
-	 * The version number.
-	 *
-	 * @type {string}
-	 * @public
-	 */
-	const version = '2020.5';
-
-
-	let plugin = {};
-
-
-	/**
-	 * The default error callback function.
-	 *
-	 * Error messages are displayed in the body of the document and in the browser's console.
-	 *
-	 * @param {Object} error - the error json object to be displayed.
-	 * @public
-	 */
-	const defaultErrorCallback = function(error)
-	{
-		// output the error to the console:
-		console.error('[pavlovia ' + version + ']', error);
-
-		// output the error to the html body:
-		let htmlCode = '<h3>[jspsych-pavlovia plugin ' + version + '] Error</h3><ul>';
-		while (true) {
-			if (typeof error === 'object' && 'context' in error) {
-				htmlCode += '<li>' + error.context + '</li>';
-				error = error.error;
-			} else {
-				htmlCode += '<li><b>' + error  + '</b></li>';
-				break;
-			}
-		}
-		htmlCode += '</ul>';
-		document.querySelector('body').innerHTML = htmlCode;
-	};
-
-
-	/**
-	 * Plugin information.
-	 * @public
-	 */
-	plugin.info = {
-		name: 'pavlovia',
-		description: 'communication with pavlovia.org',
-		parameters: {
-			command: {
-				type: jsPsych.plugins.parameterType.STRING,
-				pretty_name: 'Command',
-				default: 'init',
-				description: 'The pavlovia command: "init" (default) or "finish"'
-			},
-			participantId: {
-				type: jsPsych.plugins.parameterType.STRING,
-				pretty_name: 'Participant Id',
-				default: 'PARTICIPANT',
-				description: 'The participant Id: "PARTICIPANT" (default) or any string'
-			},
-			errorCallback: {
-				type: jsPsych.plugins.parameterType.FUNCTION,
-				pretty_name: 'ErrorCallback',
-				default: defaultErrorCallback,
-				description: 'The callback function called whenever an error has occurred'
-			}
-		}
-	};
-
-
-	/**
-	 * Run the plugin.
-	 *
-	 * @param {HTMLElement} display_element - the HTML DOM element where jsPsych content is rendered
-	 * @param {Object} trial - the jsPsych trial
-	 * @public
-	 */
-	plugin.trial = function(display_element, trial)
-	{
-		// execute the command:
-		switch (trial.command.toLowerCase()) {
-			case 'init':
-				_init(trial);
-				break;
-
-			case 'finish':
-				const data = jsPsych.data.get().csv();
-				_finish(trial, data);
-				break;
-
-			default:
-				trial.errorCallback('unknown command: ' + trial.command);
-		}
-
-		// end trial
-		jsPsych.finishTrial();
-	};
-
-
-	/**
-	 * The pavlovia.org configuration (usually read from the config.json configuration file).
-	 *
-	 * @type {Object}
-	 * @private
-	 */
-	let _config = {};
-
-
-	/**
-	 * The callback for the beforeunload event, which is triggered when the participant tries to leave the
-	 * experiment by closing the tab or browser.
-	 *
-	 * @type {null}
-	 * @private
-	 */
-	let _beforeunloadCallback = null;
-
-
-	/**
-	 * The server paramaters (those starting with a double underscore).
-	 * @type {Object}
-	 * @private
-	 */
-	let _serverMsg = new Map();
-
-
-	/**
-	 * Initialise the connection with pavlovia.org: configure the plugin and open a new session.
-	 *
-	 * @param {Object} trial - the jsPsych trial
-	 * @param {string} [configURL= "config.json"] - the URL of the pavlovia.org json configuration file
-	 * @returns {Promise<void>}
-	 * @private
-	 */
-	const _init = async function(trial, configURL = 'config.json')
-	{
-		try {
-			// configure:
-			let response = await _configure(configURL);
-			_config = response.config;
-			_log('init | _configure.response=', response);
-
-			// open a new session:
-			response = await _openSession();
-			// _config.experiment.token = response.token;
-			_log('init | _openSession.response=', response);
-
-			// warn the user when they attempt to close the tab or browser:
-			_beforeunloadCallback = (event) =>
-			{
-				// preventDefault should ensure that the user gets prompted:
-				event.preventDefault();
-
-				// Chrome requires returnValue to be set:
-				event.returnValue = '';
-			};
-			window.addEventListener('beforeunload', _beforeunloadCallback);
-
-
-			// when the user closes the tab or browser, we attempt to close the session and optionally save the results
-			// note: we communicate with the server using the Beacon API
-			window.addEventListener('unload', (event) =>
-			{
-				if (_config.session.status === 'OPEN')
-				{
-					// get and save the incomplete results if need be:
-					if (_config.experiment.saveIncompleteResults)
-					{
-						const data = jsPsych.data.get().csv();
-						_save(trial, data, true);
-					}
-
-					// close the session:
-					_closeSession(false, true);
-				}
-			});
-		}
-		catch (error)
-		{
-			trial.errorCallback(error);
-		}
-	};
-
-
-	/**
-	 * Finish the connection with pavlovia.org: upload the collected data and close the session.
-	 *
-	 * @param {Object} trial - the jsPsych trial
-	 * @param {Object} data - the experiment data to be uploaded
-	 * @returns {Promise<void>}
-	 * @private
-	 */
-	const _finish = async function(trial, data)
-	{
-		try
-		{
-			// remove the beforeunload listener:
-			window.removeEventListener('beforeunload', _beforeunloadCallback);
-
-			// upload the data to pavlovia.org:
-			let response = await _save(trial, data, false);
-			_log('finish | _save.response=', response);
-
-			// close the session:
-			response = await _closeSession(true, false);
-			_log('finish | _closeSession.response=', response);
-		}
-		catch (error)
-		{
-			trial.errorCallback(error);
-		}
-	};
-
-
-	/**
-	 * Configure the plugin by reading the configuration file created upon activation of the experiment.
-	 *
-	 * @param {string} [configURL= "config.json"] - the URL of the pavlovia.org json configuration file
-	 * @returns {Promise<any>}
-	 * @private
-	 */
-	const _configure = async function(configURL)
-	{
-		let response = { origin: '_configure', context: 'when configuring the plugin' };
-
-		try {
-			const configurationResponse = await _getConfiguration(configURL);
-
-			// legacy experiments had a psychoJsManager block instead of a pavlovia block, and the URL
-			// pointed to https://pavlovia.org/server
-			if ('psychoJsManager' in configurationResponse.config) {
-				delete configurationResponse.config.psychoJsManager;
-				configurationResponse.config.pavlovia = {
-					URL: 'https://pavlovia.org'
-				};
-			}
-
-			// tests for the presence of essential blocks in the configuration:
-			if (!('experiment' in configurationResponse.config))
-				throw 'missing experiment block in configuration';
-			if (!('name' in configurationResponse.config.experiment))
-				throw 'missing name in experiment block in configuration';
-			if (!('fullpath' in configurationResponse.config.experiment))
-				throw 'missing fullpath in experiment block in configuration';
-			if (!('pavlovia' in configurationResponse.config))
-				throw 'missing pavlovia block in configuration';
-			if (!('URL' in configurationResponse.config.pavlovia))
-				throw 'missing URL in pavlovia block in configuration';
-
-			// get the server parameters (those starting with a double underscore):
-			const urlQuery = window.location.search.slice(1);
-			const urlParameters = new URLSearchParams(urlQuery);
-			urlParameters.forEach((value, key) => {
-				if (key.indexOf('__') === 0)
-					_serverMsg.set(key, value);
-			});
-
-			return configurationResponse;
-		}
-		catch (error)
-		{
-			throw { ...response, error };
-		}
-	};
-
-
-	/**
-	 * Get the pavlovia.org json configuration file.
-	 *
-	 * @param {string} configURL - the URL of the pavlovia.org json configuration file
-	 * @returns {Promise<any>}
-	 * @private
-	 */
-	const _getConfiguration = function(configURL)
-	{
-		let response = { origin: '_getConfiguration', context: 'when reading the configuration file: ' + configURL };
-
-		return new Promise((resolve, reject) => {
-			$.get(configURL, 'json')
-				.done((config, textStatus) => {
-					resolve({ ...response, config });
-				})
-				.fail((jqXHR, textStatus, errorThrown) => {
-					reject({ ...response, error: errorThrown });
-				});
-		});
-	};
-
-
-	/**
-	 * Open a new session for this experiment on pavlovia.org.
-	 *
-	 * @returns {Promise<any>}
-	 * @private
-	 */
-	const _openSession = function()
-	{
-		let response = {
-			origin: '_openSession',
-			context: 'when opening a session for experiment: ' + _config.experiment.fullpath
-		};
-
-		// prepare POST query:
-		let data = {};
-		if (_serverMsg.has('__pilotToken'))
-			data.pilotToken = _serverMsg.get('__pilotToken');
-
-		// query pavlovia server:
-		return new Promise((resolve, reject) =>
-		{
-			const url = _config.pavlovia.URL + '/api/v2/experiments/' + encodeURIComponent(_config.experiment.fullpath) + '/sessions';
-			$.post(url, data, null, 'json').done((data, textStatus) =>
-			{
-				// check for required attributes:
-				if (!('token' in data)) {
-					reject(Object.assign(response, { error: 'unexpected answer from server: no token'}));
-				}
-				if (!('experiment' in data)) {
-					reject(Object.assign(response, { error: 'unexpected answer from server: no experiment'}));
-				}
-
-				// update the configuration:
-				_config.session = { token: data.token, status: 'OPEN' };
-				_config.experiment.status = data.experiment.status2;
-				_config.experiment.saveFormat = Symbol.for(data.experiment.saveFormat);
-				_config.experiment.saveIncompleteResults = data.experiment.saveIncompleteResults;
-				_config.experiment.license = data.experiment.license;
-				_config.runMode = data.experiment.runMode;
-
-				resolve(Object.assign(response, { token: data.token, status: data.status }));
-			})
-			.fail((jqXHR, textStatus, errorThrown) =>
-			{
-				console.error('error:', jqXHR.responseText);
-				reject(Object.assign(response, { error: jqXHR.responseJSON }));
-			});
-		});
-
-	};
-
-
-	/**
-	 * Close the previously opened session on pavlovia.org.
-	 *
-	 * @param {boolean} isCompleted - whether or not the participant completed the experiment
-	 * @param {boolean} [sync = false] - whether or not to use the Beacon API to comminucate with the server
-	 * @private
-	 */
-	const _closeSession = function(isCompleted = true, sync = false)
-	{
-		let response = {
-			origin: '_closeSession',
-			context: 'when closing the session for experiment: ' + _config.experiment.fullpath
-		};
-
-		// prepare DELETE query:
-		const url = _config.pavlovia.URL + '/api/v2/experiments/' + encodeURIComponent(_config.experiment.fullpath) + '/sessions/' + _config.session.token;
-
-		// synchronous query the pavlovia server:
-		if (sync)
-		{
-			const formData = new FormData();
-			formData.append('isCompleted', isCompleted);
-			navigator.sendBeacon(url + '/delete', formData);
-			_config.session.status = 'CLOSED';
-		}
-		else
-		{
-			// asynchronously query the pavlovia server:
-			return new Promise((resolve, reject) =>
-			{
-				$.ajax({
-					url,
-					type: 'delete',
-					data: { isCompleted },
-					dataType: 'json'
-				})
-					.done((data, textStatus) =>
-					{
-						_config.session.status = 'CLOSED';
-						resolve(Object.assign(response, {data}));
-					})
-					.fail((jqXHR, textStatus, errorThrown) =>
-					{
-						console.error('error:', jqXHR.responseText);
-						reject(Object.assign(response, {error: jqXHR.responseJSON}));
-					});
-			});
-		}
-	};
-
-
-	/**
-	 * Upload data to the pavlovia.org server.
-	 *
-	 * @param {Object} trial - the jsPsych trial
-	 * @param {string} data - the experiment data to be uploaded
-	 * @param {boolean} [sync = false] - whether or not to use the Beacon API to communicate with the server
-	 * @return {Promise<any>}
-	 * @private
-	 */
-	const _save = async function(trial, data, sync = false)
-	{
-		const date = new Date();
-		let dateString = date.getFullYear() + '-' + ('0'+(1+date.getMonth())).slice(-2) + '-' + ('0'+date.getDate()).slice(-2) + '_';
-		dateString += ('0'+date.getHours()).slice(-2) + 'h' + ('0'+date.getMinutes()).slice(-2) + '.' + ('0'+date.getSeconds()).slice(-2) + '.' + date.getMilliseconds();
-
-		const key = _config.experiment.name + '_' + trial.participantId + '_' + 'SESSION' + '_' + dateString + '.csv';
-
-		if (_config.experiment.status === 'RUNNING' && !_serverMsg.has('__pilotToken'))
-		{
-			return await _uploadData(key, data, sync);
-		}
-		else
-		{
-			_offerDataForDownload(key, data, 'text/csv');
-			return {
-				origin: '_save',
-				context: 'when saving results for experiment: ' + _config.experiment.fullpath,
-				message: 'offered the .csv file for download'
-			};
-		}
-	};
-
-
-	/**
-	 * Upload data (a key/value pair) to pavlovia.org.
-	 *
-	 * @param {string} key - the key
-	 * @param {string} value - the value
-	 * @param {boolean} [sync = false] - whether or not to upload the data using the Beacon API
-	 * @returns {Promise<any>}
-	 * @private
-	 */
-	const _uploadData = function(key, value, sync = false)
-	{
-		let response = {
-			origin: '_uploadData',
-			context: 'when uploading participant\' results for experiment: ' + _config.experiment.fullpath
-		};
-
-		const url = _config.pavlovia.URL + '/api/v2/experiments/' + encodeURIComponent(_config.experiment.fullpath) + '/sessions/' + _config.session.token + '/results';
-
-		// synchronous query the pavlovia server:
-		if (sync)
-		{
-			const formData = new FormData();
-			formData.append('key', key);
-			formData.append('value', value);
-			navigator.sendBeacon(url, formData);
-		}
-		// asynchronously query the pavlovia server:
-		else
-		{
-			return new Promise((resolve, reject) =>
-			{
-				const data = {
-					key,
-					value
-				};
-
-				$.post(url, data, null, 'json').done((serverData, textStatus) =>
-				{
-					resolve(Object.assign(response, {serverData}));
-				})
-				.fail((jqXHR, textStatus, errorThrown) =>
-				{
-					console.error('error:', jqXHR.responseText);
-					reject(Object.assign(response, {error: jqXHR.responseJSON}));
-				});
-			});
-		}
-	};
-
-
-	/**
-	 * Log messages to the browser's console.
-	 *
-	 * @param {...*} messages - the messages to be displayed in the browser's console
-	 * @private
-	 */
-	const _log = function(...messages) {
-		console.log('[pavlovia ' + version + ']', ...messages);
-	};
-
-
-	/**
-	 * Offer data as download in the browser.
-	 *
-	 * @param {string} filename - the name of the file to be downloaded
-	 * @param {*} data - the data
-	 * @param {string} type - the MIME type of the data, e.g. 'text/csv' or 'application/json'
-	 * @private
-	 */
-	const _offerDataForDownload = function (filename, data, type)
-	{
-		const blob = new Blob([data], { type });
-
-		if (window.navigator.msSaveOrOpenBlob)
-		{
-			window.navigator.msSaveBlob(blob, filename);
-		}
-		else
-		{
-			const elem = window.document.createElement('a');
-			elem.href = window.URL.createObjectURL(blob);
-			elem.download = filename;
-			document.body.appendChild(elem);
-			elem.click();
-			document.body.removeChild(elem);
-		}
-	};
-
-
-	return plugin;
+jsPsych.plugins.pavlovia = (function () {
+  'use strict';
+  var VERSION = '2026.10.26.acknowledged';
+  var TIMEOUT_MS = 20000, MAX_ATTEMPTS = 3, RETRY_DELAYS_MS = [750, 2000];
+  var config = null, serverParameters = new Map(), queue = Promise.resolve();
+  var lastStored = null, finalReceipt = null, finalCsv = null, beforeUnloadListener = null, pageHideListener = null;
+  var state = { version: VERSION, status: 'NOT_INITIALIZED', storage_mode: null,
+    active_operation: null, last_error: null, last_receipt: null, close_beacon_queued: null };
+  var plugin = {};
+
+  function bytes(text) {
+    if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(text).length;
+    if (typeof Blob !== 'undefined') return new Blob([text]).size;
+    return unescape(encodeURIComponent(text)).length;
+  }
+  function failure(operation, status, message, retryable) {
+    var error = new Error(message || 'The server has not confirmed this operation.');
+    error.name = 'PavloviaTransportError'; error.operation = operation;
+    error.status = Number(status) || 0; error.retryable = !!retryable;
+    return error;
+  }
+  function errorRecord(error) {
+    return { name: error && error.name || 'Error', operation: error && error.operation || 'transport',
+      status: Number(error && error.status) || 0, retryable: !!(error && error.retryable),
+      attempts: Number(error && error.attempts) || 1,
+      message: error && error.message || 'Server confirmation unavailable.' };
+  }
+  function enqueue(action) {
+    var result = queue.then(action); queue = result.catch(function () {}); return result;
+  }
+  function delay(ms) { return new Promise(function (resolve) { setTimeout(resolve, ms); }); }
+  function request(options, operation) {
+    return new Promise(function (resolve, reject) {
+      $.ajax(Object.assign({ dataType: 'json', timeout: TIMEOUT_MS }, options)).done(function (data) {
+        if (data && typeof data === 'object' && data.error) {
+          reject(failure(operation, 0, 'The server rejected the ' + operation + ' request.', false));
+        } else resolve(data);
+      }).fail(function (xhr, textStatus) {
+        var status = Number(xhr && xhr.status) || 0;
+        reject(failure(operation, status, 'The ' + operation + ' request was not confirmed' +
+          (status ? ' (HTTP ' + status + ').' : ' (' + (textStatus === 'timeout' ? 'timeout' : 'connection error') + ').'),
+          status === 0 || status === 408 || status === 429 || status >= 500));
+      });
+    });
+  }
+  async function withRetry(action, maxAttempts) {
+    maxAttempts = maxAttempts || MAX_ATTEMPTS;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try { return { data: await action(), attempts: attempt }; }
+      catch (error) {
+        error.attempts = attempt;
+        if (!error.retryable || attempt === maxAttempts) throw error;
+        await delay(RETRY_DELAYS_MS[Math.min(attempt - 1, RETRY_DELAYS_MS.length - 1)]);
+      }
+    }
+  }
+  function apiPath() {
+    return config.pavlovia.URL.replace(/\/$/, '') + '/api/v2/experiments/' +
+      encodeURIComponent(config.experiment.fullpath) + '/sessions';
+  }
+  function requireOpen() {
+    if (!config || !config.session || config.session.status !== 'OPEN')
+      throw failure('session', 0, 'A confirmed open Pavlovia session is required.', false);
+  }
+  function timestamp() {
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2) +
+      '_' + ('0' + d.getHours()).slice(-2) + 'h' + ('0' + d.getMinutes()).slice(-2) + '.' +
+      ('0' + d.getSeconds()).slice(-2) + '.' + d.getMilliseconds();
+  }
+  function filename(options) {
+    if (options.key) {
+      if (typeof options.key !== 'string' || /[\\/\u0000-\u001f]/.test(options.key) ||
+          options.key.length > 240 || !/\.csv$/i.test(options.key))
+        throw failure('filename', 0, 'The data filename is not valid.', false);
+      return options.key;
+    }
+    var participant = String(options.participantId || 'PARTICIPANT').replace(/[^a-zA-Z0-9_.-]/g, '_');
+    return config.experiment.name + '_' + participant + '_SESSION_' + timestamp() + '.csv';
+  }
+  function offerDownload(key, csv) {
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    if (window.navigator && window.navigator.msSaveOrOpenBlob) {
+      window.navigator.msSaveBlob(blob, key); return;
+    }
+    var link = document.createElement('a'), url = window.URL.createObjectURL(blob);
+    link.href = url; link.download = key;
+    document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    setTimeout(function () { window.URL.revokeObjectURL(url); }, 1000);
+  }
+  function attachExitProtection() {
+    if (!beforeUnloadListener) {
+      beforeUnloadListener = function (event) {
+        if (!config || !config.session || config.session.status !== 'OPEN') return;
+        event.preventDefault(); event.returnValue = '';
+      };
+      window.addEventListener('beforeunload', beforeUnloadListener);
+    }
+    if (!pageHideListener) {
+      pageHideListener = function (event) {
+        if (event && event.persisted) return;
+        if (!config || !config.session || config.session.status !== 'OPEN') return;
+        if (typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') {
+          state.close_beacon_queued = false; return;
+        }
+        // Only a small close signal. The recorder journals and checkpoints
+        // completed rows; a full CSV must never be submitted through Beacon.
+        try {
+          var body = new FormData(); body.append('isCompleted', 'false');
+          state.close_beacon_queued = navigator.sendBeacon(
+            apiPath() + '/' + config.session.token + '/delete', body) === true;
+        } catch (error) { state.close_beacon_queued = false; }
+        // Queued is not acknowledged. Do not mark this session closed here.
+      };
+      window.addEventListener('pagehide', pageHideListener);
+    }
+  }
+  function detachExitProtection() {
+    if (beforeUnloadListener) window.removeEventListener('beforeunload', beforeUnloadListener);
+    if (pageHideListener) window.removeEventListener('pagehide', pageHideListener);
+    beforeUnloadListener = null; pageHideListener = null;
+  }
+  async function initialize(options) {
+    options = options || {};
+    if (config && config.session && config.session.status === 'OPEN')
+      return Object.assign(plugin.state(), { acknowledged: true, session_open: true });
+    if (config && config.session && config.session.status === 'CLOSED')
+      throw failure('init', 0, 'This session is closed. Start a new session to continue.', false);
+    state.active_operation = 'init'; state.status = 'INITIALIZING';
+    try {
+      var configured = await withRetry(function () {
+        return request({ url: options.configURL || 'config.json', type: 'GET' }, 'configuration');
+      });
+      var next = configured.data;
+      if (next && next.psychoJsManager) {
+        delete next.psychoJsManager; next.pavlovia = { URL: 'https://pavlovia.org' };
+      }
+      if (!next || !next.experiment || !next.experiment.name || !next.experiment.fullpath ||
+          !next.pavlovia || !next.pavlovia.URL)
+        throw failure('configuration', 0, 'The Pavlovia configuration is incomplete.', false);
+      config = next; serverParameters = new Map();
+      new URLSearchParams(window.location.search.slice(1)).forEach(function (value, key) {
+        if (key.indexOf('__') === 0) serverParameters.set(key, value);
+      });
+      var body = {};
+      if (serverParameters.has('__pilotToken')) body.pilotToken = serverParameters.get('__pilotToken');
+      // No client idempotency key exists for session creation. Automatically
+      // retrying an ambiguous POST could reserve more than one server credit.
+      var opened = await withRetry(function () {
+        return request({ url: apiPath(), type: 'POST', data: body }, 'session opening');
+      }, 1);
+      if (!opened.data || !opened.data.token || !opened.data.experiment)
+        throw failure('session opening', 0, 'The server returned an incomplete session acknowledgement.', false);
+      config.session = { token: opened.data.token, status: 'OPEN' };
+      config.experiment.status = opened.data.experiment.status2;
+      config.experiment.saveIncompleteResults = opened.data.experiment.saveIncompleteResults;
+      state.storage_mode = config.experiment.status === 'RUNNING' && !serverParameters.has('__pilotToken') ? 'upload' : 'download';
+      state.status = 'OPEN'; state.last_error = null;
+      attachExitProtection(); return Object.assign(plugin.state(), { acknowledged: true, session_open: true });
+    } catch (error) {
+      state.status = 'INIT_FAILED'; state.last_error = errorRecord(error); throw error;
+    } finally { state.active_operation = null; }
+  }
+  async function store(options) {
+    requireOpen();
+    if (!options || typeof options.csv !== 'string')
+      throw failure('upload', 0, 'CSV data is required for this save.', false);
+    var key = filename(options);
+    if (lastStored && lastStored.key === key && lastStored.csv === options.csv)
+      return Object.assign({}, lastStored.receipt);
+    var receipt = { disposition: state.storage_mode === 'upload' ? 'uploaded' : 'downloaded',
+      acknowledged: false, filename: key, payload_bytes: bytes(options.csv), attempts: 0,
+      session_closed: false, local_download_offered: false };
+    if (state.storage_mode === 'upload') {
+      var response = await withRetry(function () {
+        return request({ url: apiPath() + '/' + config.session.token + '/results', type: 'POST',
+          data: { key: key, value: options.csv } }, 'data upload');
+      });
+      receipt.attempts = response.attempts; receipt.acknowledged = true;
+    } else { offerDownload(key, options.csv); receipt.local_download_offered = true; }
+    // One exact snapshot is retained only until the next snapshot or final
+    // close. A failed close retry therefore cannot offer the same file twice.
+    lastStored = { key: key, csv: options.csv, receipt: receipt };
+    state.last_receipt = Object.assign({}, receipt); return receipt;
+  }
+  async function closeSession(options) {
+    options = options || {};
+    if (config && config.session && config.session.status === 'CLOSED')
+      return { acknowledged: true, session_closed: true, already_closed: true, attempts: 0 };
+    requireOpen();
+    var response = await withRetry(function () {
+      return request({ url: apiPath() + '/' + config.session.token, type: 'DELETE',
+        data: { isCompleted: options.isCompleted === true } }, 'session closing');
+    });
+    config.session.status = 'CLOSED'; state.status = 'CLOSED'; detachExitProtection();
+    return { acknowledged: true, session_closed: true, attempts: response.attempts };
+  }
+  async function runOperation(name, action) {
+    state.active_operation = name;
+    try {
+      var receipt = await action(); state.last_error = null;
+      state.last_receipt = Object.assign({}, receipt); return receipt;
+    } catch (error) { state.last_error = errorRecord(error); throw error; }
+    finally { state.active_operation = null; }
+  }
+  plugin.initialize = function (options) { return enqueue(function () { return initialize(options); }); };
+  plugin.checkpoint = function (options) {
+    return enqueue(function () { return runOperation('checkpoint', function () { return store(options); }); });
+  };
+  plugin.finalize = function (options) {
+    options = options || {};
+    return enqueue(function () {
+      return runOperation('finalize', async function () {
+        if (finalReceipt) {
+          if ((!options.key || finalReceipt.filename === options.key) && options.csv === finalCsv)
+            return Object.assign({}, finalReceipt);
+          throw failure('finalize', 0, 'This session has already been finalized.', false);
+        }
+        var receipt = await store(options);
+        var closed = await closeSession({ isCompleted: options.isCompleted !== false });
+        receipt.session_closed = closed.session_closed; receipt.close_attempts = closed.attempts;
+        finalReceipt = Object.assign({}, receipt); finalCsv = options.csv; lastStored = null; return receipt;
+      });
+    });
+  };
+  plugin.closeSession = function (options) {
+    return enqueue(function () { return runOperation('close', function () { return closeSession(options); }); });
+  };
+  plugin.state = function () {
+    return { version: VERSION, status: state.status, storage_mode: state.storage_mode,
+      active_operation: state.active_operation,
+      last_error: state.last_error ? Object.assign({}, state.last_error) : null,
+      last_receipt: state.last_receipt ? Object.assign({}, state.last_receipt) : null,
+      close_beacon_queued: state.close_beacon_queued };
+  };
+  function escapeHtml(text) {
+    return String(text).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function blockingFailure(display, trial, error, retry, csv, key) {
+    console.error('[Pavlovia transport]', errorRecord(error));
+    if (typeof trial.errorCallback === 'function') {
+      try { trial.errorCallback(errorRecord(error)); } catch (callbackError) {
+        console.error('[Pavlovia error callback]', callbackError && callbackError.name || 'Error');
+      }
+    }
+    display.innerHTML = '<div style="max-width:680px;margin:12vh auto;text-align:center;padding:28px;line-height:1.6">' +
+      '<h2>' + (trial.command === 'init' ? 'The session could not connect' : 'Your save has not been confirmed') + '</h2>' +
+      '<p>Please keep this tab open. Check your connection, then try again.</p>' +
+      '<p>' + escapeHtml(error.message || 'Server confirmation unavailable.') + '</p>' +
+      '<button type="button" id="pavlovia-retry">Try again</button>' +
+      (csv ? ' <button type="button" id="pavlovia-recovery">Download recovery file</button>' : '') +
+      '<p>If the problem continues, contact the researcher.</p></div>';
+    display.querySelector('#pavlovia-retry').addEventListener('click', retry);
+    if (csv) display.querySelector('#pavlovia-recovery').addEventListener('click', function () {
+      offerDownload(key || 'drone_task_recovery.csv', csv);
+    });
+  }
+  plugin.info = { name: 'pavlovia', description: 'Acknowledged Pavlovia session and data transport', parameters: {
+    command: { type: jsPsych.plugins.parameterType.STRING, default: 'init' },
+    participantId: { type: jsPsych.plugins.parameterType.STRING, default: 'PARTICIPANT' },
+    key: { type: jsPsych.plugins.parameterType.STRING, default: null },
+    errorCallback: { type: jsPsych.plugins.parameterType.FUNCTION, default: null }
+  } };
+  plugin.trial = function (display, trial) {
+    var busy = false, command = String(trial.command || 'init').toLowerCase();
+    var csv = command === 'finish' || command === 'checkpoint' ? jsPsych.data.get().csv() : null;
+    // Capture the filename once for every automatic and manual retry.
+    var key = trial.key || null;
+    function run() {
+      if (busy) return; busy = true;
+      display.innerHTML = '<div style="max-width:680px;margin:12vh auto;text-align:center;padding:28px">' +
+        '<h2>' + (command === 'init' ? 'Connecting your session' : 'Saving your responses') + '</h2>' +
+        '<p>Please keep this tab open.</p></div>';
+      var operation;
+      try {
+        if (csv !== null && !key) { requireOpen(); key = filename(trial); }
+        if (command === 'init') operation = plugin.initialize();
+        else if (command === 'finish') operation = plugin.finalize({ participantId: trial.participantId, key: key, csv: csv });
+        else if (command === 'checkpoint') operation = plugin.checkpoint({ participantId: trial.participantId, key: key, csv: csv });
+        else operation = Promise.reject(failure('command', 0, 'The Pavlovia command is not supported.', false));
+      } catch (error) { operation = Promise.reject(error); }
+      operation.then(function (receipt) {
+        display.innerHTML = '';
+        jsPsych.finishTrial({ pavlovia_command: command, pavlovia_transport_version: VERSION,
+          pavlovia_acknowledged: receipt.acknowledged === true, pavlovia_session_closed: receipt.session_closed === true,
+          pavlovia_filename: receipt.filename || null, pavlovia_disposition: receipt.disposition || null,
+          pavlovia_payload_bytes: receipt.payload_bytes || null, pavlovia_attempts: receipt.attempts || null });
+      }).catch(function (error) { busy = false; blockingFailure(display, trial, error, run, csv, key); });
+    }
+    run();
+  };
+  return plugin;
 })();

@@ -522,7 +522,15 @@
         collector = 50;
       },
       on_finish: function (data) {
-        jsPsych.data.addProperties(state.summary);
+        // Large item, pair and geometry arrays belong to the summary row.
+        // Copy only scalar outcomes to every other row.
+        var scalarSummary = {};
+        Object.keys(state.summary).forEach(function(key) {
+          if (!/_json$/.test(key) && (state.summary[key] === null || typeof state.summary[key] !== 'object')) {
+            scalarSummary[key] = state.summary[key];
+          }
+        });
+        jsPsych.data.addProperties(scalarSummary);
         if (typeof options.onComplete === 'function') options.onComplete(copy(state.summary), state, data);
       }
     });

@@ -143,7 +143,9 @@ jsPsych.plugins.instructions = (function() {
 
     function commit_current_page() {
       if (is_reviewing_prior_page() || committed_pages[current_page]) return;
-      prior_instruction_pages.push({ html: trial.pages[current_page] });
+      prior_instruction_pages.push({ html: trial.pages[current_page],
+        page_id: (trial.data && trial.data.screen_id || 'instructions') + '_page_' + current_page,
+        screen_id: trial.data && trial.data.screen_id });
       committed_pages[current_page] = true;
     }
 
@@ -241,12 +243,16 @@ jsPsych.plugins.instructions = (function() {
 
       var page_view = {
         page_index: current_page,
+        page_id: (trial.data && trial.data.screen_id || 'instructions') + '_page_' + current_page,
+        screen_id: trial.data && trial.data.screen_id,
         viewing_time: page_view_time
       };
 
       if (is_reviewing_prior_page()) {
         page_view.viewed_prior_instruction = true;
         page_view.prior_instruction_index = prior_page_cursor;
+        page_view.page_id = prior_instruction_pages[prior_page_cursor].page_id;
+        page_view.screen_id = prior_instruction_pages[prior_page_cursor].screen_id;
       }
 
       view_history.push(page_view);

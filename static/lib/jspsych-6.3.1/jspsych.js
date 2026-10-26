@@ -281,7 +281,9 @@ window.jsPsych = (function() {
 
     // for trial-level callbacks, we just want to pass in a reference to the values
     // of the DataCollection, for easy access and editing.
-    var trial_data_values = trial_data.values()[0];
+    // Intermediate event records can share trial_index. The terminal row
+    // just written above is the one that trial callbacks must receive.
+    var trial_data_values = trial_data.last(1).values()[0];
 
     if(typeof current_trial.save_trial_parameters == 'object'){
       var keys = Object.keys(current_trial.save_trial_parameters);
@@ -1654,7 +1656,9 @@ jsPsych.data = (function() {
       'trial_type': trial.type,
       'trial_index': progress.current_trial_global,
       'time_elapsed': jsPsych.totalTime(),
-      'internal_node_id': jsPsych.currentTimelineNodeID()
+      // Session finalization records are written after the timeline is done.
+      'internal_node_id': typeof data_object.internal_node_id === 'string'
+        ? data_object.internal_node_id : jsPsych.currentTimelineNodeID()
     };
 
     var ext_data_object = Object.assign({}, data_object, trial.data, default_data, dataProperties);

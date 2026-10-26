@@ -17,6 +17,7 @@
 | Instruction wording | [04_instruction_wording_alignment.md](notebooks/04_instruction_wording_alignment.md) |
 | Mouse trajectory QC | [05_mouse_trajectory_qc.md](notebooks/05_mouse_trajectory_qc.md) |
 | Memory screen | [06_memory_screen.ipynb](notebooks/06_memory_screen.ipynb) |
+| Data saving | [07_data_saving.ipynb](notebooks/07_data_saving.ipynb) |
 
 The [mouse QC briefing](mouse_qc_lab_brief.html) remains available at its existing
 local browser URL, `http://localhost:8000/design_checks/mouse_qc_lab_brief.html`.
@@ -41,3 +42,14 @@ Routine execution reads existing item PNGs. The separate asset-generation utilit
 installed Apple Color Emoji font and should run only when deliberately revising
 those assets. Participant-data analysis is organized separately under
 [`analysis/`](../analysis/README.md).
+
+The data saving notebook explains the recording lifecycle and includes an
+executable audit for raw session CSV files and optional receipt JSON files.
+It exports source configuration and synthetic diagnostic figures under
+`figures/data_saving`. Participant audit tables remain in the ignored directory
+`analysis/data/drone_task/derived/data_saving_audit`.
+
+```sh
+python design_checks/scripts/data_saving_audit.py /path/to/sample/folder
+python -m nbconvert --to notebook --execute --inplace design_checks/notebooks/07_data_saving.ipynb
+```
