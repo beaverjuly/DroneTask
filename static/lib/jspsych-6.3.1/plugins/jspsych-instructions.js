@@ -147,6 +147,9 @@ jsPsych.plugins.instructions = (function() {
         page_id: (trial.data && trial.data.screen_id || 'instructions') + '_page_' + current_page,
         screen_id: trial.data && trial.data.screen_id });
       committed_pages[current_page] = true;
+      if (window.DroneTaskProgressActive) {
+        window.DroneTaskProgressActive.instructionPage(trial.data && trial.data.progress_unit_id, current_page);
+      }
     }
 
     function show_current_page() {

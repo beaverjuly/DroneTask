@@ -53,3 +53,16 @@ It exports source configuration and synthetic diagnostic figures under
 python design_checks/scripts/data_saving_audit.py /path/to/sample/folder
 python -m nbconvert --to notebook --execute --inplace design_checks/notebooks/07_data_saving.ipynb
 ```
+
+## Participant progress
+
+`static/task/progress.js` measures completed participant activities across the
+selected route. It advances through nested blocks, instruction pages, memory
+stages and mouse trajectories. Instruction reviews and repeated responses
+cannot add extra credit. Skipped conditional branches leave the denominator
+only when their conditions are evaluated during normal execution.
+
+Setup and preload bookkeeping do not advance the bar. The last step belongs
+to final saving. Saving and retry screens retain the bar, and an early exit
+does not fill activities that were never completed. This is activity progress,
+not an estimate of elapsed time, performance or cloud delivery status.

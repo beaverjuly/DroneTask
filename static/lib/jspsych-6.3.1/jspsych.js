@@ -1207,7 +1207,7 @@ window.jsPsych = (function() {
       '<span>'+
       msg+ 
       '</span>'+
-      '<div id="jspsych-progressbar-outer">'+
+      '<div id="jspsych-progressbar-outer" role="progressbar" aria-label="Completion Progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">'+
         '<div id="jspsych-progressbar-inner"></div>'+
       '</div></div>');
   }
@@ -1220,8 +1220,13 @@ window.jsPsych = (function() {
   var progress_bar_amount = 0;
 
   core.setProgressBar = function(proportion_complete){
+    proportion_complete = Number(proportion_complete);
+    if (!Number.isFinite(proportion_complete)) return;
     proportion_complete = Math.max(Math.min(1,proportion_complete),0);
-    document.querySelector('#jspsych-progressbar-inner').style.width = (proportion_complete*100) + "%";
+    var inner = document.querySelector('#jspsych-progressbar-inner');
+    var outer = document.querySelector('#jspsych-progressbar-outer');
+    if (inner) inner.style.width = (proportion_complete*100) + "%";
+    if (outer) outer.setAttribute('aria-valuenow', String(Math.round(proportion_complete*10000)/100));
     progress_bar_amount = proportion_complete;
   }
 

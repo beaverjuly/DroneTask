@@ -95,6 +95,7 @@ console.log(JSON.stringify({main_blocks:ctx.main_drone_position.length,
     result['source_hashes'] = {
         path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
         for path in ['static/task/data_saving.js', 'static/task/data_recorder.js',
+                     'static/task/progress.js',
                      'static/lib/jspsych-pavlovia-3.2.5.js', 'index.html',
                      'static/task/memory_screening/memory_screening.js',
                      'static/task/mouse_qc/mouse_trajectory.js', 'analysis/split_drone_data.py']}

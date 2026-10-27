@@ -98,6 +98,7 @@
         row.instruction_version='instructions-2026-10-26';
       }
       self.queueCache(row);
+      if (root.DroneTaskProgressActive) root.DroneTaskProgressActive.onRecord(row);
       if (self.consented && (row.mt_row==='trajectory' || row.trial_category==='response_event')) {
         self.requestCheckpoint('completed_response',row.mt_row==='trajectory');
       }
@@ -148,6 +149,7 @@
       this.record('session_manifest',Object.assign({
         session_started_at:this.startedAt,route_stage:this.options.stage || 'full',
         task_version:this.options.taskVersion,build_id:VERSION,
+        progress_version:root.DroneTaskProgress ? root.DroneTaskProgress.version : null,
         pilot_mode:!!this.options.pilotMode,dev_mode:!!this.options.devMode,
         audit_full:!!this.options.auditFull,
         mouse_qc_requested:!!this.options.mouseQcRequested,mouse_qc_enabled:!!this.options.mouseQcEnabled,
@@ -300,7 +302,9 @@
   };
   Recorder.prototype.panel=function(title,text,actions) {
     var display=document.querySelector('.jspsych-display-element') || document.body;
+    var progressBar=document.getElementById('jspsych-progressbar-container');
     display.innerHTML='<div style="max-width:680px;margin:12vh auto;padding:30px;text-align:center;font:18px/1.6 system-ui;color:#243746"><h1 style="font-size:28px"></h1><p></p><div class="recording-actions"></div></div>';
+    if (progressBar) display.insertBefore(progressBar,display.firstChild);
     display.querySelector('h1').textContent=title;display.querySelector('p').textContent=text;
     var container=display.querySelector('.recording-actions');
     (actions || []).forEach(function(action) {
@@ -391,6 +395,7 @@
         if (received.acknowledged && received.disposition==='uploaded') await self.clearCache();
         document.removeEventListener('visibilitychange',self.visibility);root.removeEventListener('pagehide',self.pagehide);
         var success=received.acknowledged && received.disposition==='uploaded';
+        if (root.DroneTaskProgressActive) root.DroneTaskProgressActive.finishSaving();
         var message=success?'Your responses have been saved and confirmed by the server.':'A CSV copy has been offered for download. Cloud saving has not been confirmed. Please keep the downloaded file.';
         var actions=self.auditActions();
         self.panel(outcome==='configuration_error'?'Session could not finish':'Thank you for participating',message,actions);
