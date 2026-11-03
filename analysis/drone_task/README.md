@@ -1,24 +1,28 @@
 # Drone task analysis
 
-[drone_analysis.ipynb](drone_analysis.ipynb) analyzes the four experimental blocks,
-including tracking, prediction errors, learning, temporal memory, segmentation,
-and pilot viability checks.
+[drone_analysis.ipynb](drone_analysis.ipynb) checks recording completeness and describes tracking, updating, all three memory outcomes, response timing, pair design support, and comprehension review. Reusable transformations and figures are in [drone_analysis.py](drone_analysis.py).
 
-| Stage | Directory |
+| Material | Location |
 |---|---|
-| Full session raw exports | `analysis/data/drone_task/raw/` |
-| Main task split tables | `analysis/data/drone_task/clean/` |
-| Derived tables and figures | `analysis/data/drone_task/derived/` |
+| Raw full session exports | `analysis/data/drone_task/raw` |
+| Existing split collections | `analysis/data/drone_task/clean` |
+| Derived audit tables | `analysis/data/drone_task/derived` |
+| Exported PNG figures | `analysis/data/drone_task/derived/figures` |
 
-From the repository root,
+Open the notebook from within the repository and run all cells. The default reads raw files through [session_io.py](../session_io.py). It consolidates cumulative snapshots of the same run and excludes legacy protocols from the current analysis. Raw data and existing clean files are preserved.
 
-```sh
-python analysis/split_drone_data.py
-jupyter lab analysis/drone_task/drone_analysis.ipynb
-```
+The inventory includes every discovered session. The main report includes current sessions with an intended or observed main encoding task. Figures show one selected session rather than pooling repeated blocks across sessions. `DRONE_FOCUS_SESSION` selects a safe ordinal session label from the inventory. Ordinal labels can change as files are added; internal session identifiers remain stable in private derived tables.
 
-The notebook resolves paths from the repository root and excludes screening
-rows from the main encoding, memory, and practice tables. Optional components
-have separate [mouse QC](../mouse_qc/README.md) and
-[memory screen](../memory_screen/README.md) analyses. The shared splitter routes
-their data into the matching folders under `analysis/data/`.
+| Optional setting | Purpose |
+|---|---|
+| `DRONE_INPUT_MODE=clean` | Explicitly analyze an existing split collection |
+| `DRONE_CLEAN_DIR` | Select the flat clean directory for that mode |
+| `DRONE_DERIVED_DIR` | Send all report outputs to an isolated audit location |
+
+The current distance slider is subjective and ranges from 0 to 100. It is compared by actual item separation, never subtracted from intervening item counts. Placement error uses percentage points. Attempt timeouts, final omissions, and absent pair summaries remain distinct.
+
+Block conditions are joined from encoding observations. Volatility and stochasticity are coupled in this design. Update slopes are descriptive regressions, not recovered learning parameters. The report does not use trial level significance tests, unvalidated behavioral pass gates, population power extrapolation, or unidentified Kalman parameter recovery claims. Missing diagnostics remain unrecorded or not evaluable.
+
+The PNGs and saved notebook outputs use safe labels. Derived tables remain private and retain identifiers needed for joins. Optional components have separate [mouse QC](../mouse_qc/README.md) and [memory screen](../memory_screen/README.md) reports.
+
+The nominal high versus low condition labels run opposite to the recorded movement and supply distance ordering. The report preserves those labels and exports an explicit geometry check. This pattern also appears in the legacy recordings and assigned source arrays. Resolve this interpretation before using a high versus low manipulation contrast.

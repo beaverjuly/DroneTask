@@ -1,19 +1,14 @@
-"""Analyze the optional memory screen without mixing it into main task outcomes.
+"""Audit optional screening with canonical sessions and independent answer keys.
 
-Raw exports are preferred. Each raw file is split in its own temporary
-directory, retaining same-day sessions that the standard clean-file prefix
-cannot otherwise distinguish. Tables and exported audits use ordinal session
-labels rather than participant identifiers.
+Cumulative exports of the same run are consolidated by the shared ingestion
+layer. Public tables use ordinal labels, never source or participant identifiers.
 """
 from __future__ import annotations
 
-import contextlib
-import hashlib
 import importlib.util
-import io
 import json
+import os
 import subprocess
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -21,13 +16,6 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 ANALYSIS_ROOT = ROOT / "analysis"
-DATA_ROOT = ANALYSIS_ROOT / "data"
-TABLE_SUFFIXES = {
-    "metadata": "_metadata.csv",
-    "encoding": "_memory_screening_encoding.csv",
-    "order": "_memory_screening_order.csv",
-    "summary": "_memory_screening_summary.csv",
-}
 OUTCOME_ORDER = ["complete_pass", "complete_fail", "interrupted",
                  "configuration_error", "unverifiable", "data_issue",
                  "assignment_unknown", "not_requested"]
@@ -69,100 +57,36 @@ def json_value(value, default=None):
         return default
 
 
-def _read_tables(directory, session_key):
-    tables = {}
-    for table, suffix in TABLE_SUFFIXES.items():
-        matches = list(Path(directory).glob("*" + suffix))
-        if len(matches) > 1:
-            raise ValueError("More than one split table for one raw session")
-        if matches:
-            frame = pd.read_csv(matches[0])
-            frame["_session_key"] = session_key
-            tables[table] = frame
-    return tables
+def load_screen_data(raw_dir=None, clean_dir=None, mode="raw"):
+    """Load canonical raw runs, or explicit clean input, without pooling copies.
 
-
-def load_screen_data(raw_dir=None, clean_dir=None, mode="auto"):
-    """Return session-separated raw or clean tables, never both at once.
-
-    `auto` uses raw CSV files if any exist, otherwise clean tables. By default
-    it discovers memory-only and shared full-task raw exports and ignores exact
-    file copies. `raw_dir` can be one directory or a sequence of directories.
-    Select `clean` explicitly when the raw collection is incomplete. Source
-    paths stay internal and are never included in public report tables.
+    The shared loader resolves run identity before splitting and checks overlap
+    between checkpoints and final snapshots. An explicit raw_dir can be one
+    folder/file or a sequence and is useful for private audit fixtures.
     """
-    if mode not in {"auto", "raw", "clean"}:
-        raise ValueError("mode must be auto, raw, or clean")
-    if raw_dir is None:
-        raw_dirs = [DATA_ROOT / "memory_screen/raw", DATA_ROOT / "drone_task/raw"]
-    elif isinstance(raw_dir, (str, Path)):
-        raw_dirs = [Path(raw_dir)]
-    else:
-        raw_dirs = [Path(directory) for directory in raw_dir]
-    clean_dir = Path(clean_dir or DATA_ROOT / "memory_screen/clean")
-    raw_files, seen_content, duplicate_raw_copies = [], set(), 0
-    for directory in raw_dirs:
-        for source in sorted(directory.rglob("*.csv")) if directory.exists() else []:
-            try:
-                digest = hashlib.sha256(source.read_bytes()).hexdigest()
-            except OSError:
-                # The per-session parser records read failures in the source
-                # inventory rather than letting deduplication discard them.
-                digest = None
-            if digest is not None and digest in seen_content:
-                duplicate_raw_copies += 1
-                continue
-            if digest is not None:
-                seen_content.add(digest)
-            raw_files.append(source)
-    use_raw = mode == "raw" or (mode == "auto" and bool(raw_files))
-    frames = {table: [] for table in TABLE_SUFFIXES}
-    sources = []
-    if use_raw:
-        # Import by file so this helper runs from its own folder, the repository
-        # root, or any notebook working directory without a sibling path guess.
-        spec = importlib.util.spec_from_file_location("drone_task_splitter", ANALYSIS_ROOT / "split_drone_data.py")
-        splitter = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(splitter)
-        for source in raw_files:
-            try:
-                key = "raw/" + source.resolve().relative_to(ROOT).as_posix()
-            except ValueError:
-                key = "raw/" + source.resolve().as_posix()
-            error = None
-            try:
-                with tempfile.TemporaryDirectory() as temporary:
-                    with contextlib.redirect_stdout(io.StringIO()):
-                        splitter.process_one(str(source), temporary)
-                    for table, frame in _read_tables(temporary, key).items():
-                        frames[table].append(frame)
-            except Exception as exc:
-                # Report a failed file as a source/session problem rather than
-                # silently dropping it from the inventory.
-                error = type(exc).__name__
-            sources.append({"_session_key": key, "load_error": error})
-    else:
-        groups = {}
-        for table, suffix in TABLE_SUFFIXES.items():
-            for source in sorted(clean_dir.rglob("*" + suffix)) if clean_dir.exists() else []:
-                relative = source.relative_to(clean_dir).as_posix()
-                key = "clean/" + relative[:-len(suffix)]
-                groups.setdefault(key, {})[table] = source
-        for key, files in sorted(groups.items()):
-            error = None
-            for table, source in files.items():
-                try:
-                    frame = pd.read_csv(source)
-                    frame["_session_key"] = key
-                    frames[table].append(frame)
-                except Exception as exc:
-                    error = type(exc).__name__
-            sources.append({"_session_key": key, "load_error": error})
-    result = {table: pd.concat(values, ignore_index=True) if values else pd.DataFrame()
-              for table, values in frames.items()}
-    result["sources"] = pd.DataFrame(sources, columns=["_session_key", "load_error"])
-    result["mode"] = "raw" if use_raw else "clean"
-    result["duplicate_raw_copies"] = duplicate_raw_copies
+    spec = importlib.util.spec_from_file_location("drone_session_io", ANALYSIS_ROOT / "session_io.py")
+    loader = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(loader)
+    loaded = loader.load_module_tables("memory_screen", root=ROOT,
+        input_mode=mode, clean_dir=clean_dir, raw_dirs=raw_dir)
+    names = {"metadata": "metadata", "encoding": "memory_screening_encoding",
+        "order": "memory_screening_order", "summary": "memory_screening_summary",
+        "main_encoding": "encoding", "main_memory": "memory", "response_events": "response_events"}
+    result = {}
+    for short, name in names.items():
+        frame = loaded["tables"].get(name, pd.DataFrame()).copy()
+        if "session_id" in frame:
+            frame["_session_key"] = frame["session_id"]
+        result[short] = frame
+    inventory = loaded["inventory"].copy()
+    if "session_id" in inventory:
+        inventory["_session_key"] = inventory["session_id"]
+    if "intake_status" in inventory:
+        inventory["load_error"] = inventory.intake_status.map(
+            lambda status: "normalization_failed" if status != "loaded" else None)
+    result["sources"] = inventory
+    result["source_issues"] = loaded["issues"]
+    result["mode"] = loaded.get("input_mode", mode)
     return result
 
 
@@ -171,7 +95,10 @@ def runtime_design():
     exporter = ROOT / "design_checks/scripts/export_memory_screen.cjs"
     if not exporter.exists():
         raise FileNotFoundError("The live memory screen design exporter is missing")
-    return json.loads(subprocess.check_output(["node", str(exporter)], text=True, cwd=ROOT))["screen"]
+    environment = os.environ.copy()
+    environment.pop("FORCE_COLOR", None)
+    return json.loads(subprocess.check_output(["node", str(exporter)], text=True,
+        cwd=ROOT, env=environment))["screen"]
 
 
 def _session_frame(data, table, key):
@@ -223,6 +150,9 @@ def _question_row(row, studied_images=None):
     timed_out = truth(row.get("timed_out"))
     side = row.get("order_choice_side")
     answered = side in {"left", "right"}
+    chosen_image = row.get("order_choice_img")
+    if answered and isinstance(chosen_image, str) and chosen_image != (left if side == "left" else right):
+        issues.append("chosen_image_differs_from_selected_side")
     if timed_out is None:
         issues.append("timeout_flag_missing")
     if timed_out and answered:
@@ -240,15 +170,26 @@ def _question_row(row, studied_images=None):
     if history_present and (not isinstance(attempts, list) or any(not isinstance(a, dict) for a in attempts)):
         issues.append("invalid_attempt_history")
     attempts = [a for a in attempts if isinstance(a, dict)] if isinstance(attempts, list) else []
-    any_timeout = truth(row.get("had_timeout"))
+    timeout_attempts = sum(truth(a.get("timed_out")) is True for a in attempts)
+    reported_timeout = truth(row.get("had_timeout"))
+    observed_timeout = bool(timed_out or timeout_attempts)
+    any_timeout = observed_timeout if history_present else reported_timeout
     if any_timeout is None:
-        any_timeout = bool(timed_out or any(a.get("timed_out") is True for a in attempts))
+        any_timeout = observed_timeout
+    if history_present and reported_timeout is not None and reported_timeout != observed_timeout:
+        issues.append("recorded_timeout_history_mismatch")
+    if answered and (not np.isfinite(number(row.get("order_rt"))) or number(row.get("order_rt")) < 0):
+        issues.append("answered_response_time_missing_or_invalid")
     return dict(pair_index=number(row.get("pair_index")), item1_trial=first,
         item2_trial=second, serial_gap=second-first,
         item1_concept=row.get("item1_concept", Path(str(row.get("item1_img", "unknown"))).stem),
         item2_concept=row.get("item2_concept", Path(str(row.get("item2_img", "unknown"))).stem),
-        correct_side=correct_side, answer_key_valid=key_valid, correct=correct, answered=answered,
+        correct_side=correct_side, choice_side=side if answered else None,
+        answer_key_valid=key_valid, correct=correct, answered=answered,
         final_timeout=timed_out, any_timeout=any_timeout,
+        n_attempts=len(attempts) if history_present else np.nan,
+        n_timeout_attempts=timeout_attempts if history_present else np.nan,
+        response_deadline_ms=number(row.get("response_timeout_ms")),
         rt_ms=number(row.get("order_rt")) if answered else np.nan,
         total_duration_ms=number(row.get("order_total_duration_ms")),
         issues="; ".join(issues))
@@ -415,7 +356,7 @@ def analyze_screen_data(data, expected=None):
     sources = data.get("sources", pd.DataFrame())
     for ordinal, (_, source) in enumerate(sources.iterrows(), 1):
         key = source["_session_key"]
-        label = f"S{ordinal:04d}"
+        label = source.get("session_label", f"Session {ordinal:03d}")
         meta, enc, order, summary = [_session_frame(data, table, key)
                                       for table in ["metadata", "encoding", "order", "summary"]]
         issues = []
@@ -515,6 +456,9 @@ def analyze_screen_data(data, expected=None):
         issues.extend(geometry_issues)
         geometry_rows.append(dict(session=label, series_version=series, **geometry))
         sessions.append(dict(session=label, assigned=assigned, requested_flag=request_flag,
+            source_schema=source.get("source_schema", "unknown"),
+            task_version=source.get("task_version", "unknown"),
+            snapshot_count=source.get("snapshot_count", np.nan),
             status=status, saved_status=saved_status, saved_pass=saved_pass,
             protocol_complete=protocol_complete, recomputed_pass=recomputed_pass,
             n_encoding=len(enc), n_encoding_completed=n_completed, n_questions=len(order),
@@ -525,7 +469,8 @@ def analyze_screen_data(data, expected=None):
             module_version=module, series_version=series, item_version=item_version,
             input_mode=data.get("mode"), n_issues=len(set(issues)),
             issues="; ".join(sorted(set(issues)))))
-    session_columns = ["session", "assigned", "requested_flag", "status", "saved_status", "saved_pass",
+    session_columns = ["session", "assigned", "requested_flag", "source_schema", "task_version", "snapshot_count",
+        "status", "saved_status", "saved_pass",
         "protocol_complete", "recomputed_pass", "n_encoding", "n_encoding_completed", "n_questions",
         "n_correct", "saved_n_correct", "n_final_timeouts", "n_any_timeouts", "duplicate_encoding_rows",
         "duplicate_question_rows", "module_version", "series_version", "item_version", "input_mode", "n_issues", "issues"]
@@ -572,10 +517,16 @@ def analyze_screen_data(data, expected=None):
     item = _question_aggregate(pd.concat(items, ignore_index=True) if items else pd.DataFrame(), versions + ["concept"])
     if "accuracy" in item:
         item = item.rename(columns={"accuracy": "pair_accuracy_involving_item"})
+    observed, materials, comparison, main_questions = _observed_audits(data, session_df, questions)
+    intake_issues = data.get("source_issues", pd.DataFrame())
+    intake_issues = intake_issues.drop(columns=[c for c in ["session_id"] if c in intake_issues])
     return dict(sessions=session_df, outcomes=outcome, rates=rates, audit_issues=issue_counts,
                 versions=version, questions=questions, pair_performance=pair,
                 gap_performance=gap, item_performance=item,
-                geometry=pd.DataFrame(geometry_rows), mode=data.get("mode"))
+                geometry=pd.DataFrame(geometry_rows), observed_encoding=observed,
+                material_audit=materials, main_comparison=comparison,
+                main_order_audit=main_questions, intake_issues=intake_issues,
+                mode=data.get("mode"))
 
 
 def _question_aggregate(frame, grouping):
@@ -588,37 +539,202 @@ def _question_aggregate(frame, grouping):
         median_answered_rt_ms=("rt_ms", "median"), median_total_duration_ms=("total_duration_ms", "median")).reset_index()
 
 
-def plot_report(report):
-    """Create aggregate figures only when participant observations exist."""
+def _observed_audits(data, sessions, questions):
+    """Use recorded material and the same run's main blocks, not new simulations."""
+    observed, materials, comparison, audited = [], [], [], []
+    for ordinal, (_, source) in enumerate(data.get("sources", pd.DataFrame()).iterrows(), 1):
+        label = source.get("session_label", f"Session {ordinal:03d}")
+        state = sessions[sessions.session.eq(label)]
+        if state.empty or not state.assigned.iloc[0]:
+            continue
+        key = source["_session_key"]
+        enc = _session_frame(data, "encoding", key)
+        main_enc = _session_frame(data, "main_encoding", key)
+        main = _session_frame(data, "main_memory", key)
+        summary = _session_frame(data, "summary", key)
+        screen_items = set(enc.get("stim_img", pd.Series(dtype=object)).dropna().map(lambda x: Path(str(x)).stem))
+        main_items = set(main_enc.get("stim_img", pd.Series(dtype=object)).dropna().map(lambda x: Path(str(x)).stem))
+        display = enc.get("stim_display_outcome", pd.Series(None, index=enc.index, dtype=object))
+        materials.append(dict(session=label, n_encoding_rows=len(enc),
+            n_unique_screen_items=len(screen_items), n_unique_main_items=len(main_items),
+            n_shared_item_identities=len(screen_items & main_items) if main_items else np.nan,
+            n_display_outcome_recorded=int(display.notna().sum()),
+            n_preload_failures=int(enc.get("stim_preload_failed", pd.Series(dtype=object)).map(truth).eq(True).sum())))
+        for _, row in enc.iterrows():
+            observed.append(dict(session=label, serial=number(row.get("screening_trial", row.get("trial"))),
+                concept=row.get("stimulus_concept", Path(str(row.get("stim_img", "unknown"))).stem),
+                drone_position=number(row.get("drone_position")),
+                supply_position=number(row.get("bag_position")),
+                baseline_position=number(scalar(summary, "memory_screening_drone_initial_position")),
+                supply_offset=number(row.get("bag_position"))-number(row.get("drone_position"))))
+        current = questions[questions.session.eq(label)] if len(questions) else pd.DataFrame()
+        if len(current):
+            comparison.append(dict(session=label, stage="Screen", display_block=0,
+                condition="Screen", n_questions=len(current), n_valid_keys=int(current.answer_key_valid.sum()),
+                n_correct=current.correct.sum(min_count=1),
+                accuracy=current.correct.mean() if current.correct.notna().all() else np.nan,
+                n_omissions=int((~current.answered).sum()), n_audit_issues=int(current.issues.ne("").sum())))
+        for _, row in main.iterrows():
+            block = row.get("display_block", row.get("block"))
+            enc_block = main_enc[main_enc.get("display_block", main_enc.get("block", pd.Series(index=main_enc.index, dtype=float))).eq(block)]
+            serial_field = "trial_index" if "trial_index" in enc_block else "trial"
+            enc_block = enc_block.sort_values(serial_field) if serial_field in enc_block else enc_block
+            paths = enc_block.get("stim_img", pd.Series(dtype=object)).dropna().tolist()
+            ranks = {image: i for i, image in enumerate(paths)}
+            left, right = row.get("stim_left_img"), row.get("stim_right_img")
+            valid = (isinstance(left, str) and isinstance(right, str) and left != right
+                and left in ranks and right in ranks and len(paths) == len(set(paths)))
+            correct_side = "left" if valid and ranks[left] < ranks[right] else "right" if valid else None
+            expected_first = left if correct_side == "left" else right if correct_side == "right" else None
+            issues = []
+            if not valid:
+                issues.append("main_answer_key_unverifiable")
+            elif row.get("stim_first_actual") != expected_first:
+                issues.append("main_recorded_first_item_mismatch")
+            choice = row.get("order_choice_side")
+            if choice in {"left", "right"} and isinstance(row.get("order_choice_img"), str):
+                if row.get("order_choice_img") != (left if choice == "left" else right):
+                    issues.append("main_chosen_image_differs_from_selected_side")
+            omission = truth(row.get("order_final_omission")) is True or choice not in {"left", "right"}
+            correct = int(not omission and choice == correct_side) if valid else np.nan
+            saved = number(row.get("order_correct_bin"))
+            if np.isfinite(saved) and np.isfinite(correct) and saved != correct:
+                issues.append("main_recorded_accuracy_mismatch")
+            audited.append(dict(session=label, display_block=number(block),
+                condition=row.get("condition_id", "unknown"), pair_index=number(row.get("pair_index")),
+                answer_key_valid=valid, correct=correct, omission=omission, issues="; ".join(issues)))
+    main_questions = pd.DataFrame(audited)
+    if len(main_questions):
+        for (session, block, condition), part in main_questions.groupby(["session", "display_block", "condition"], dropna=False):
+            comparison.append(dict(session=session, stage=f"Main block {int(block)}" if np.isfinite(block) else "Main block unknown",
+                display_block=block, condition=condition, n_questions=len(part),
+                n_valid_keys=int(part.answer_key_valid.sum()), n_correct=part.correct.sum(min_count=1),
+                accuracy=part.correct.mean() if part.correct.notna().all() else np.nan,
+                n_omissions=int(part.omission.sum()), n_audit_issues=int(part.issues.ne("").sum())))
+    observed_columns = ["session", "serial", "concept", "drone_position", "supply_position",
+                        "baseline_position", "supply_offset"]
+    return (pd.DataFrame(observed, columns=observed_columns), pd.DataFrame(materials),
+            pd.DataFrame(comparison), main_questions)
+
+
+def plot_report(report, session=None):
+    """Two purposeful observed-data figures for one explicitly labelled session.
+
+    All sessions remain in report tables. The default focal session is the last
+    observed screen in the canonical inventory; no group effect is estimated.
+    """
     import matplotlib.pyplot as plt
-    if not len(report["sessions"]) or not report["sessions"].assigned.any():
+    questions = report["questions"]
+    if questions.empty:
         return []
+    labels = questions.session.drop_duplicates().tolist()
+    session = session or labels[-1]
+    if session not in labels:
+        raise ValueError("The focal session has no recorded screen questions")
+    q = questions[questions.session.eq(session)].sort_values("pair_index")
+    # Invalid coordinates remain in audit tables, but cannot define a plotted
+    # question. Do not let a malformed row prevent the rest of the audit.
+    valid_coordinates = (q.pair_index.between(1, 10) & q.pair_index.mod(1).eq(0)
+        & q.item1_trial.between(1, 20) & q.item1_trial.mod(1).eq(0)
+        & q.item2_trial.between(1, 20) & q.item2_trial.mod(1).eq(0))
+    q = q[valid_coordinates]
+    if q.empty:
+        return []
+    enc = report["observed_encoding"]
+    enc = enc[enc.session.eq(session)].sort_values("serial")
+    enc = enc[enc.serial.between(1, 20) & enc.serial.mod(1).eq(0)]
     figures = []
-    outcomes = report["outcomes"]
-    shown = outcomes[outcomes.status.ne("not_requested") & outcomes.status.ne("assignment_unknown")]
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4.5), layout="constrained")
-    axes[0].barh(shown.status.str.replace("_", " "), shown.n_sessions, color="#52748a")
-    axes[0].invert_yaxis()
-    axes[0].set(xlabel="Sessions", title="Every assigned screen remains in the denominator")
-    complete = report["sessions"][report["sessions"].status.isin(["complete_pass", "complete_fail"])]
-    axes[1].hist(complete.n_correct, bins=np.arange(-.5, 11.5), color="#37785e", edgecolor="white")
-    axes[1].axvline(5.5, ls="--", color="#a3652d", label="6 correct criterion")
-    axes[1].set(xlabel="Correct answers out of 10", ylabel="Complete sessions", xticks=range(11),
-                title="Complete screens only")
-    axes[1].legend(frameon=False)
-    figures.append(("screen_outcomes", fig))
-    gap = report["gap_performance"]
-    if len(gap):
-        fig, axes = plt.subplots(1, 2, figsize=(11, 4), layout="constrained")
-        for versions, part in gap.groupby(["module_version", "series_version", "item_version"]):
-            label = " / ".join(versions)
-            axes[0].plot(part.serial_gap, part.accuracy, "o-", label=label)
-            axes[1].plot(part.serial_gap, part.median_answered_rt_ms, "o-", label=label)
-        axes[0].set(xlabel="Serial gap", ylabel="Accuracy including final omissions", ylim=(0, 1))
-        axes[1].set(xlabel="Serial gap", ylabel="Median answered response time in ms")
-        axes[0].legend(frameon=False)
-        fig.suptitle("Descriptive question performance by material version")
-        figures.append(("screen_question_performance", fig))
+    correct_color, error_color, neutral = "#287b71", "#b36b3c", "#6b7785"
+    colors = [correct_color if value == 1 else error_color if value == 0 else neutral for value in q.correct]
+    if len(enc):
+        fig, axes = plt.subplots(2, 1, figsize=(13.5, 9.1),
+            gridspec_kw={"height_ratios": [1, 1.4]}, layout="constrained")
+        baseline = enc.baseline_position.dropna()
+        x = enc.serial.to_numpy()
+        target = enc.drone_position.to_numpy()
+        if len(baseline):
+            x = np.r_[0, x]
+            target = np.r_[baseline.iloc[0], target]
+        axes[0].plot(x, target, "o--", color="#61718b", ms=4, lw=1.5,
+            label="Hidden drone position, visible here for audit")
+        axes[0].plot(enc.serial, enc.supply_position, "o-", color=correct_color, ms=4,
+            label="Recorded supply landing position")
+        for _, row in enc.iterrows():
+            axes[0].plot([row.serial, row.serial], [row.drone_position, row.supply_position],
+                color=correct_color, alpha=.35, lw=2)
+        values = np.r_[target, enc.supply_position.to_numpy()]
+        finite = values[np.isfinite(values)]
+        if len(finite):
+            pad = max(3., float(np.ptp(finite)) * .12)
+            axes[0].set_ylim(max(0, finite.min()-pad), min(100, finite.max()+pad))
+        axes[0].set(ylabel="Position along rail (%)", xlabel="Encoding turn",
+            xticks=range(0, 21), xlim=(-.5, 20.7), title="Observed hidden drone and supply positions")
+        axes[0].legend(frameon=False, loc="upper center", fontsize=9)
+        for (_, row), color in zip(q.iterrows(), colors):
+            axes[1].plot([row.item1_trial, row.item2_trial], [row.pair_index, row.pair_index],
+                "o-", color=color, lw=2.5, ms=6)
+        labels = [f"{int(row.serial)}  {str(row.concept).replace('-', ' ')}" for _, row in enc.iterrows()]
+        axes[1].set(xticks=enc.serial, xticklabels=labels, yticks=q.pair_index,
+            yticklabels=[f"Q{int(row.pair_index)}" for _, row in q.iterrows()],
+            xlabel="Encoding turn and recorded item", ylabel="Screen question",
+            xlim=(.4, 20.6), title="Recorded question pairs and item chronology")
+        axes[1].invert_yaxis()
+        axes[1].tick_params(axis="x", labelrotation=58, labelsize=8)
+        for tick in axes[1].get_xticklabels():
+            tick.set_ha("right")
+        axes[1].set_title("Question coverage   Teal correct   Ochre incorrect or final omission")
+        for ax in axes:
+            ax.spines[["top", "right"]].set_visible(False)
+            ax.grid(axis="x", alpha=.13)
+        fig.suptitle(f"{session}   Recorded screen delivery and question coverage", fontsize=14)
+        figures.append(("screen_delivery", fig))
+    fig, axes = plt.subplots(1, 3, figsize=(14.7, 4.8), layout="constrained",
+        gridspec_kw={"width_ratios": [1.25, 1, 1.15]})
+    final = q.rt_ms / 1000
+    total = q.total_duration_ms / 1000
+    for index, rt, duration in zip(q.pair_index, final, total):
+        if np.isfinite(rt) and np.isfinite(duration):
+            axes[0].plot([index, index], [rt, duration], color="#bac3ce", lw=2)
+    axes[0].scatter(q.pair_index, total, marker="D", s=35, facecolor="white", edgecolor="#61718b",
+        label="Total question duration")
+    axes[0].scatter(q.pair_index, final, c=colors, s=38, zorder=3, label="Final answer attempt")
+    deadlines = q.response_deadline_ms.dropna().unique()
+    if len(deadlines) == 1:
+        axes[0].axhline(deadlines[0]/1000, color=neutral, ls=":", lw=1, label="Per attempt deadline")
+    axes[0].set(xlabel="Screen question", ylabel="Seconds", xticks=q.pair_index,
+        title="Retries and response timing", ylim=(0, max(6, total.max()*1.22)))
+    axes[0].legend(frameon=False, fontsize=8, loc="upper right")
+    subsets = [(f"Gap {int(gap)}", q[q.serial_gap.eq(gap)]) for gap in sorted(q.serial_gap.dropna().unique())]
+    subsets += [("Earlier left", q[q.correct_side.eq("left")]), ("Earlier right", q[q.correct_side.eq("right")])]
+    for index, (label, part) in enumerate(subsets):
+        valid = part.correct.dropna()
+        accuracy = valid.mean()
+        axes[1].bar(index, accuracy, color="#73899a", width=.65)
+        if len(valid):
+            axes[1].text(index, accuracy+.035, f"{int(valid.sum())}/{len(valid)}", ha="center", fontsize=9)
+    axes[1].set(xticks=range(len(subsets)), xticklabels=[label.replace(" ", "\n", 1) for label, _ in subsets],
+        ylabel="Order accuracy", ylim=(0, 1.14), title="Side and serial gap checks")
+    axes[1].axhline(.5, color=neutral, ls=":", lw=1)
+    comp = report["main_comparison"]
+    comp = comp[comp.session.eq(session)].sort_values("display_block") if len(comp) else comp
+    if len(comp):
+        labels = ["Screen" if row.stage == "Screen" else f"Main\n{int(row.display_block)}" for _, row in comp.iterrows()]
+        axes[2].bar(range(len(comp)), comp.accuracy,
+            color=[correct_color if value == "Screen" else "#61718b" for value in comp.stage], width=.68)
+        for index, (_, row) in enumerate(comp.iterrows()):
+            if np.isfinite(row.accuracy):
+                axes[2].text(index, row.accuracy+.035, f"{int(row.n_correct)}/{int(row.n_questions)}", ha="center", fontsize=9)
+        axes[2].set(xticks=range(len(comp)), xticklabels=labels)
+    else:
+        axes[2].text(.5, .5, "No same run main memory observations", transform=axes[2].transAxes, ha="center", wrap=True)
+    axes[2].set(ylabel="Order accuracy", ylim=(0, 1.14), title="Same session main task comparison")
+    axes[2].axhline(.5, color=neutral, ls=":", lw=1)
+    for ax in axes:
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.grid(axis="y", alpha=.13)
+        ax.set_axisbelow(True)
+    fig.suptitle(f"{session}   Descriptive response audit, one screening assessment", fontsize=14)
+    figures.append(("screen_responses_and_main_comparison", fig))
     return figures
 
 

@@ -11,6 +11,7 @@ Each task component has its own code folder and matching private data folder.
 ```text
 analysis/
 ├── drone_task/
+│   ├── drone_analysis.py
 │   ├── drone_analysis.ipynb
 │   └── README.md
 ├── mouse_qc/
@@ -27,6 +28,7 @@ analysis/
 │   ├── memory_screen/    # raw/, clean/, derived/
 │   └── README.md
 ├── split_drone_data.py   # shared dispatcher
+├── session_io.py         # canonical read only notebook intake
 ├── requirements.txt
 └── README.md
 ```
@@ -38,14 +40,70 @@ contain all three task components and should have one canonical raw copy.
 Module-only development exports belong in the respective module's raw folder.
 All raw, clean, and derived data folders are gitignored.
 
-From the repository root, install dependencies and split the raw files.
+From the repository root, install dependencies. The notebooks read raw files
+directly through the shared session loader, so splitting is optional.
 
 ```sh
 python -m pip install -r analysis/requirements.txt
+```
+
+The default loader scans the three raw folders and ignores byte identical
+copies. Cumulative checkpoint and final snapshots with one run UUID represent
+one session. A terminal summary is preferred, then the largest row sequence
+and row count. Overlapping immutable observations are compared across snapshots.
+Conflicts and noncumulative snapshots remain explicit audit issues rather than
+silently becoming additional participants or replacing recorded outcomes.
+
+```python
+from session_io import load_module_tables
+
+bundle = load_module_tables('drone_task', root=ROOT)
+tables = bundle['tables']
+sessions = bundle['inventory']
+intake_issues = bundle['issues']
+```
+
+All three notebooks use this interface. Every table carries a stable
+`session_id`, an anonymous `session_label`, a `source_schema` cohort, the task
+version and source kind. Current runs use their UUID and legacy sessions use
+the full source content hash. Display labels are ordinal and may change when
+the collection grows. They are not join keys. Participant identifiers and raw
+source paths remain private and must not be shown in public figures or reports.
+
+The inventory retains all canonical sessions, including those without an
+optional module. Missing assignment, completion or outcome fields remain
+unknown. A legacy session with 200 encoding turns and 56 memory rows has
+observable task coverage, but no terminal completion record. Current and legacy
+task versions are described separately rather than pooled as a single pilot
+cohort. A final CSV and its checkpoint never count as two people.
+
+The loader uses temporary split tables and never rewrites raw files or existing
+clean folders. To inspect an isolated raw collection, pass `raw_dirs` as a file,
+folder or list of paths. For an intentionally retained clean collection, opt in
+explicitly.
+
+```python
+bundle = load_module_tables('mouse_qc', root=ROOT, input_mode='clean',
+                            clean_dir=ROOT / 'analysis/data/mouse_qc/clean/debug_2026-10-04')
+```
+
+Clean intake searches only that folder. Nested debug folders are excluded from
+the default collection. A clean table requires its matching metadata prefix;
+unassigned or duplicate session prefixes are reported and not silently pooled.
+All three notebooks support `DRONE_INPUT_MODE` to select raw or clean input,
+`DRONE_CLEAN_DIR` to select an existing split collection, and
+`DRONE_DERIVED_DIR` to isolate the resulting exports. Supplying a clean directory
+selects clean input unless raw mode is explicitly requested. The memory screen
+notebook also has editable `INPUT_MODE`, `CLEAN_DIR` and `RAW_DIRS` variables.
+See the component guides before selecting an existing collection.
+
+To create persistent clean tables for another workflow, run the optional splitter.
+
+```sh
 python analysis/split_drone_data.py
 ```
 
-The splitter scans the three raw folders, ignores byte-identical raw copies,
+The splitter scans the three raw folders, ignores byte identical raw copies,
 and writes each table to its module's clean folder. It creates missing data
 directories automatically. To process one source or use another organized data root,
 
@@ -79,7 +137,7 @@ sessions on the same day therefore retain separate tables. Metadata preserves
 source filename, source hash, source row count, source time, assignments and
 module versions.
 
-The CLI consolidates cumulative checkpoint and final snapshots with the same
+The splitter CLI consolidates cumulative checkpoint and final snapshots with the same
 run UUID, selecting the largest recorded row sequence and row count. Direct
 calls refuse to replace a more complete run with an older snapshot. Keep the
 original raw files because incomplete checkpoints are recovery evidence.
@@ -114,11 +172,21 @@ and uses its own data folder. Open it from the repository root, `analysis`, or
 its component directory. Derived outputs belong in that component's `derived`
 folder.
 
-The main task notebook excludes memory-screen rows from experimental encoding
-and memory analyses. The optional notebooks preserve separate assignment and
-completion audits. The memory-screen notebook independently recomputes the
-6 of 10 criterion, retains omissions and technical failures, and keeps material
-versions separate. See each component's README for analysis-specific controls.
+The main task notebook excludes memory screen rows from experimental encoding
+and memory analyses. Coverage, valid responses and omissions are distinct
+quantities. Pair summaries and response events are audited separately so an
+interrupted later stage does not erase an earlier recorded response. The
+optional notebooks preserve separate assignment and completion audits. The
+memory screen notebook independently recomputes the 6 of 10 criterion, retains
+omissions and technical failures, and keeps material versions separate. With
+one current pilot, cross module comparisons describe that run and do not
+estimate population effects or validate a screening rule. See each component's
+README for analysis specific controls.
+
+Figures are embedded in the executed notebooks and exported into each module's
+private `derived/figures` folder. Audit tables and tidy analysis tables stay in
+the same module's `derived` directory. Exports can contain stable private join
+keys; share only the figures and explicitly anonymized report tables.
 
 The [data directory guide](data/README.md) describes placement and overrides.
 The [memory screen design notebook](../design_checks/notebooks/06_memory_screen.ipynb)
@@ -140,3 +208,8 @@ The audit verifies hashes, record counts, module separation and delivery
 status without writing participant identifiers into its report tables.
 The [URL guide](../URLs%20CheatSheet.md#recording-audit) contains complete
 recording rehearsal links for yourself and friends.
+
+The main task report preserves nominal condition labels and compares them with
+realized movement and supply distances. Their ordering is inverted in the
+current and legacy data. This is an existing design interpretation issue that
+must be resolved before high versus low manipulation contrasts are interpreted.

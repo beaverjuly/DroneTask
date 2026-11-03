@@ -109,21 +109,23 @@ pip install pandas numpy scipy statsmodels matplotlib seaborn
 jupyter lab analysis/drone_task/drone_analysis.ipynb
 ```
 
-The notebook loads `analysis/data/drone_task/clean/*_encoding.csv` and `*_memory.csv`,
-concatenates across participants, and runs the full pilot viability
-pipeline:
+The notebooks read canonical raw exports through `analysis/session_io.py`.
+Cumulative checkpoints and final exports count as one session. Current and
+legacy protocols remain separate, and existing clean collections are optional
+explicit inputs. Raw data and existing split files are never rewritten.
 
-|Section                         |Purpose                                                  |
-|--------------------------------|---------------------------------------------------------|
-|Completion & data integrity     |Session completion rate, missing blocks/trials           |
-|Preload & technical health      |Asset failure rate, preload timing                       |
-|Prediction errors & learning    |PE distributions, learning rate by regime × valence      |
-|Order memory above chance       |Per-participant accuracy, one-sample t vs 50%            |
-|Distance estimation variability |Within-participant SD, signed bias by condition          |
-|Segmentation index computability|Boundary tagging, cross-vs-within contrast, cell coverage|
-|Kalman-filter parameter recovery|MLE fit of (vol, stc, motor noise) per block             |
-|Directional plausibility        |Matched-PE segmentation index, effect sizes, power       |
-|Pilot decision summary          |Go/no-go table across all checks                         |
+| Report | Main checks |
+|---|---|
+| Main task | Recording completeness, recorded trajectories, descriptive updating, three memory outcomes, attempts and omissions, pair support, comprehension review |
+| Memory screen | Independently reconstructed criterion, geometry, item separation, retries, and same session main memory comparison |
+| Mouse QC | Completion and signal integrity, actual paths, sampling cadence, matched synthetic controls, and sensitivity diagnostics |
+
+Figures are embedded in the executed notebooks and exported under each module's
+private `analysis/data/<module>/derived/figures` directory. Public outputs use
+ordinal session labels. Internal identifiers remain in private derived tables.
+With one current pilot, results are descriptive rather than population effects,
+validated screening thresholds, parameter recovery, or recruitment power claims.
+See [analysis/README.md](analysis/README.md) for the input and export controls.
 
 ## Design reference
 
@@ -133,6 +135,12 @@ pipeline:
 |`B_reward_lowVol_highStc`|low       |high         |reward |
 |`C_loss_highVol_lowStc`  |high      |low          |loss   |
 |`D_loss_lowVol_highStc`  |low       |high         |loss   |
+
+These are saved nominal condition labels. Their high versus low ordering is
+opposite to the realized drone shifts and supply distances in the assigned
+arrays and recorded data. The analysis preserves the labels and exposes the
+geometry comparison rather than silently renaming conditions. Resolve that
+design interpretation before using uncertainty manipulation contrasts.
 
 ## Dev routes
 

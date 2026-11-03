@@ -12,10 +12,7 @@ Self-test:
 
     python analysis/mouse_qc/mouse_features.py --selftest
 
-Everything here is deliberately simple so it can be preregistered as-is.
-The six *core* features per trajectory (Acien et al. 2022 call this the
-"global characteristics" family, in contrast to their 37-feature
-Sigma-Lognormal decomposition):
+The six core descriptive features per recorded movement are
 
     duration_ms       T   time from the click that opened the trajectory
                           (t = 0) to the click that closed it
@@ -28,7 +25,7 @@ Sigma-Lognormal decomposition):
 Point set used for every feature: the opening click (down_start, t = 0),
 every recorded pointermove sample (dispatched or coalesced), and the
 closing click (down_hit). Consecutive points that repeat both time and
-position are dropped. No resampling or smoothing is applied — these
+position are dropped using exact equality. No resampling or smoothing is applied. These
 choices are what make turning angle sensitive to sampling rate, which is
 why the notebook reports sampling covariates alongside it.
 
@@ -69,6 +66,11 @@ CORE_FEATURES = ['duration_ms', 'path_length', 'displacement',
                  'mean_speed', 'efficiency', 'mean_abs_turn_deg']
 SUPP_FEATURES = ['n_points', 'median_dt_ms', 'frac_zero_dt',
                  'onset_latency_ms', 'peak_speed']
+DIAGNOSTIC_FIELDS = ['raw_move_samples', 'coalesced_share', 'move_median_positive_dt_ms',
+                     'move_zero_dt_share', 'move_negative_dt_count', 'n_opening_clicks',
+                     'n_closing_clicks', 'n_off_square_points', 'raw_move_span_ms',
+                     'first_move_ms', 'last_move_to_click_ms', 'duration_gap_ms',
+                     'n_misclick_events', 'raw_coalesced_samples', 'samples_outside_click_window']
 FEATURE_LABELS = {
     'duration_ms': 'Duration T (ms)',
     'path_length': 'Path length L (side units)',
@@ -110,17 +112,29 @@ def movement_table(geometry: Dict = GEOMETRY_G1) -> pd.DataFrame:
 
 def decode_samples(s) -> np.ndarray:
     """samples JSON → array (n, 4): t_ms, x_norm, y_norm, coalesced."""
-    if s is None or (isinstance(s, float) and np.isnan(s)) or s == '':
+    if s is None or s is pd.NA or (isinstance(s, float) and np.isnan(s)) or (isinstance(s, str) and s == ''):
         return np.zeros((0, 4))
-    arr = np.asarray(json.loads(s), dtype=float)
-    return arr.reshape(-1, 4) if arr.size else np.zeros((0, 4))
+    arr = np.asarray(json.loads(s) if isinstance(s, str) else s, dtype=float)
+    if not arr.size:
+        return np.zeros((0, 4))
+    if arr.ndim != 2 or arr.shape[1] != 4 or not np.isfinite(arr).all():
+        raise ValueError('samples must contain finite [time, x, y, coalesced] rows')
+    if not np.isin(arr[:, 3], [0, 1]).all():
+        raise ValueError('coalesced flags must be zero or one')
+    return arr
 
 
 def decode_events(s) -> List[list]:
     """events JSON → list of [t_ms, x, y, kind, button, pointerType]."""
-    if s is None or (isinstance(s, float) and np.isnan(s)) or s == '':
+    if s is None or s is pd.NA or (isinstance(s, float) and np.isnan(s)) or (isinstance(s, str) and s == ''):
         return []
-    return json.loads(s)
+    events = json.loads(s) if isinstance(s, str) else s
+    if not isinstance(events, list):
+        raise ValueError('events must be an array')
+    for e in events:
+        if len(e) < 6 or not np.isfinite(np.asarray(e[:3], float)).all():
+            raise ValueError('events must contain finite time and position with event labels')
+    return events
 
 
 def trajectory_points(samples_json, events_json) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -138,7 +152,7 @@ def trajectory_points(samples_json, events_json) -> Tuple[np.ndarray, np.ndarray
     arr = np.array(sorted(pts, key=lambda p: p[0]))
     keep = np.ones(len(arr), dtype=bool)
     if len(arr) > 1:
-        same = np.all(np.isclose(arr[1:], arr[:-1]), axis=1)
+        same = np.all(arr[1:] == arr[:-1], axis=1)
         keep[1:] = ~same
     arr = arr[keep]
     return arr[:, 0], arr[:, 1], arr[:, 2]
@@ -151,6 +165,10 @@ def compute_features(t: np.ndarray, x: np.ndarray, y: np.ndarray,
     """Core + supplementary features for one trajectory (see module docstring)."""
     out = {k: np.nan for k in CORE_FEATURES + SUPP_FEATURES}
     n = len(t)
+    if len(x) != n or len(y) != n:
+        raise ValueError('time and coordinate arrays must have equal lengths')
+    if not all(np.isfinite(a).all() for a in (t, x, y)) or (n > 1 and (np.diff(t) < 0).any()):
+        raise ValueError('features require finite points in nondecreasing time order')
     out['n_points'] = n
     if n < 2:
         return out
@@ -186,6 +204,46 @@ def compute_features(t: np.ndarray, x: np.ndarray, y: np.ndarray,
     return out
 
 
+def sample_diagnostics(samples_json, events_json, recorded_duration_ms=np.nan) -> Dict:
+    """Audit acquisition without deleting off-square points or coalesced timestamps.
+
+    Raw move cadence excludes click waiting intervals. Reconstructed cadence
+    includes opening and closing clicks. Zero time intervals remain visible;
+    instantaneous speed is evaluated only where time increases.
+    """
+    samples = decode_samples(samples_json)
+    events = decode_events(events_json)
+    t, x, y = trajectory_points(samples, events)
+    starts = [e for e in events if e[3] == 'down_start']
+    hits = [e for e in events if e[3] == 'down_hit']
+    move_dt = np.diff(samples[:, 0])
+    positive_dt = move_dt[move_dt > 0]
+    duration = t[-1] - t[0] if len(t) > 1 else np.nan
+    try:
+        recorded = float(recorded_duration_ms)
+    except (TypeError, ValueError):
+        recorded = np.nan
+    out = {
+        'raw_move_samples': len(samples),
+        'raw_coalesced_samples': int(samples[:, 3].sum()),
+        'coalesced_share': float(samples[:, 3].mean()) if len(samples) else np.nan,
+        'move_median_positive_dt_ms': float(np.median(positive_dt)) if len(positive_dt) else np.nan,
+        'move_zero_dt_share': float((move_dt == 0).mean()) if len(move_dt) else np.nan,
+        'move_negative_dt_count': int((move_dt < 0).sum()),
+        'n_opening_clicks': len(starts), 'n_closing_clicks': len(hits),
+        'n_off_square_points': int(((x < 0) | (x > 1) | (y < 0) | (y > 1)).sum()),
+        'raw_move_span_ms': float(samples[-1, 0] - samples[0, 0]) if len(samples) > 1 else np.nan,
+        'first_move_ms': float(samples[0, 0]) if len(samples) else np.nan,
+        'last_move_to_click_ms': float(t[-1] - samples[-1, 0]) if len(samples) and len(t) else np.nan,
+        'duration_gap_ms': float(abs(duration - recorded)) if np.isfinite(recorded) else np.nan,
+        'n_misclick_events': sum(e[3] == 'down_miss' for e in events),
+        'samples_outside_click_window': (int(((samples[:, 0] < starts[0][0]) |
+                                               (samples[:, 0] > hits[-1][0])).sum())
+                                         if len(starts) == 1 and len(hits) == 1 else np.nan),
+    }
+    return out
+
+
 def features_from_table(traj: pd.DataFrame,
                         id_cols: Iterable[str] = ('participant_id', 'trajectory_id')) -> pd.DataFrame:
     """Apply compute_features() to every row of a *_mouse_trajectory table."""
@@ -193,20 +251,31 @@ def features_from_table(traj: pd.DataFrame,
     carry = [c for c in ['movement_label', 'movement_orientation', 'movement_length_class',
                          'nominal_length', 'nominal_direction_deg', 'trajectory_completed',
                          'n_misclicks', 'pointer_type', 'n_coalesced_samples',
-                         'n_dispatched_events', 'samples_truncated'] if c in traj.columns]
+                         'n_dispatched_events', 'n_samples', 'samples_truncated',
+                         'trajectory_duration_ms', 'target_start_x', 'target_start_y',
+                         'target_end_x', 'target_end_y'] if c in traj.columns]
     rows = []
     for _, r in traj.iterrows():
-        t, x, y = trajectory_points(r.get('samples'), r.get('events'))
-        f = compute_features(t, x, y)
+        try:
+            t, x, y = trajectory_points(r.get('samples'), r.get('events'))
+            f = compute_features(t, x, y)
+            f.update(sample_diagnostics(r.get('samples'), r.get('events'), r.get('trajectory_duration_ms')))
+            f['parse_error'] = ''
+        except (ValueError, TypeError, KeyError, IndexError) as exc:
+            f = {c: np.nan for c in CORE_FEATURES + SUPP_FEATURES + DIAGNOSTIC_FIELDS}
+            f['parse_error'] = type(exc).__name__
         for c in id_cols + carry:
             f[c] = r[c]
         rows.append(f)
-    cols = id_cols + carry + CORE_FEATURES + SUPP_FEATURES
-    return pd.DataFrame(rows)[cols] if rows else pd.DataFrame(columns=cols)
+    cols = list(dict.fromkeys(id_cols + carry + CORE_FEATURES + SUPP_FEATURES))
+    if not rows:
+        return pd.DataFrame(columns=cols + DIAGNOSTIC_FIELDS + ['parse_error'])
+    result = pd.DataFrame(rows)
+    return result[cols + [c for c in result if c not in cols]]
 
 
 def explode_to_long(traj: pd.DataFrame, participant_col: str = 'participant_id') -> pd.DataFrame:
-    """Long format, one row per raw event/sample, matching the preregistered schema:
+    """Long format, one row per raw event/sample, matching the acquisition schema:
     participant_id, trajectory_id, target_start_x/y, target_end_x/y, event_type,
     t_ms, x_norm, y_norm, pointer_type (+ coalesced, button)."""
     rows = []
@@ -235,7 +304,8 @@ def explode_to_long(traj: pd.DataFrame, participant_col: str = 'participant_id')
 
 
 def summarise_by_participant(feat: pd.DataFrame,
-                             features: Iterable[str] = CORE_FEATURES) -> pd.DataFrame:
+                             features: Iterable[str] = CORE_FEATURES,
+                             unit_col: str = 'participant_id') -> pd.DataFrame:
     """Median and IQR across trajectories in an already-filtered table.
 
     This function intentionally does not decide which rows are valid. Callers
@@ -243,7 +313,7 @@ def summarise_by_participant(feat: pd.DataFrame,
     the QC notebook does, before computing primary summaries.
     """
     features = [f for f in features if f in feat.columns]
-    g = feat.groupby('participant_id')[features]
+    g = feat.groupby(unit_col)[features]
     med = g.median().add_suffix('_median')
     iqr = (g.quantile(0.75) - g.quantile(0.25)).add_suffix('_iqr')
     n = g.size().rename('n_trajectories')
@@ -352,6 +422,71 @@ def build_synthetic_set(human_feat: pd.DataFrame, n_per_kind: int, rng: np.rando
     return pd.concat(tables, ignore_index=True) if tables else pd.DataFrame()
 
 
+def build_matched_synthetic_set(observed: pd.DataFrame, rng: np.random.Generator,
+                               n_curved: int = 30) -> pd.DataFrame:
+    """Generate measurement controls matched to each actual recording.
+
+    Exact observed click endpoints and reconstructed timestamps are retained.
+    This controls geometry, click scatter, click duration, input sample count
+    and timestamp ties. Coincident timestamps give coincident simulated
+    positions, which the feature extractor collapses as exact duplicates;
+    the recorded path can retain different positions at the same timestamp.
+    Straight constant and minimum-jerk paths are deterministic
+    controls, so each is generated once. Curved paths have random curvature
+    across simulation draws. Draws are not new independent participants.
+    """
+    rows = []
+    for _, r in observed.iterrows():
+        t, x, y = trajectory_points(r.get('samples'), r.get('events'))
+        if len(t) < 3 or t[-1] <= t[0]:
+            continue
+        tau = (t - t[0]) / (t[-1] - t[0])
+        start, end = np.array([x[0], y[0]]), np.array([x[-1], y[-1]])
+        chord = end - start
+        length = np.linalg.norm(chord)
+        perp = np.array([-chord[1], chord[0]]) / max(length, 1e-12)
+        for kind in ('A_linear_const', 'B_linear_accdec', 'C_curved_accdec'):
+            for draw in range(n_curved if kind.startswith('C_') else 1):
+                progress = tau if kind.startswith('A_') else _min_jerk(tau)
+                if kind.startswith('C_'):
+                    curvature = rng.uniform(.08, .25) * rng.choice([-1, 1])
+                    control = start + .5 * chord + perp * curvature * length
+                    p = ((1-progress)[:, None]**2 * start +
+                         (2*(1-progress)*progress)[:, None] * control +
+                         progress[:, None]**2 * end)
+                else:
+                    curvature = 0.0
+                    p = start + progress[:, None] * chord
+                samples = [[float(tt), float(px), float(py), 0]
+                           for tt, (px, py) in zip(t[1:-1], p[1:-1])]
+                events = [[float(t[0]), *start.tolist(), 'down_start', 0, 'synthetic'],
+                          [float(t[-1]), *end.tolist(), 'down_hit', 0, 'synthetic']]
+                row = {c: r[c] for c in ('session_id', 'session_label', 'participant_id',
+                                        'trajectory_id', 'nominal_length') if c in r}
+                row.update(source=kind, draw=draw, curvature=curvature,
+                           matched_input_n_points=len(t),
+                           samples=json.dumps(samples), events=json.dumps(events),
+                           trajectory_completed=True)
+                rows.append(row)
+    return pd.DataFrame(rows)
+
+
+def descriptive_spearman(x, y, minimum_n: int = 4) -> Dict:
+    """Rank correlation with explicit non-evaluable status and no p value.
+
+    Repeated movements support a within-recording diagnostic, not a population
+    inference. Constant inputs and insufficient finite pairs never pass a check.
+    """
+    x, y = np.asarray(x, float), np.asarray(y, float)
+    finite = np.isfinite(x) & np.isfinite(y)
+    x, y = x[finite], y[finite]
+    reason = ('insufficient_pairs' if len(x) < minimum_n else
+              'constant_input' if len(np.unique(x)) < 2 or len(np.unique(y)) < 2 else '')
+    rho = float(pd.Series(x).rank().corr(pd.Series(y).rank())) if not reason else np.nan
+    return {'rho': rho, 'n_pairs': len(x), 'status': 'evaluated' if not reason else 'not_evaluable',
+            'reason': reason}
+
+
 # ─── Descriptive separation (not a classifier) ────────────────────
 
 def rank_auc(a: np.ndarray, b: np.ndarray) -> float:
@@ -407,6 +542,31 @@ def _selftest() -> None:
     # 6. AUC sanity
     assert abs(rank_auc([1, 2, 3], [1, 2, 3]) - 0.5) < 1e-9
     assert rank_auc([10, 11, 12], [1, 2, 3]) == 1.0
+    # 7. Nearby but non-identical observations must not disappear under isclose.
+    pts = trajectory_points([[10, .10000001, .2, 1], [10, .10000002, .2, 1]],
+                            [[0, .1, .2, 'down_start', 0, 'mouse'],
+                             [20, .2, .2, 'down_hit', 0, 'mouse']])
+    assert len(pts[0]) == 4 and np.diff(pts[0]).min() == 0
+    assert compute_features(*pts)['frac_zero_dt'] > 0
+    diagnostic = sample_diagnostics([[5, .2, 1.1, 1], [10, .3, .2, 1]],
+                                    [[0, .1, .2, 'down_start', 0, 'mouse'],
+                                     [20, .4, .2, 'down_hit', 0, 'mouse']], 20)
+    assert diagnostic['n_off_square_points'] == 1 and diagnostic['duration_gap_ms'] == 0
+    assert diagnostic['coalesced_share'] == 1 and diagnostic['move_median_positive_dt_ms'] == 5
+    bad = features_from_table(pd.DataFrame([{'samples': 'not json', 'events': '[]'}]))
+    assert bad.parse_error.eq('JSONDecodeError').all() and bad.raw_move_samples.isna().all()
+    assert descriptive_spearman([1, 1, 1, 1], [1, 2, 3, 4])['status'] == 'not_evaluable'
+    assert descriptive_spearman([1, 2], [1, 2])['status'] == 'not_evaluable'
+    # 8. Matched controls retain endpoints and input timestamps, including ties.
+    source = pd.DataFrame([{'session_id': 'selftest', 'trajectory_id': 1,
+                            'samples': json.dumps([[10, .10000001, .2, 1], [10, .10000002, .2, 1]]),
+                            'events': json.dumps([[0, .1, .2, 'down_start', 0, 'mouse'],
+                                                  [20, .2, .2, 'down_hit', 0, 'mouse']])}])
+    matched = build_matched_synthetic_set(source, rng, n_curved=2)
+    mf = features_from_table(matched)
+    assert len(matched) == 4 and (mf.duration_ms == 20).all()
+    assert np.allclose(mf.displacement, .1)
+    assert all(np.array_equal(decode_samples(s)[:, 0], [10, 10]) for s in matched.samples)
     mt = movement_table()
     assert len(mt) == 8 and set(mt['movement_orientation']) == {'horizontal', 'vertical', 'oblique'}
     print('mouse_features self-test: OK')

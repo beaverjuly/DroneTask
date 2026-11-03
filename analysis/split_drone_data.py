@@ -581,7 +581,12 @@ def process_one(filepath, outdir, explode_mouse=False, module_dirs=None):
     module-specific clean directories. Full-session metadata is copied to each
     module; module-only raw sources retain their own assignment inventory.
     """
-    df = pd.read_csv(filepath)
+    # Identifiers are labels even when their characters are all digits. Keep
+    # leading zeroes and full precision instead of coercing them to floats.
+    df = pd.read_csv(filepath, dtype={column: 'string' for column in (
+        'participant_id', 'PROLIFIC_PID', 'workerId', 'subId', 'STUDY_ID',
+        'SESSION_ID', 'run_uuid', 'row_uuid',
+    )}, low_memory=False)
     fname_pid, fname_date, fname_time = parse_filename(filepath)
 
     # Anonymous audit sessions still have a stable identity across renamed
