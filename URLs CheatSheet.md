@@ -212,12 +212,29 @@ https://run.pavlovia.org/jiaheyi/DroneTask/
 
 ### Pavlovia Production — Core / Mouse-QC Pair
 
-Real participants; requires configured Prolific codes.
+Successful production completion uses the Drone Task Pilot 1 default Prolific
+path `C149FVM1`, configured for manual review. Redirect happens only after the
+server acknowledges the final recording. Pilot and dev routes never redirect.
+The current Prolific pilot excludes memory screening (`memory_screen=0`).
+The separate paid screening completion destination remains unset; configure
+that path only if screening is enabled for a later study.
 
 ```text
 https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=0&mouse_qc=0
 https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=0&mouse_qc=1
 ```
+
+For the Prolific external study URL without memory screening, with mouse QC,
+record the platform identifiers through URL parameters.
+
+```text
+https://run.pavlovia.org/jiaheyi/DroneTask/?pilot=0&memory_screen=0&mouse_qc=1&PROLIFIC_PID={{%PROLIFIC_PID%}}&STUDY_ID={{%STUDY_ID%}}&SESSION_ID={{%SESSION_ID%}}
+```
+
+The successful completion destination is
+`https://app.prolific.com/submissions/complete?cc=C149FVM1`.
+The study draft uses `memory_screen=0`, so all successful full completions use
+this default path. The memory screen remains available on its dev routes.
 
 -----
 

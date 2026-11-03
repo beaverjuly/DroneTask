@@ -913,7 +913,7 @@
     return (v !== null && v !== '') ? v : fallback;
   }
 
-  var TASK_VERSION = 'v3.14.1-participant-progress';
+  var TASK_VERSION = 'v3.14.2-prolific-completion';
   var DEV_MODE    = _urlParams.get('dev') === '1';
   var DEV_STAGE   = _urlParams.get('stage') || 'full';
   var DEV_NTRIALS = parseInt(_urlParams.get('ntrials'), 10) || 0;
@@ -1011,10 +1011,12 @@
   var subId = _getParam('subId', _genCode(24));
 
   // ──────────────────────────────────────────────────────────────
-  // Prolific completion codes — REPLACE THESE before deployment.
-  // Only used when PILOT_MODE is false.
+  // Prolific completion paths. The success code belongs to Drone Task Pilot 1
+  // and is configured for manual review in Prolific. Only used in production.
+  // Early termination is not configured to redirect. Memory screening uses
+  // its own separately configured paid completion destination below.
   // ──────────────────────────────────────────────────────────────
-  var CODE_SUCCESS = 'REPLACE_WITH_PROLIFIC_SUCCESS_CODE';
+  var CODE_SUCCESS = 'C149FVM1';
   var CODE_REJECT  = 'REPLACE_WITH_PROLIFIC_REJECT_CODE';
   // Optional study-specific screen-out destination, configured by the
   // researcher. Blank keeps a neutral saved-session message on screen.
