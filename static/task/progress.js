@@ -1,7 +1,7 @@
 /* Participant activity progress, independent of jsPsych's top level groups. */
 (function(root) {
   'use strict';
-  var VERSION = 'progress-1.0.0-2026-10-26';
+  var VERSION = 'progress-1.0.1-2026-11-04';
   var INTERNAL = ['call-function', 'fullscreen', 'pavlovia', 'preload'];
 
   function Tracker(options) {
@@ -50,7 +50,8 @@
           copy.on_finish = function(data) {
             if (typeof originalFinish === 'function') originalFinish.apply(this, arguments);
             var unit = self.units[id];
-            if (node.type === 'mouse-trajectory' && data.mt_status !== 'completed') {
+            if (node.type === 'mouse-trajectory' &&
+                data.mt_status !== 'complete' && data.mt_status !== 'completed') {
               // Closing or skipping the optional module leaves only the
               // completed movements and its closing response in the plan.
               unit.weight = Math.min(unit.weight, unit.completed + 1);

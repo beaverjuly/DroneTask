@@ -5,7 +5,7 @@
 
   <!-- Load libraries -->
   <script src="static/lib/jquery-3.7.1/jquery-3.7.1.min.js"></script>
-  <script src="static/lib/jspsych-6.3.1/jspsych.js?v=participant-progress-20261026"></script>
+  <script src="static/lib/jspsych-6.3.1/jspsych.js?v=keyboard-focus-20261104"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-instructions.js?v=instruction-progress-20261026" type="text/javascript"></script>
   <script src="static/lib/jspsych-6.3.1/plugins/jspsych-html-keyboard-response.js" type="text/javascript"></script>
 
@@ -36,7 +36,7 @@
     })();
 
   </script>
-  <script src="static/task/trial.js?v=verified-display-20261104"></script>
+  <script src="static/task/trial.js?v=movement-input-20261104"></script>
   <script src="static/task/memory_task.js?v=condition-labels-20261104"></script>
 
 
@@ -168,8 +168,8 @@
   <script src="static/task/latin_square.js?v=trajectory-labels-20261104"></script>
   <script src="static/task/preload.js?v=recording-20261026"></script>
   <script src="static/task/data_saving.js?v=early-review-20261104"></script>
-  <script src="static/task/data_recorder.js?v=early-review-20261104"></script>
-  <script src="static/task/progress.js?v=progress-20261026"></script>
+  <script src="static/task/data_recorder.js?v=progress-confirmation-20261104"></script>
+  <script src="static/task/progress.js?v=progress-confirmation-20261104"></script>
   <script src="static/task/dev_routes.js?v=recording-20261026"></script>
   <script src="static/task/survey.js?v=recording-20261026"></script>
 
@@ -913,7 +913,7 @@
     return (v !== null && v !== '') ? v : fallback;
   }
 
-  var TASK_VERSION = 'v3.15.0-verified-display-and-labels';
+  var TASK_VERSION = 'v3.15.1-progress-and-input';
   var DEV_MODE    = _urlParams.get('dev') === '1';
   var DEV_STAGE   = _urlParams.get('stage') || 'full';
   var DEV_NTRIALS = parseInt(_urlParams.get('ntrials'), 10) || 0;
@@ -1736,6 +1736,16 @@
           missing_msg_warning_number: warning_threshold,
           hide_stimulus: hideStimulus,
           on_start: function(trial) {
+            var displayedBlock = trial.data && trial.data.block;
+            if (prev_block !== null && displayedBlock !== prev_block) {
+              // A warning belongs to consecutive stationary turns within
+              // one planet, never to a leftover streak from another block.
+              stayed = 0;
+              show_missing = false;
+              missed_responses = 0;
+              prev_supply_caught = null;
+            }
+            prev_block = displayedBlock;
             trial.bucket_position = bucket;
             trial.show_missing = show_missing;
             trial.strong_warning = strong_warning;
@@ -1754,10 +1764,10 @@
 
             if (dat.trial == num_trials) bucket = 50;
 
-            stayed = stayed + dat.stayed;
+            stayed = dat.stayed === 0 ? 0 : stayed + 1;
             show_missing = false;
 
-            if (stayed == stayed_threshold) {
+            if (stayed >= stayed_threshold) {
               stayed = 0;
               show_missing = true;
 

@@ -2240,6 +2240,17 @@ jsPsych.pluginAPI = (function() {
 
   var held_keys = {};
 
+  // Keyup can happen outside the page after switching windows or tabs.
+  // Discard stale held state so the next physical press remains usable.
+  var root_blur_listener = function(){
+    held_keys = {};
+  }
+  var root_visibility_listener = function(){
+    if(document.visibilityState === 'hidden') {
+      held_keys = {};
+    }
+  }
+
   var root_keydown_listener = function(e){
     for(var i=0; i<keyboard_listeners.length; i++){
       keyboard_listeners[i].fn(e);
@@ -2255,11 +2266,15 @@ jsPsych.pluginAPI = (function() {
     held_keys = {};
     root_element.removeEventListener('keydown', root_keydown_listener);
     root_element.removeEventListener('keyup', root_keyup_listener);
+    window.removeEventListener('blur', root_blur_listener);
+    document.removeEventListener('visibilitychange', root_visibility_listener);
   }
 
   module.createKeyboardEventListeners = function(root_element){
     root_element.addEventListener('keydown', root_keydown_listener);
     root_element.addEventListener('keyup', root_keyup_listener);
+    window.addEventListener('blur', root_blur_listener);
+    document.addEventListener('visibilitychange', root_visibility_listener);
   }
 
   module.getKeyboardResponse = function(parameters) {
@@ -2328,6 +2343,11 @@ jsPsych.pluginAPI = (function() {
       
       // check if key was already held down
       if (((typeof parameters.allow_held_key === 'undefined') || !parameters.allow_held_key) && valid_response) {
+        // A repeat may resume after focus returns even though blur cleared
+        // the stale held map. It must not advance a one-press screen.
+        if (e.repeat === true) {
+          valid_response = false;
+        }
         if (typeof held_keys[e.key] !== 'undefined' && held_keys[e.key] == true) {
           valid_response = false;
         }

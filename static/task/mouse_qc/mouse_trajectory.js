@@ -20,10 +20,12 @@
 //     clicks. The START click is trajectory 1's t = 0 reference, so the
 //     hand-to-mouse transition after the keyboard-driven memory probes
 //     is excluded from every trajectory.
-//   * Raw data, not scores: every pointermove sample (plus coalesced
-//     samples via getCoalescedEvents() where the browser supports it)
-//     and every pointerdown / pointerup event is preserved with its
-//     DOMHighResTimeStamp. No client-side resampling — the W3C Pointer
+//   * Raw data, not scores: dispatched movement is retained, using the
+//     coalesced sample list via getCoalescedEvents() when available.
+//     Pointer down/up events within each click-down-to-click-down interval
+//     are preserved with relative DOMHighResTimeStamps. The release after
+//     the final target hit falls outside acquisition and is not recorded.
+//     No client-side resampling — the W3C Pointer
 //     Events spec allows browsers to coalesce high-frequency movement,
 //     so we save what was dispatched and let the analysis handle it.
 //   * Coordinates are normalised to the SQUARE task area

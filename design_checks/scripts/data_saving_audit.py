@@ -78,7 +78,7 @@ const fs=require('fs'),vm=require('vm');
 const ctx={console:{log(){},warn(){}},Math,Set};ctx.window=ctx;
 ctx.jsPsych={plugins:{parameterType:new Proxy({}, {get:(o,k)=>k})},
  randomization:{shuffle:x=>x.slice()}};vm.createContext(ctx);
-for(const file of ['static/task/stimuli.js','static/task/latin_square.js','static/task/preload.js',
+for(const file of ['static/task/stimuli.js','static/task/latin_square.js','static/task/preload.js','static/task/progress.js',
  'static/task/memory_task.js','static/task/mouse_qc/mouse_trajectory.js',
  'static/task/memory_screening/memory_screening.js'])
  vm.runInContext(fs.readFileSync(file,'utf8'),ctx);
@@ -101,7 +101,8 @@ console.log(JSON.stringify({main_blocks:ctx.main_drone_position.length,
  main_valences:ctx.factors_valence,mouse_geometry:ctx.MOUSE_TRAJECTORY_GEOMETRY,
  screen_design:screen,task_version:runtime[1],stimuli_version:ctx.stimuli_version,
  condition_label_version:ctx.condition_label_version,
- canonical_condition_ids:ctx.CANONICAL_CONDITION_LABELS,
+ canonical_condition_ids:ctx.CANONICAL_CONDITION_LABELS,latin_square:ctx.LATIN_SQUARE_4,
+ progress_version:ctx.DroneTaskProgress.version,
  volatility_labels:ctx.factors_vol,stochasticity_labels:ctx.factors_stc,
  condition_metrics:ctx.validateMainConditionLabels(),
  landing_bounds:bounds.slice(1).map(Number)}));
@@ -114,7 +115,7 @@ console.log(JSON.stringify({main_blocks:ctx.main_drone_position.length,
         for path in ['static/task/data_saving.js', 'static/task/data_recorder.js',
                      'static/task/progress.js', 'static/task/trial.js', 'static/task/memory_task.js',
                      'static/task/stimuli.js', 'static/task/latin_square.js', 'static/task/consent.js',
-                     'static/lib/jspsych-pavlovia-3.2.5.js', 'index.html',
+                     'static/lib/jspsych-pavlovia-3.2.5.js', 'static/lib/jspsych-6.3.1/jspsych.js', 'index.html',
                      'static/task/memory_screening/memory_screening.js',
                      'static/task/mouse_qc/mouse_trajectory.js', 'analysis/split_drone_data.py']}
     return result

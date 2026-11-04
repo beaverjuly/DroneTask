@@ -777,6 +777,9 @@ plugin.trial = function (display_element, trial) {
 
     var _record_move_if_changed = function (prev_pos) {
       if (trial.bucket_position !== prev_pos) {
+        // Engagement follows actual collector displacement. A Space press or
+        // an outward arrow at a rail bound is not a movement.
+        trial.stayed = 0;
         var now =
           typeof performance !== "undefined" && performance.now
             ? performance.now()
@@ -949,7 +952,6 @@ plugin.trial = function (display_element, trial) {
     var after_1st_response = function (info) {
       jsPsych.pluginAPI.clearAllTimeouts();
       jsPsych.pluginAPI.cancelKeyboardResponse(keyboardListener1);
-      trial.stayed = 0;
 
       var prev_pos = trial.bucket_position;
       trial = move_collector(trial, info);

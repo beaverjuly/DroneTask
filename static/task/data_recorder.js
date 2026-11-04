@@ -2,7 +2,7 @@
 (function(root) {
   'use strict';
   var SCHEMA = 'drone-data-v2';
-  var VERSION = 'save-2.1.0-2026-11-04';
+  var VERSION = 'save-2.1.1-2026-11-04';
   function uuid() {
     if (root.crypto && root.crypto.randomUUID) return root.crypto.randomUUID();
     return 'run_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,14);
@@ -419,9 +419,16 @@
           data_schema_version:SCHEMA,data_saving_version:VERSION
         });
         var success=received.acknowledged===true && received.disposition==='uploaded' && received.session_closed===true;
+        if (self.env.USE_PAVLOVIA && !success) {
+          throw new Error('The server did not confirm both the upload and session closure.');
+        }
         if (success) await self.clearCache();
         document.removeEventListener('visibilitychange',self.visibility);root.removeEventListener('pagehide',self.pagehide);
-        if (root.DroneTaskProgressActive) root.DroneTaskProgressActive.finishSaving();
+        // A production saving unit is complete only after upload and session
+        // closure are confirmed. A local route completes by offering its CSV.
+        if (root.DroneTaskProgressActive && (success || !self.env.USE_PAVLOVIA)) {
+          root.DroneTaskProgressActive.finishSaving();
+        }
         var message=success?'Your responses have been saved and confirmed by the server.':'Cloud saving has not been confirmed. Download a copy of your recording and keep it before closing this tab.';
         var actions=self.auditActions();
         var title=outcome==='configuration_error'?'Session could not finish':
