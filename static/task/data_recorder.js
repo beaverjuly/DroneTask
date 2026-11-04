@@ -2,7 +2,7 @@
 (function(root) {
   'use strict';
   var SCHEMA = 'drone-data-v2';
-  var VERSION = 'save-2.1.2-2026-11-04';
+  var VERSION = 'save-2.1.3-2026-11-04';
   function uuid() {
     if (root.crypto && root.crypto.randomUUID) return root.crypto.randomUUID();
     return 'run_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,14);
@@ -330,8 +330,8 @@
       {label:'Download save receipt',run:function(){offer(JSON.stringify(self.receipt,null,2),self.finalSnapshot.filename.replace(/\.csv$/,'.receipt.json'),'application/json');}}];
   };
   function completionPath(config,outcome) {
-    // Outcome and exit_reason describe behavior. A Prolific code only routes
-    // the saved submission; it must not turn an early exit into completion.
+    // Outcome and exit_reason describe behavior. An unexpected early exit
+    // provides participant return instructions rather than a completion code.
     var path={kind:'none',destination:null,code:null};
     if (config.PILOT_MODE || config.DEV_MODE) return path;
     if (outcome==='memory_screened_out') {
@@ -341,10 +341,17 @@
       }
       return path;
     }
-    var code=outcome==='completed'?config.CODE_SUCCESS:
-      outcome==='early_terminated'?config.CODE_EARLY_REVIEW:null;
+    if (outcome==='early_terminated' || outcome==='configuration_error') {
+      // This destination only opens the participant's submissions list. The
+      // participant must perform the actual return on Prolific themselves.
+      // Ignore any legacy CODE_EARLY_REVIEW value, including the success code.
+      path.kind='early_exit_return_instructions';
+      path.destination='https://app.prolific.com/submissions';
+      return path;
+    }
+    var code=outcome==='completed'?config.CODE_SUCCESS:null;
     if (typeof code!=='string' || !/^[A-Za-z0-9_-]+$/.test(code) || /^REPLACE_/.test(code)) return path;
-    path.kind=outcome==='completed'?'full_completion':'early_exit_manual_review';
+    path.kind='full_completion';
     path.code=code;
     path.destination='https://app.prolific.com/submissions/complete?cc='+encodeURIComponent(code);
     return path;
@@ -439,8 +446,12 @@
         var actions=self.auditActions();
         var title=outcome==='configuration_error'?'Session could not finish':
           outcome==='early_terminated'?'Your study session ended early':'Thank you for participating';
-        if (success && outcome==='early_terminated' && !config.PILOT_MODE && !config.DEV_MODE) {
-          message+=' Please return to Prolific to submit this session for researcher review. The researcher will review your session and payment.';
+        if (success && completion.kind==='early_exit_return_instructions') {
+          message+=' Your session ended before the study was completed. Return to your original Prolific tab for Drone Task, choose Cancel participation, and confirm the cancellation.' +
+            ' If you have already submitted the study, open Submissions, choose Return and cancel reward, and confirm the return.' +
+            ' Your participation is not marked Returned until you complete the cancellation or return on Prolific. No completion code is provided for this early session.' +
+            ' The button below opens Submissions for an already submitted study in another tab, leaving this confirmation page available. If a new tab does not open, visit https://app.prolific.com/submissions manually.' +
+            ' Contact the researcher through Prolific if you need help or an error prevented you from finishing.';
         }
         if (success && !config.PILOT_MODE && !config.DEV_MODE &&
             (outcome==='completed' || outcome==='early_terminated') && !completion.destination) {
@@ -448,16 +459,25 @@
         }
         function returnToProlific() {
           // Navigation failure must not be reported as an upload failure. The
-          // confirmed save, manual return button and code remain available.
-          try {root.location.assign(completion.destination);}
-          catch(navigationError) {console.warn('[Recording] Automatic return was blocked; use the displayed return code.',navigationError);}
+          // confirmed save and instructions remain available for early exits.
+          try {
+            if (completion.kind==='early_exit_return_instructions') {
+              // No automatic completion or return request is submitted.
+              // noopener protects the saved confirmation tab; browsers may
+              // return null for this safe opening even when it succeeds.
+              root.open(completion.destination,'_blank','noopener,noreferrer');
+            } else {root.location.assign(completion.destination);}
+          } catch(navigationError) {
+            console.warn('[Recording] Prolific navigation was blocked; use the destination shown on this page.',navigationError);
+          }
         }
         if (success && completion.destination) {
-          actions.unshift({label:'Return to Prolific',run:returnToProlific});
+          actions.unshift({label:completion.kind==='early_exit_return_instructions'
+            ? 'Open Prolific submissions' : 'Return to Prolific',run:returnToProlific});
           if (completion.code) message+=' If the return page does not open, use completion code '+completion.code+' on Prolific.';
         }
         self.panel(title,message,actions);
-        if (success && completion.destination) {
+        if (success && completion.destination && completion.kind!=='early_exit_return_instructions') {
           returnToProlific();
         }
       } catch(error) {

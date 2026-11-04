@@ -168,12 +168,26 @@ paid Prolific sessions opened with `pilot=0`. Inactivity reminders and logging
 remain enabled. Reminders appear without replacing the assigned game turn or
 its memory item, so participants can continue through all four blocks.
 
-The saved Prolific return route remains available for a session that ends
-unexpectedly. It preserves the exit reason and uses the existing manual review
-completion path after confirmed saving. The policy is fixed in the deployed
-code and cannot be re-enabled through a participant URL. The current
-recruitment URL keeps `memory_screen=0`; `pilot=0` controls saving and return
-behavior, not the inactivity policy. See [the URL reference](URLs%20CheatSheet.md).
+For an unexpected production ending handled by the task, confirmed saving and
+session closure precede instructions to end participation in Prolific. If the
+study is still active, the participant must use **Cancel participation** in
+their original Prolific tab. If the submission is already awaiting review,
+they must use **Return and cancel reward** on the Submissions page and confirm.
+A button opens `https://app.prolific.com/submissions` for that submitted case.
+See [Prolific's return instructions](https://participant-help.prolific.com/en/articles/445041-how-to-return-a-submission-on-prolific).
+
+Opening that page alone does not return a submission or free a recruitment
+place. The task sends no early completion code and cannot automatically change
+the Prolific submission status, including after an abrupt tab closure.
+Payment and submission decisions remain separate from this navigation.
+The saved completion path is `early_exit_return_instructions`, which records
+the task's instructions rather than a confirmed Prolific return status.
+
+Full completion still uses `C149FVM1`. Pilot and development routes do not
+navigate to Prolific. The inactivity policy is fixed in the deployed code and
+cannot be re-enabled through a participant URL. The current recruitment URL
+keeps `memory_screen=0`; `pilot=0` controls saving and return behavior, not the
+inactivity policy. See [the URL reference](URLs%20CheatSheet.md).
 
 ## Optional memory screening
 

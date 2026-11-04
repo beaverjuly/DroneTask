@@ -157,13 +157,14 @@ function downloadCSV(prolificPid, workerId) {
  *
  * @param {Object} env    - from initEnvironment()
  * @param {Object} config - { PROLIFIC_PID, workerId, assignmentId, hitId,
- *                            PILOT_MODE, DEV_MODE, CODE_SUCCESS, CODE_EARLY_REVIEW,
+ *                            PILOT_MODE, DEV_MODE, CODE_SUCCESS,
  *                            getConsentDeclined, getLowQuality, verifyUnload }
  *   getConsentDeclined / getLowQuality are getter functions so we capture
  *   the value at on_finish time, not at construction time.
- *   CODE_EARLY_REVIEW must refer to a manually reviewed Prolific completion
- *   path. It routes saved early exits without changing their recorded outcome
- *   or automatically making a payment or rejection decision.
+ *   Completed production sessions use CODE_SUCCESS. Unexpected early exits
+ *   offer a manual navigation button and instructions to return the study on
+ *   Prolific after confirmed saving. They never submit a completion code or
+ *   assert that the participant's Prolific submission has been returned.
  */
 function buildOnFinishCallback(env, config) {
   return function() {

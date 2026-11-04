@@ -167,8 +167,8 @@
   <script src="static/task/instructions.js?v=warning-only-20261104"></script>
   <script src="static/task/latin_square.js?v=trajectory-labels-20261104"></script>
   <script src="static/task/preload.js?v=recording-20261026"></script>
-  <script src="static/task/data_saving.js?v=warning-only-pilot-20261104"></script>
-  <script src="static/task/data_recorder.js?v=warning-only-pilot-20261104"></script>
+  <script src="static/task/data_saving.js?v=participant-return-20261104"></script>
+  <script src="static/task/data_recorder.js?v=participant-return-20261104"></script>
   <script src="static/task/progress.js?v=progress-confirmation-20261104"></script>
   <script src="static/task/dev_routes.js?v=recording-20261026"></script>
   <script src="static/task/survey.js?v=recording-20261026"></script>
@@ -913,7 +913,7 @@
     return (v !== null && v !== '') ? v : fallback;
   }
 
-  var TASK_VERSION = 'v3.15.2-warning-only-pilot';
+  var TASK_VERSION = 'v3.15.3-participant-return';
   // Recruitment on Prolific uses pilot=0 for its return route. This policy
   // applies independently to both transport modes and has no URL override.
   var INACTIVITY_POLICY_VERSION = 'inactivity-warning-only-v1-20261104';
@@ -1017,14 +1017,12 @@
   // ──────────────────────────────────────────────────────────────
   // Prolific completion paths. The success code belongs to Drone Task Pilot 1
   // and is configured for manual review in Prolific. Only used in production.
-  // Saved unexpected early endings use the manual review path. Inactivity
-  // only produces reminders in this pilot. Optional memory screening uses
+  // Saved unexpected early endings ask the participant to return their place
+  // without submitting a completion code. Inactivity only produces reminders
+  // in this pilot. Optional memory screening uses
   // its own separately configured paid completion destination below.
   // ──────────────────────────────────────────────────────────────
   var CODE_SUCCESS = 'C149FVM1';
-  // This code is configured for manual review. Returning an early session
-  // preserves its outcome and does not automatically approve, reject or pay it.
-  var CODE_EARLY_REVIEW = CODE_SUCCESS;
   var CODE_REJECT  = 'REPLACE_WITH_PROLIFIC_REJECT_CODE';
   // Optional study-specific screen-out destination, configured by the
   // researcher. Blank keeps a neutral saved-session message on screen.
@@ -2849,7 +2847,6 @@
         PILOT_MODE:        PILOT_MODE,
         DEV_MODE:          DEV_MODE,
         CODE_SUCCESS:      CODE_SUCCESS,
-        CODE_EARLY_REVIEW: CODE_EARLY_REVIEW,
         CODE_REJECT:       CODE_REJECT,
         getConsentDeclined: function() { return consent_declined; },
         getLowQuality:      function() { return low_quality; },

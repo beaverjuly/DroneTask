@@ -220,13 +220,24 @@ inactivity termination is disabled for this pilot, including its paid
 does not replace an assigned game turn or its memory item. This setting is
 fixed in the deployed code rather than controlled by a participant URL.
 
-The defensive saved return route remains available for sessions that end
-unexpectedly, including the failed practice movement fallback. It uses the
-same code through an explicit early exit manual review path. Its saved outcome
-remains `early_terminated`, with the exit reason preserved. The return route
-does not approve, reject, or determine payment. If automatic navigation is
-blocked, the saved confirmation screen provides a return button and the
-completion code. Pilot and dev routes never redirect.
+For an unexpected early ending handled by the task, including the failed
+practice movement fallback, the task first confirms the saved recording and
+session closure. The instructions distinguish the participant's Prolific state.
+For an active study, use **Cancel participation** in the original Prolific tab.
+For a submission already awaiting review, use **Return and cancel reward** on
+the Submissions page and confirm. A button opens
+`https://app.prolific.com/submissions` for that submitted case. See
+[Prolific's return instructions](https://participant-help.prolific.com/en/articles/445041-how-to-return-a-submission-on-prolific).
+This route does not use `C149FVM1`, send a completion code, or navigate automatically.
+
+The saved outcome remains `early_terminated`, with the exit reason preserved,
+and `completion_path` is `early_exit_return_instructions`. This records the
+instructions shown rather than a confirmed Prolific return status.
+Opening the submissions page does not itself mark a submission as returned or
+free a recruitment place. The task cannot automatically change the Prolific
+submission status, including after an abrupt tab closure.
+The task does not approve, reject, or determine payment. Full completion
+continues to use `C149FVM1`; pilot and dev routes never navigate to Prolific.
 The current Prolific pilot excludes memory screening (`memory_screen=0`).
 The separate paid screening completion destination remains unset; configure
 that path only if screening is enabled for a later study.

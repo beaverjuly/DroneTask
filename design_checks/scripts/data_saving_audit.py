@@ -572,9 +572,11 @@ def audit_samples(loaded, contract=None):
             if len(summary):
                 route = value(summary, 'completion_path')
                 configured = truth(value(summary, 'completion_route_configured'))
-                expected_route = 'none' if dev or pilot else 'early_exit_manual_review' if outcome == 'early_terminated' else 'full_completion' if outcome == 'completed' else 'memory_screening' if outcome == 'memory_screened_out' else 'none'
+                early_route = 'early_exit_return_instructions' if version is not None and version >= (3, 15, 3) else 'early_exit_manual_review'
+                return_instructions = outcome == 'early_terminated' or (outcome == 'configuration_error' and version is not None and version >= (3, 15, 3))
+                expected_route = 'none' if dev or pilot else early_route if return_instructions else 'full_completion' if outcome == 'completed' else 'memory_screening' if outcome == 'memory_screened_out' else 'none'
                 check('Terminal return route provenance', route == expected_route and configured is (expected_route != 'none'),
-                      'Completion routing follows the behavioral outcome and never reclassifies an early exit as completion')
+                      'Routing follows the behavioral outcome; participant return instructions do not confirm a Prolific Returned status')
                 if outcome == 'early_terminated':
                     check('Early exit reason recorded', bool(value(summary, 'exit_reason')),
                           'Behavioral exit reason is retained separately from completion route')
@@ -850,9 +852,11 @@ def make_synthetic_cases(contract, directory):
     cases = ['Complete with receipt', 'Screening exit', 'Interrupted session',
              'Duplicate record', 'Changed receipt', 'Pilot audit continuation',
              'Incomplete image evidence', 'Landing discrepancy', 'Condition label discrepancy', 'Legacy runtime',
-             'Early exit review route', 'Missing consent provenance',
+             'Early exit return instructions', 'Missing consent provenance',
              'Warning only continuation', 'Disabled cutoff still terminates',
-             'Reminder loses item', 'Policy provenance missing', 'Policy version mismatch']
+             'Reminder loses item', 'Policy provenance missing', 'Policy version mismatch',
+             'Early exit uses completion route', 'Legacy early exit review route',
+             'Configuration error return instructions']
     outputs = []
     for case_index, case in enumerate(cases):
         run = f'syntheticrun{case_index + 1:02d}'
@@ -1007,17 +1011,27 @@ def make_synthetic_cases(contract, directory):
                         row.pop(field)
                 if row.get('trial_type') == 'trial':
                     row['stim_display_outcome'] = ''
-        if case in {'Early exit review route', 'Disabled cutoff still terminates'}:
+        if case in {'Early exit return instructions', 'Disabled cutoff still terminates',
+                    'Early exit uses completion route', 'Legacy early exit review route',
+                    'Configuration error return instructions'}:
             ending = rows[-1].copy()
             rows = rows[:80]
             ending.update(outcome='early_terminated',
                           exit_reason='prolonged_inactivity' if case == 'Disabled cutoff still terminates' else 'practice_movement_check',
-                          completion_path='early_exit_manual_review',
+                          completion_path='early_exit_return_instructions',
                           completion_route_configured=True, row_sequence=81, row_uuid=f'{run}row0081',
                           elapsed_ms=8100)
             rows.append(ending)
             for row in rows:
                 row['pilot_mode'] = False
+                if case == 'Legacy early exit review route':
+                    row['task_version'] = 'v3.15.2-warning-only-pilot'
+            if case == 'Legacy early exit review route':
+                rows[-1]['completion_path'] = 'early_exit_manual_review'
+            elif case == 'Early exit uses completion route':
+                rows[-1]['completion_path'] = 'full_completion'
+            elif case == 'Configuration error return instructions':
+                rows[-1].update(outcome='configuration_error', exit_reason='module_configuration_error')
         if case == 'Missing consent provenance':
             rows[0]['response'] = 1
         if case == 'Warning only continuation':

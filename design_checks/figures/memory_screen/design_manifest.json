@@ -23526,7 +23526,7 @@
     "static/task/preload.js": "3927973fa87e1d22cd1883ffe904ae636b8d24c49737cddadf0937510f5a325f",
     "static/task/memory_screening/memory_screening.js": "b88662b1258cb1feb848db24d285b0d3b3170ef39a08a1a9eaaa126db7d6643e",
     "static/task/trial.js": "2ca59b684371df92f54fb52f20b7c56dc02c887f00fe49a1aff86816e2f4a75c",
-    "index.html": "4a411d9410a4955bd7e8d4872a99c6a1c7a2bd4ea0a4d19131a0dde4e2b7d803",
+    "index.html": "d80dc08d955dec1fac64d0b335bfd0b70c0f2c6924653623090c66fa4f8aff3d",
     "design_checks/scripts/export_memory_screen.cjs": "4ab5a705b4617301cfd2131f9d820dc7dcd4386e33024ef4684278453dfd26f9",
     "design_checks/scripts/memory_screen_checks.py": "2582ff1f5c36bdf6fa5a253fe94640b83ce28407ab50eb5135aa6dece9ef0942",
     "design_checks/scripts/render_memory_screen_items.py": "b6b4e33971057811f1ca3f0973ef397b3aeedcb020cec8f6b3bd263c1762acfb"
