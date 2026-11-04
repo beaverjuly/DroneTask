@@ -65,7 +65,7 @@ jsPsych.plugins['comprehension'] = (function() {
       topic: 'inst3'
     },
     {
-      text: 'If you leave the collector in one place for a long time, the game may <strong>end early</strong>.',
+      text: 'If you leave the collector in one place for a long time, we will <strong>remind you</strong> to move it.',
       options: ['True', 'False'],
       correct: 'True',
       topic: 'inst2'
@@ -115,7 +115,7 @@ jsPsych.plugins['comprehension'] = (function() {
     inst4: 'full game and memory task',
     red: 'red-supply scoring'
   };
-  var STATE_VERSION = 'reference-aligned-12-v2';
+  var STATE_VERSION = 'reference-aligned-12-v3-warning-only';
 
   function freshState() {
     return {

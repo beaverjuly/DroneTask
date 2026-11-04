@@ -87,8 +87,12 @@ const trialSource=fs.readFileSync('static/task/trial.js','utf8');
 const bounds=trialSource.match(/var\s+LANDING_BOUNDS\s*=\s*\{\s*min:\s*([\d.]+),\s*max:\s*([\d.]+)\s*\}/);
 if(!bounds)throw new Error('Named landing bounds are missing; review the rendering contract.');
 if(Number(bounds[1])!==10||Number(bounds[2])!==90)throw new Error('Landing bounds changed; review the visual and scoring contract.');
-const runtime=fs.readFileSync('index.html','utf8').match(/var\s+TASK_VERSION\s*=\s*['\"]([^'\"]+)['\"]/);
+const indexSource=fs.readFileSync('index.html','utf8');
+const runtime=indexSource.match(/var\s+TASK_VERSION\s*=\s*['\"]([^'\"]+)['\"]/);
 if(!runtime)throw new Error('Runtime version is missing.');
+const policyVersion=indexSource.match(/var\s+INACTIVITY_POLICY_VERSION\s*=\s*['\"]([^'\"]+)['\"]/);
+const autoTerminate=indexSource.match(/var\s+INACTIVITY_AUTO_TERMINATE\s*=\s*(true|false)\s*;/);
+if(!policyVersion||!autoTerminate)throw new Error('Inactivity policy provenance is missing.');
 console.log(JSON.stringify({main_blocks:ctx.main_drone_position.length,
  main_trials_per_block:ctx.main_drone_position[0].length,
  main_pairs_per_block:ctx.PREDEFINED_PAIRS.length,
@@ -103,6 +107,7 @@ console.log(JSON.stringify({main_blocks:ctx.main_drone_position.length,
  condition_label_version:ctx.condition_label_version,
  canonical_condition_ids:ctx.CANONICAL_CONDITION_LABELS,latin_square:ctx.LATIN_SQUARE_4,
  progress_version:ctx.DroneTaskProgress.version,
+ inactivity_policy_version:policyVersion[1],inactivity_auto_terminate:autoTerminate[1]==='true',
  volatility_labels:ctx.factors_vol,stochasticity_labels:ctx.factors_stc,
  condition_metrics:ctx.validateMainConditionLabels(),
  landing_bounds:bounds.slice(1).map(Number)}));
@@ -115,6 +120,7 @@ console.log(JSON.stringify({main_blocks:ctx.main_drone_position.length,
         for path in ['static/task/data_saving.js', 'static/task/data_recorder.js',
                      'static/task/progress.js', 'static/task/trial.js', 'static/task/memory_task.js',
                      'static/task/stimuli.js', 'static/task/latin_square.js', 'static/task/consent.js',
+                     'static/task/instructions.js', 'static/task/comprehension.js',
                      'static/lib/jspsych-pavlovia-3.2.5.js', 'static/lib/jspsych-6.3.1/jspsych.js', 'index.html',
                      'static/task/memory_screening/memory_screening.js',
                      'static/task/mouse_qc/mouse_trajectory.js', 'analysis/split_drone_data.py']}
@@ -423,6 +429,59 @@ def _memory_presentation_checks(memory, manifest, check, modern):
           'Every logged memory presentation maps back to the saved encoded image at its display block and serial position')
 
 
+def _inactivity_checks(frame, enc, summary, contract, check, version):
+    """Evaluate the saved policy without inventing policy values for old runs."""
+    if version is None or version < (3, 15, 2):
+        return
+    policy = value(frame, 'inactivity_policy_version')
+    terminate = truth(value(frame, 'inactivity_auto_terminate'))
+    check('Inactivity policy provenance', bool(policy) and terminate is not None,
+          'Policy version and an explicit automatic termination setting are recorded')
+    if version == runtime_version(contract['task_version']) or policy == contract['inactivity_policy_version']:
+        check('Inactivity policy matches source', policy == contract['inactivity_policy_version'] and
+              terminate is contract['inactivity_auto_terminate'],
+              'The recorded setting agrees with the versioned source policy')
+    else:
+        check('Inactivity policy matches source', False,
+              'A different runtime policy requires its matching source contract', 'unverified')
+    if terminate is not False:
+        return
+    reason = value(summary, 'exit_reason', '')
+    check('Disabled inactivity cutoff respected', reason not in {'inactivity', 'prolonged_inactivity'},
+          'A warning only session cannot end because of inactivity')
+    if enc.empty:
+        return
+    required = ['inactivity_streak_length', 'inactivity_episode_eligible',
+                'inactivity_episode_count', 'inactivity_warning_scheduled',
+                'inactivity_warning_shown', 'inactivity_warning_severity',
+                'inactivity_legacy_threshold_reached']
+    readable = all(f in enc and enc[f].notna().all() and
+                   enc[f].astype(str).str.strip().ne('').all() for f in required)
+    for f in ['inactivity_episode_eligible', 'inactivity_warning_scheduled',
+              'inactivity_warning_shown', 'inactivity_legacy_threshold_reached']:
+        readable &= column(enc, f).map(truth).isin([True, False]).all()
+    readable &= column(enc, 'inactivity_warning_severity').isin(['none', 'reminder', 'strong']).all()
+    check('Inactivity warning records readable', readable,
+          'Streaks, counted episodes, scheduled reminders and actually shown reminders are distinct')
+    check('Encoding inactivity policy consistent',
+          column(enc, 'inactivity_policy_version').eq(policy).all() and
+          column(enc, 'inactivity_auto_terminate').map(truth).eq(False).all(),
+          'Encoding rows retain the session policy')
+    episodes = pd.to_numeric(column(enc, 'inactivity_episode_count'), errors='coerce')
+    streaks = pd.to_numeric(column(enc, 'inactivity_streak_length'), errors='coerce')
+    check('Inactivity counters valid', episodes.notna().all() and episodes.ge(0).all() and
+          episodes.mod(1).eq(0).all() and episodes.diff().dropna().ge(0).all() and
+          streaks.notna().all() and streaks.between(0, 4).all() and streaks.mod(1).eq(0).all(),
+          'Episode counts are cumulative; the four turn streak resets independently')
+    warned = enc.loc[column(enc, 'inactivity_warning_shown').map(truth).eq(True)]
+    if len(warned):
+        intact = pd.to_numeric(column(warned, 'completed'), errors='coerce').eq(1).all()
+        intact &= pd.to_numeric(column(warned, 'score'), errors='coerce').notna().all()
+        intact &= pd.to_numeric(column(warned, 'stim_requested_elapsed_ms'), errors='coerce').ge(0).all()
+        check('Reminders preserve assigned encoding', intact,
+              f'{len(warned)} reminder turns retain their scored supply and item presentation request')
+
+
 def audit_samples(loaded, contract=None):
     contract = runtime_contract() if contract is None else contract
     checks, summaries, coverage, snapshots, telemetry = [], [], [], [], []
@@ -509,7 +568,7 @@ def audit_samples(loaded, contract=None):
                   'A versioned accepted consent record is required outside development routes')
             if len(consent):
                 check('Consent versions agree', column(consent, 'consent_text_version').eq(consent_version).all(),
-                      'Consent observation and session manifest use the same approved text version')
+                      'Consent observation and session manifest use the same recorded text version')
             if len(summary):
                 route = value(summary, 'completion_path')
                 configured = truth(value(summary, 'completion_route_configured'))
@@ -578,6 +637,7 @@ def audit_samples(loaded, contract=None):
                                         number(view.get('page_index'), -1) >= 0)
             check('Instruction views readable', valid_views and n_views > 0, f'{n_views} page view records')
         enc = frame.loc[masks['main_encoding']]
+        _inactivity_checks(frame, enc, summary, contract, check, version)
         manifests = frame[column(frame, 'trial_category').eq('design_manifest')]
         main_manifest = next((decoded(row.get('design_manifest_json'), {})
                               for row in manifests.to_dict('records') if row.get('design_id') == 'main_task'), {})
@@ -790,7 +850,9 @@ def make_synthetic_cases(contract, directory):
     cases = ['Complete with receipt', 'Screening exit', 'Interrupted session',
              'Duplicate record', 'Changed receipt', 'Pilot audit continuation',
              'Incomplete image evidence', 'Landing discrepancy', 'Condition label discrepancy', 'Legacy runtime',
-             'Early exit review route', 'Missing consent provenance']
+             'Early exit review route', 'Missing consent provenance',
+             'Warning only continuation', 'Disabled cutoff still terminates',
+             'Reminder loses item', 'Policy provenance missing', 'Policy version mismatch']
     outputs = []
     for case_index, case in enumerate(cases):
         run = f'syntheticrun{case_index + 1:02d}'
@@ -800,6 +862,8 @@ def make_synthetic_cases(contract, directory):
         metadata = dict(data_schema_version=SCHEMA_VERSION, run_uuid=run,
                         task_version='v3.14.0-acknowledged-data-saving' if case == 'Legacy runtime' else contract['task_version'],
                         stimuli_version=contract['stimuli_version'], condition_label_version=contract['condition_label_version'],
+                        inactivity_policy_version=contract['inactivity_policy_version'],
+                        inactivity_auto_terminate=contract['inactivity_auto_terminate'],
                         consent_text_version='drone-task-20261104', dev_mode=False,
                         pilot_mode=True, audit_full=override, memory_screening_enabled=True,
                         mouse_qc_enabled=True, memory_screening_passed=correct_count >= contract['screen_min_correct'])
@@ -852,6 +916,10 @@ def make_synthetic_cases(contract, directory):
                 for trial in range(1, contract['main_trials_per_block'] + 1):
                     idx = (block-1)*contract['main_trials_per_block'] + trial-1
                     add(dict(trial_type='trial', task_phase='encoding', practice_no=0, completed=1,
+                             inactivity_streak_length=0, inactivity_episode_eligible=False,
+                             inactivity_episode_count=0, inactivity_warning_scheduled=False,
+                             inactivity_warning_shown=False, inactivity_warning_severity='none',
+                             inactivity_legacy_threshold_reached=False,
                              block=block, trial=trial, stim_img=contract['main_pool'][idx],
                              canonical_design_idx=block-1, display_block=block,
                              condition_id=contract['canonical_condition_ids'][block-1],
@@ -934,12 +1002,17 @@ def make_synthetic_cases(contract, directory):
             next(row for row in rows if row.get('task_phase') == 'encoding')['vol_level'] = 'incorrect'
         if case == 'Legacy runtime':
             for row in rows:
+                for field in list(row):
+                    if field.startswith('inactivity_'):
+                        row.pop(field)
                 if row.get('trial_type') == 'trial':
                     row['stim_display_outcome'] = ''
-        if case == 'Early exit review route':
+        if case in {'Early exit review route', 'Disabled cutoff still terminates'}:
             ending = rows[-1].copy()
             rows = rows[:80]
-            ending.update(outcome='early_terminated', exit_reason='inactivity', completion_path='early_exit_manual_review',
+            ending.update(outcome='early_terminated',
+                          exit_reason='prolonged_inactivity' if case == 'Disabled cutoff still terminates' else 'practice_movement_check',
+                          completion_path='early_exit_manual_review',
                           completion_route_configured=True, row_sequence=81, row_uuid=f'{run}row0081',
                           elapsed_ms=8100)
             rows.append(ending)
@@ -947,6 +1020,44 @@ def make_synthetic_cases(contract, directory):
                 row['pilot_mode'] = False
         if case == 'Missing consent provenance':
             rows[0]['response'] = 1
+        if case == 'Warning only continuation':
+            episodes, streak, pending, previous_block = 0, 0, False, None
+            for row in rows:
+                if row.get('task_phase') != 'encoding':
+                    continue
+                if row['block'] != previous_block:
+                    streak, pending = 0, False
+                severity = 'strong' if episodes >= 16 else 'reminder'
+                shown = pending
+                streak += 1
+                current_streak = streak
+                eligible = streak >= 4
+                if eligible:
+                    episodes += 1
+                    streak = 0
+                pending = eligible
+                row.update(stayed=1, num_moves=0, supply_caught=0,
+                           score=0 if row['valence'] == 'reward' else -10,
+                           inactivity_streak_length=current_streak,
+                           inactivity_episode_eligible=eligible, inactivity_episode_count=episodes,
+                           inactivity_warning_scheduled=pending, inactivity_warning_shown=shown,
+                           inactivity_warning_severity=severity if shown else 'none',
+                           inactivity_legacy_threshold_reached=episodes >= 20)
+                previous_block = row['block']
+        if case == 'Reminder loses item':
+            row = next(r for r in rows if r.get('task_phase') == 'encoding')
+            row.update(inactivity_warning_shown=True, inactivity_warning_severity='reminder',
+                       completed=0, score=None, stim_requested_elapsed_ms=None,
+                       stim_display_outcome='not_presented', stim_display_status='not_presented',
+                       stim_image_loaded=None, stim_image_decoded=None,
+                       stim_visible_elapsed_ms=None, stim_visible_duration_ms=None)
+        if case == 'Policy provenance missing':
+            for row in rows:
+                row.pop('inactivity_policy_version', None)
+                row.pop('inactivity_auto_terminate', None)
+        if case == 'Policy version mismatch':
+            for row in rows:
+                row['inactivity_policy_version'] = 'unknown-policy-version'
         path = directory / f'drone_task_{run}_final.csv'
         pd.DataFrame(rows).to_csv(path, index=False)
         blob = path.read_bytes()

@@ -16,6 +16,14 @@ jsPsych.plugins["trial"] = (function () {
         array: false,
         default: false
       },
+      inactivity_policy_version: {
+        type: jsPsych.plugins.parameterType.STRING,
+        default: 'inactivity-warning-only-v1-20261104'
+      },
+      inactivity_auto_terminate: {
+        type: jsPsych.plugins.parameterType.BOOL,
+        default: false
+      },
       show_drone: {
         type: jsPsych.plugins.parameterType.BOOL,
         array: false,
@@ -657,6 +665,8 @@ jsPsych.plugins["trial"] = (function () {
     var valueDelay = landDelay + 100;        // ~1120 ms — value appears shortly after explosion
     var itemDelay = valueDelay + 300;        // ~1420 ms — item card appears
 
+    var reminder = execution.get('inactivity-warning');
+    if (reminder && reminder.parentNode) reminder.parentNode.removeChild(reminder);
     setCollectorLocked();
 
     // — Step 1: bag dot appears at the top and drops to the landing point.
@@ -771,6 +781,8 @@ plugin.trial = function (display_element, trial) {
     var _bucket_end_pos   = trial.bucket_position;
     var execution = createTrialExecution(display_element, trial, _trial_onset_perf);
     var trialFinished = false;
+    var inactivityWarningShown = false;
+    var inactivityWarningSeverity = 'none';
     var _rt_first_move_ms = null;
     var _rt_last_move_ms  = null;
     var _num_moves        = 0;
@@ -802,6 +814,32 @@ plugin.trial = function (display_element, trial) {
     );
     display_element.innerHTML = make_html(trial);
     setCollectorUnlocked();
+
+    // A scheduled reminder does not replace the assigned encoding turn. It
+    // stays above the response scene, leaves input live and is removed before
+    // the supply animation and item exposure begin.
+    if (trial.show_missing && !trial.is_moving_practice) {
+      var warning = document.createElement('div');
+      warning.id = 'inactivity-warning';
+      warning.setAttribute('role', 'status');
+      warning.setAttribute('aria-live', 'polite');
+      warning.style.cssText =
+        'position:absolute;left:50%;top:14px;transform:translateX(-50%);' +
+        'z-index:40;box-sizing:border-box;width:max-content;' +
+        'max-width:calc(100% - 28px);padding:8px 14px;border-radius:10px;' +
+        'font:650 14px/1.4 system-ui;text-align:center;pointer-events:none;' +
+        (trial.strong_warning
+          ? 'background:#fff1f2;border:1px solid #fda4af;color:#9f1239;'
+          : 'background:#fffbeb;border:1px solid #fde68a;color:#854d0e;') +
+        'box-shadow:0 6px 18px rgba(15,23,42,.14);';
+      warning.textContent = trial.strong_warning
+        ? 'Please keep responding with the arrow keys when adjusting the collector.'
+        : 'You have left the collector in one place for several turns. Please move it with the arrow keys.';
+      var scene = display_element.querySelector('.game-container');
+      (scene || display_element).appendChild(warning);
+      inactivityWarningShown = true;
+      inactivityWarningSeverity = trial.strong_warning ? 'strong' : 'reminder';
+    }
 
     var droneTravelTimer = null;
     if (trial.show_drone && trial.animate_drone) {
@@ -987,95 +1025,6 @@ plugin.trial = function (display_element, trial) {
       });
     }, 20);
 
-    var missed_response = function () {
-      jsPsych.pluginAPI.cancelAllKeyboardResponses();
-
-      function warningCard(icon, title, body, footer, tone) {
-        var styles = {
-          orange: {
-            bg: '#fff7ed',
-            border: '#fb923c',
-            title: '#9a3412',
-            footer: '#7c2d12'
-          },
-          red: {
-            bg: '#fef2f2',
-            border: '#ef4444',
-            title: '#991b1b',
-            footer: '#7f1d1d'
-          },
-          blue: {
-            bg: '#eff6ff',
-            border: '#93c5fd',
-            title: '#1e3a8a',
-            footer: '#1e40af'
-          }
-        };
-
-        var s = styles[tone] || styles.orange;
-
-        return (
-          '<div style="' +
-            'max-width:760px;margin:18vh auto;padding:34px 42px;' +
-            'border-radius:22px;background:' + s.bg + ';' +
-            'border:2px solid ' + s.border + ';' +
-            'box-shadow:0 14px 42px rgba(15,23,42,.18);' +
-            'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;' +
-            'text-align:center;line-height:1.55;color:#1f2937;">' +
-
-            '<div style="font-size:44px;margin-bottom:10px;">' + icon + '</div>' +
-
-            '<div style="' +
-              'font-size:30px;font-weight:850;margin-bottom:14px;color:' + s.title + ';">' +
-              title +
-            '</div>' +
-
-            '<p style="font-size:20px;margin:0 0 14px 0;">' +
-              body +
-            '</p>' +
-
-            '<p style="font-size:17px;margin:0;color:' + s.footer + ';">' +
-              footer +
-            '</p>' +
-          '</div>'
-        );
-      }
-
-      var msg;
-
-      if (trial.is_moving_practice) {
-        msg = warningCard(
-          '⚠️',
-          'Still there?',
-          'Now give it a try. Make a response using the left or right arrow key.',
-          'Please move the collector before continuing.',
-          'orange'
-        );
-      } else if (trial.strong_warning) {
-        msg = warningCard(
-          '⚠️',
-          'Still there?',
-          'Please move the collector with the arrow keys.',
-          'If you continue to leave it in one place, we may have to end the game early.',
-          'red'
-        );
-      } else {
-        msg = warningCard(
-          '⚠️',
-          'Still there?',
-          'You have left the collector in one place for several turns. Please move it with the arrow keys.',
-          'If you persist, we may have to end the game early.',
-          'orange'
-        );
-      }
-
-      display_element.innerHTML = msg;
-
-      jsPsych.pluginAPI.setTimeout(function () {
-        end_trial(0);
-      }, trial.missing_duration);
-    };
-
     var end_trial = function (completed) {
       if (trialFinished) return;
       trialFinished = true;
@@ -1133,6 +1082,11 @@ plugin.trial = function (display_element, trial) {
         trial_onset_elapsed: _trial_onset_elapsed,
         trial_duration_ms:   _trial_duration_ms,
         miss_reason:         miss_reason,
+        inactivity_policy_version: trial.inactivity_policy_version ||
+          window.INACTIVITY_POLICY_VERSION || 'inactivity-warning-only-v1-20261104',
+        inactivity_auto_terminate: false,
+        inactivity_warning_shown: inactivityWarningShown,
+        inactivity_warning_severity: inactivityWarningSeverity,
         true_vol_param:
           typeof trial.true_vol_param !== "undefined" ? trial.true_vol_param : null,
         true_stc_param:
@@ -1159,15 +1113,11 @@ plugin.trial = function (display_element, trial) {
     // Practice: no auto-advance; Next button is the only exit.
     if (!trial.is_moving_practice) {
       jsPsych.pluginAPI.setTimeout(function () {
-        if (trial.show_missing) {
-          missed_response();
-        } else {
-          jsPsych.pluginAPI.cancelAllKeyboardResponses();
-          fly(trial, execution);
-          jsPsych.pluginAPI.setTimeout(function () {
-            end_trial(1);
-          }, trial.drop_duration);
-        }
+        jsPsych.pluginAPI.cancelAllKeyboardResponses();
+        fly(trial, execution);
+        jsPsych.pluginAPI.setTimeout(function () {
+          end_trial(1);
+        }, trial.drop_duration);
       }, trial.no_response_duration);
     }
   };

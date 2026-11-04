@@ -2,7 +2,7 @@
 (function(root) {
   'use strict';
   var SCHEMA = 'drone-data-v2';
-  var VERSION = 'save-2.1.1-2026-11-04';
+  var VERSION = 'save-2.1.2-2026-11-04';
   function uuid() {
     if (root.crypto && root.crypto.randomUUID) return root.crypto.randomUUID();
     return 'run_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,14);
@@ -95,7 +95,7 @@
       row.task_phase=phase(row);
       if (row.trial_type === 'instructions') {
         row.screen_id=row.screen_id || self.currentScreen;
-        row.instruction_version='instructions-2026-10-26';
+        row.instruction_version='instructions-2026-11-04-warning-only';
       }
       self.queueCache(row);
       if (root.DroneTaskProgressActive) root.DroneTaskProgressActive.onRecord(row);
@@ -152,13 +152,16 @@
         stimuli_version:this.options.stimuliVersion || null,
         condition_label_version:this.options.conditionLabelVersion || null,
         consent_text_version:this.options.consentTextVersion || null,
+        inactivity_policy_version:this.options.inactivityPolicyVersion || null,
+        inactivity_auto_terminate:typeof this.options.inactivityAutoTerminate === 'boolean'
+          ? this.options.inactivityAutoTerminate : null,
         progress_version:root.DroneTaskProgress ? root.DroneTaskProgress.version : null,
         pilot_mode:!!this.options.pilotMode,dev_mode:!!this.options.devMode,
         audit_full:!!this.options.auditFull,
         mouse_qc_requested:!!this.options.mouseQcRequested,mouse_qc_enabled:!!this.options.mouseQcEnabled,
         memory_screening_requested:!!this.options.memoryScreeningRequested,
         memory_screening_enabled:!!this.options.memoryScreeningEnabled,
-        instruction_version:'instructions-2026-10-26',comprehension_version:'reference-aligned-12-v2',
+        instruction_version:'instructions-2026-11-04-warning-only',comprehension_version:'reference-aligned-12-v3-warning-only',
         survey_version:'demographics-2026-10-26',
         browser_user_agent:navigator.userAgent,viewport_w:innerWidth,viewport_h:innerHeight,
         device_pixel_ratio:root.devicePixelRatio || 1,cache_status:this.cacheStatus
@@ -381,7 +384,10 @@
       interactions:JSON.stringify(events),total_interactions:events.length,
       final_phase:this.lastPhase,
       completion_path:completion.kind,
-      completion_route_configured:!!completion.destination
+      completion_route_configured:!!completion.destination,
+      inactivity_policy_version:this.options.inactivityPolicyVersion || null,
+      inactivity_auto_terminate:typeof this.options.inactivityAutoTerminate === 'boolean'
+        ? this.options.inactivityAutoTerminate : null
     }));
     this.record('save_event',{event_name:'final_save_started',save_is_final:true,save_acknowledged:false});
     await this.flushCache();

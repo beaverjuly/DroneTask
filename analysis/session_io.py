@@ -87,6 +87,7 @@ def _raw_metadata(frame, split_metadata):
             'outcome', 'exit_reason', 'final_phase', 'screening_criterion_passed',
             'data_saving_version', 'cache_status', 'audit_full',
             'completion_path', 'completion_route_configured',
+            'inactivity_policy_version', 'inactivity_auto_terminate',
         ):
             meta[col] = _last(frame, col)
     return meta
@@ -102,7 +103,10 @@ def _attach(frame, identity):
 def _comparability_group(schema, version, metadata):
     group = schema + ' | ' + (str(version) if _present(version) else 'unknown version')
     label_version = metadata.get('condition_label_version')
-    return group + ' | condition labels ' + str(label_version) if _present(label_version) else group
+    if _present(label_version):
+        group += ' | condition labels ' + str(label_version)
+    policy_version = metadata.get('inactivity_policy_version')
+    return group + ' | inactivity policy ' + str(policy_version) if _present(policy_version) else group
 
 
 def _version_checks(frame):
@@ -112,13 +116,14 @@ def _version_checks(frame):
     outcomes remain historical observations rather than inferred new values.
     """
     issues = []
-    for column in ('condition_label_version', 'consent_text_version'):
+    for column in ('condition_label_version', 'consent_text_version',
+                   'inactivity_policy_version', 'inactivity_auto_terminate'):
         if column not in frame:
             continue
         versions = [value for value in frame[column].dropna().unique() if _present(value)]
         if len(versions) > 1:
             issues.append(('error', 'mixed_' + column,
-                           'More than one recorded version occurs within a canonical run'))
+                           'More than one recorded value occurs within a canonical run'))
     return issues
 
 
@@ -151,6 +156,11 @@ def _snapshot_checks(candidates, selected):
         'memory_item_display_log_json', 'memory_item_display_schema_version',
         'stim_left_fallback_used', 'stim_right_fallback_used',
         'condition_label_version', 'consent_text_version',
+        'inactivity_policy_version', 'inactivity_auto_terminate',
+        'inactivity_streak_length', 'inactivity_episode_eligible',
+        'inactivity_episode_count', 'inactivity_warning_scheduled',
+        'inactivity_warning_shown', 'inactivity_warning_severity',
+        'inactivity_legacy_threshold_reached',
         'bag_rendered_position', 'bag_scoring_position', 'bag_position_adjusted',
         'stim_display_outcome', 'stim_display_status', 'stim_load_route',
         'stim_preload_failed', 'stim_fallback_emoji', 'stim_image_loaded',

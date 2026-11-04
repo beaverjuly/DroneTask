@@ -43,6 +43,7 @@ COMMON_COLS = [
     'task_phase', 'trial_category', 'elapsed_ms', 'utc_timestamp',
     'session_started_utc', 'session_start_utc', 'build_id',
     'condition_label_version', 'consent_text_version',
+    'inactivity_policy_version', 'inactivity_auto_terminate',
 ]
 
 # ─── Column definitions per table ────────────────────────────
@@ -81,6 +82,7 @@ META_COLS = [
     'consent_text_version', 'consent_accepted',
     'completion_path', 'completion_route_configured',
     'task_version', 'stimuli_version',
+    'inactivity_policy_version', 'inactivity_auto_terminate',
     'preload_loaded', 'preload_total', 'preload_failed',
     'preload_elapsed_ms', 'preload_mode',
     'preload_overall_timeout', 'preload_gate_wait_ms',
@@ -88,6 +90,13 @@ META_COLS = [
     *MOUSE_QC_METADATA_COLS,
     *MEMORY_SCREENING_METADATA_COLS,
     'pavlovia_pid', 'pavlovia_date', 'pavlovia_time',
+]
+
+INACTIVITY_TRIAL_COLS = [
+    'inactivity_streak_length', 'inactivity_episode_eligible',
+    'inactivity_episode_count', 'inactivity_warning_scheduled',
+    'inactivity_warning_shown', 'inactivity_warning_severity',
+    'inactivity_legacy_threshold_reached',
 ]
 
 ENCODING_COLS = [
@@ -104,6 +113,7 @@ ENCODING_COLS = [
     'movement_duration_ms',
     'trial_onset_elapsed', 'trial_duration_ms',
     'miss_reason',
+    *INACTIVITY_TRIAL_COLS,
     # Preload & display diagnostics
     'stim_display_outcome',   # cached | jit_success | fallback_emoji | direct_load
     'stim_preload_failed',    # true/false
@@ -163,6 +173,7 @@ PRACTICE_COLS = [
     'movement_duration_ms',
     'trial_onset_elapsed', 'trial_duration_ms',
     'miss_reason',
+    *INACTIVITY_TRIAL_COLS,
     'stim_display_outcome', 'stim_preload_failed', 'stim_fallback_emoji',
     'stim_display_status', 'stim_load_route',
     'stim_image_loaded', 'stim_image_decoded', 'stim_load_error',

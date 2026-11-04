@@ -1,6 +1,6 @@
 # Instruction wording alignment: bird reference → drone task
 
-This document compares the live drone-task wording with the original bird-task wording. The drone version keeps the reference sentence structure wherever the task mechanics are unchanged. Differences are limited to the cover story, the current interface, and the drone task’s reward/loss and expanded-memory design.
+This document compares the live drone-task wording with the original bird-task wording. The drone version keeps the reference sentence structure wherever the task mechanics are unchanged. Differences are limited to the cover story, the current interface, the reward/loss and expanded-memory design, and the pilot’s warning-only inactivity policy.
 
 ## Sources
 
@@ -34,7 +34,7 @@ This document compares the live drone-task wording with the original bird-task w
 | Lock and new turn | “After you position the bucket, the sky will slightly darken.”<br>“A new turn begins when the scene lights up again.” | “After you position the collector, it will turn grey.”<br>“A new turn begins when the collector turns white again.” | The collector, rather than the scene, now shows whether movement is available. |
 | Drop and score | “You will then see the bird dropping a bag of coins.”<br>“If you align your bucket perfectly, you will catch all ten coins!” | “You will then see the drone dropping a supply.”<br>“If you align the collector perfectly, you will catch all ten pieces!” | Cover-story nouns change. The live task reports pieces caught as the per-turn score, then determines the bonus from the final score because red turns can contribute losses. The far-miss demonstration shows the game-accurate yellow `0`, rather than implying that a large miss still earns points. |
 | Items | “You will also notice that on each turn, a distinct item will appear where the coins fall.”<br>“You should note these items as they appear but you do not need to memorize them.” | “You will also notice that on each turn, a distinct item will appear where the pieces fall.”<br>“You should note these items as they appear, but you do not need to memorize them.” | `coins` → `pieces`. Bell, light-bulb, and hammer examples establish that the item changes; three green item-visible practice turns then occur immediately before the memory-question explanation. |
-| Inactivity | “If you do not move the bucket on one or two turns, we assume you are happy with its position.”<br>“However, you should not leave the bucket in one place for more than a few turns.”<br>“If you do, we will warn you, and if you persist, we may have to end the game early!” | The same wording with `collector` replacing `bucket`. | Cover-story noun only. The reminder follows the score explanation and repeats its two static catch-outcome demonstrations. |
+| Inactivity | “If you do not move the bucket on one or two turns, we assume you are happy with its position.”<br>“However, you should not leave the bucket in one place for more than a few turns.”<br>“If you do, we will warn you, and if you persist, we may have to end the game early!” | The first two sentences replace `bucket` with `collector`.<br>“If you do, we will remind you to move the collector.” | The pilot retains reminders and activity logging without automatic inactivity termination. The reminder follows the score explanation and repeats its two static catch-outcome demonstrations. The original termination clause is retained only in the reference column. |
 | Wind | “The bag will fall near the bird, but the exact position will vary around the bird because it is a windy day!” | “The supply will land near the drone, but the exact position will vary around the drone because it is windy!” | `bag/bird` → `supply/drone`; left/right examples replace front/behind in the side-on display. |
 | Drone movement | “The best prediction for its position on one turn is its position on the previous turn, but it may fly to a new location at any time.” | “The best prediction for its position on one turn is its position on the previous turn, but it may move to a new location at any time.” | `fly` → `move`. |
 | Strategy | “Your best strategy is to position the bucket directly under where you think the bird is located.” | “Your best strategy is to position the collector directly under where you think the drone is located.” | `bucket/bird` → `collector/drone`. |
@@ -52,7 +52,7 @@ This document compares the live drone-task wording with the original bird-task w
 | *Italics* | A secondary clarification. | At most one continuous italic phrase in each sentence segment. |
 | Bold + italics | Not used. | Scoring-direction words such as `more` and `fewer` use italics without bold. |
 
-For the inactivity reminder, the live emphasis is: **do not move the collector**, *happy with its position*, **more than a few turns**, *warn you*, and **end the game early!**
+For the inactivity reminder, the live emphasis is **do not move the collector**, *happy with its position*, **more than a few turns**, and *remind you*. The pilot does not display a termination threat.
 
 ## Drone-only instruction additions
 
@@ -70,7 +70,7 @@ For the inactivity reminder, the live emphasis is: **do not move the collector**
 
 ## Comprehension alignment
 
-Questions 1–10 follow the reference comprehension in the same order. Questions 11–12 are the minimum additions needed for the drone task’s reward/loss design. Each live question bolds no more than two words.
+Questions 1–10 follow the reference comprehension in the same order, with question 6 adapted to the pilot’s warning-only inactivity policy. Questions 11–12 are the minimum additions needed for the drone task’s reward/loss design. Each live question bolds no more than two words.
 
 ### Reference-aligned questions
 
@@ -81,7 +81,7 @@ Questions 1–10 follow the reference comprehension in the same order. Questions
 | 3 | “You can move the box both when it is bright and when it is darkened.” | “You can move the **collector** both when it is white and when it is grey.” | False. Uses the current white/grey movement signal. |
 | 4 | “The bag will fall near the drone, but the exact position will vary around the drone.” | “The supply will land near the drone, but its **exact position** will vary around the drone.” | True. `bag` → `supply`; `fall` → `land`. |
 | 5 | “Your best strategy is to place the box directly under where you think the invisible drone is.” | “Your **best strategy** is to place the collector directly under where you think the hidden drone is.” | True. Cover-story nouns only. |
-| 6 | “If you leave the box in one place for a long time, the game may end early.” | “If you leave the collector in one place for a long time, the game may **end early**.” | True. `box` → `collector`. |
+| 6 | “If you leave the box in one place for a long time, the game may end early.” | “If you leave the collector in one place for a long time, we will **remind you** to move it.” | True. `box` → `collector`; the pilot checks the reminder rule instead of a disabled termination rule. |
 | 7 | “You will receive a bonus based on how closely your box tracks the invisible drone.” | “Your bonus is based on your **final score** across the game.” | True. Necessary because red turns can contribute negative points. |
 | 8 | “You should note these items as they appear, but you do not need to memorize them.” | “You should note these items as they appear, but you **do not** need to memorize them.” | True. Wording retained. |
 | 9 | “There will be a memory task after each environment based on the items that appear.” | “There will be a **memory task** after each planet based on the items that appear.” | True. `environment` → `planet`. |

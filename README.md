@@ -161,6 +161,20 @@ All dev routes require `?dev=1`. Add `&consent=0` to skip consent.
 |mouse-test   |`stage=mouse-test`   |Mouse-QC module only            |
 |survey       |`stage=survey`       |Demographics survey preview only|
 
+## Pilot inactivity policy
+
+Automatic inactivity termination is disabled for the current pilot, including
+paid Prolific sessions opened with `pilot=0`. Inactivity reminders and logging
+remain enabled. Reminders appear without replacing the assigned game turn or
+its memory item, so participants can continue through all four blocks.
+
+The saved Prolific return route remains available for a session that ends
+unexpectedly. It preserves the exit reason and uses the existing manual review
+completion path after confirmed saving. The policy is fixed in the deployed
+code and cannot be re-enabled through a participant URL. The current
+recruitment URL keeps `memory_screen=0`; `pilot=0` controls saving and return
+behavior, not the inactivity policy. See [the URL reference](URLs%20CheatSheet.md).
+
 ## Optional memory screening
 
 Enable `memory_screen=1` to insert an independent initial assessment after

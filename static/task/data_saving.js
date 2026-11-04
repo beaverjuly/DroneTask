@@ -96,6 +96,9 @@ function buildMetadataStampTrial(env, ids, opts) {
         stimuli_version:              opts.stimuliVersion,
         condition_label_version:      opts.conditionLabelVersion || null,
         consent_text_version:         opts.consentTextVersion || null,
+        inactivity_policy_version:    opts.inactivityPolicyVersion || null,
+        inactivity_auto_terminate:    typeof opts.inactivityAutoTerminate === 'boolean'
+          ? opts.inactivityAutoTerminate : null,
         task_variant:                 opts.taskVariant,
         mouse_qc_requested:           opts.mouseQcRequested,
         mouse_qc_enabled:             opts.mouseQcEnabled,

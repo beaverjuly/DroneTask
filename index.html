@@ -36,7 +36,7 @@
     })();
 
   </script>
-  <script src="static/task/trial.js?v=movement-input-20261104"></script>
+  <script src="static/task/trial.js?v=warning-only-pilot-20261104"></script>
   <script src="static/task/memory_task.js?v=condition-labels-20261104"></script>
 
 
@@ -163,12 +163,12 @@
   <script src="static/task/ui-helpers.js?v=recording-20261026"></script>
   <script src="static/task/stimuli.js?v=trajectory-labels-20261104"></script>
   <script src="static/task/stimuli-details.js?v=recording-20261026"></script>
-  <script src="static/task/comprehension.js?v=recording-20261026"></script>
-  <script src="static/task/instructions.js?v=recording-20261026"></script>
+  <script src="static/task/comprehension.js?v=warning-only-20261104"></script>
+  <script src="static/task/instructions.js?v=warning-only-20261104"></script>
   <script src="static/task/latin_square.js?v=trajectory-labels-20261104"></script>
   <script src="static/task/preload.js?v=recording-20261026"></script>
-  <script src="static/task/data_saving.js?v=early-review-20261104"></script>
-  <script src="static/task/data_recorder.js?v=progress-confirmation-20261104"></script>
+  <script src="static/task/data_saving.js?v=warning-only-pilot-20261104"></script>
+  <script src="static/task/data_recorder.js?v=warning-only-pilot-20261104"></script>
   <script src="static/task/progress.js?v=progress-confirmation-20261104"></script>
   <script src="static/task/dev_routes.js?v=recording-20261026"></script>
   <script src="static/task/survey.js?v=recording-20261026"></script>
@@ -913,7 +913,11 @@
     return (v !== null && v !== '') ? v : fallback;
   }
 
-  var TASK_VERSION = 'v3.15.1-progress-and-input';
+  var TASK_VERSION = 'v3.15.2-warning-only-pilot';
+  // Recruitment on Prolific uses pilot=0 for its return route. This policy
+  // applies independently to both transport modes and has no URL override.
+  var INACTIVITY_POLICY_VERSION = 'inactivity-warning-only-v1-20261104';
+  var INACTIVITY_AUTO_TERMINATE = false;
   var DEV_MODE    = _urlParams.get('dev') === '1';
   var DEV_STAGE   = _urlParams.get('stage') || 'full';
   var DEV_NTRIALS = parseInt(_urlParams.get('ntrials'), 10) || 0;
@@ -935,7 +939,7 @@
   //                            a thank-you screen, NO Prolific redirect.
   //   pilot=0                → production mode:    save data, then
   //                            redirect to Prolific via the existing
-  //                            success / reject logic.
+  //                            configured completion paths.
   // Default is pilot mode (opt-in to production) for safety.
   // ──────────────────────────────────────────────────────────────
   var PILOT_MODE = _urlParams.get('pilot') !== '0';
@@ -1013,7 +1017,8 @@
   // ──────────────────────────────────────────────────────────────
   // Prolific completion paths. The success code belongs to Drone Task Pilot 1
   // and is configured for manual review in Prolific. Only used in production.
-  // Early termination is not configured to redirect. Memory screening uses
+  // Saved unexpected early endings use the manual review path. Inactivity
+  // only produces reminders in this pilot. Optional memory screening uses
   // its own separately configured paid completion destination below.
   // ──────────────────────────────────────────────────────────────
   var CODE_SUCCESS = 'C149FVM1';
@@ -1286,6 +1291,8 @@
       task_version: TASK_VERSION,
       stimuli_version: stimuli_version,
       condition_label_version: condition_label_version,
+      inactivity_policy_version: INACTIVITY_POLICY_VERSION,
+      inactivity_auto_terminate: INACTIVITY_AUTO_TERMINATE,
 
       true_vol: factors_vol,
       true_stc: factors_stc,
@@ -1735,6 +1742,8 @@
           is_moving_practice: is_moving_practice,
           missing_msg_warning_number: warning_threshold,
           hide_stimulus: hideStimulus,
+          inactivity_policy_version: INACTIVITY_POLICY_VERSION,
+          inactivity_auto_terminate: INACTIVITY_AUTO_TERMINATE,
           on_start: function(trial) {
             var displayedBlock = trial.data && trial.data.block;
             if (prev_block !== null && displayedBlock !== prev_block) {
@@ -1765,6 +1774,8 @@
             if (dat.trial == num_trials) bucket = 50;
 
             stayed = dat.stayed === 0 ? 0 : stayed + 1;
+            var currentStreak = stayed;
+            var eligibleEpisode = false;
             show_missing = false;
 
             if (stayed >= stayed_threshold) {
@@ -1774,23 +1785,27 @@
               if (current_supply_caught !== 10 && prev_supply_caught !== 10) {
                 missed_responses++;
                 total_missed_responses++;
+                eligibleEpisode = true;
               }
 
               if (total_missed_responses >= warning_threshold) {
                 strong_warning = true;
               }
 
-              // Only the scored real game (practice_no === 0) can end the
-              // session for prolonged inactivity. Practice blocks (1–5) keep
-              // escalating the in-trial "Still there?" warning card via
-              // strong_warning above, but never call endExperiment() — the
-              // participant just gets repeated reminders until they move on.
-              if (practice_no === 0 && total_missed_responses >= missed_threshold) {
-                low_quality = true;
-                if (window.DroneDataRecorderActive) window.DroneDataRecorderActive.setExit('prolonged_inactivity');
-                jsPsych.endExperiment();
-              }
+              // Retain the historical threshold as an analysis flag only.
+              // Inactivity does not set low_quality or end the pilot.
             }
+
+            Object.assign(dat, {
+              inactivity_policy_version: INACTIVITY_POLICY_VERSION,
+              inactivity_auto_terminate: INACTIVITY_AUTO_TERMINATE,
+              inactivity_streak_length: currentStreak,
+              inactivity_episode_eligible: eligibleEpisode,
+              inactivity_episode_count: total_missed_responses,
+              inactivity_warning_scheduled: show_missing,
+              inactivity_legacy_threshold_reached: practice_no === 0 &&
+                total_missed_responses >= missed_threshold
+            });
 
             prev_supply_caught = current_supply_caught;
           }
@@ -2678,6 +2693,7 @@
       { pilotMode: PILOT_MODE, devMode: DEV_MODE, showConsent: SHOW_CONSENT,
         taskVersion: TASK_VERSION, stimuliVersion: stimuli_version,
         conditionLabelVersion: condition_label_version, consentTextVersion: 'drone-task-20261104',
+        inactivityPolicyVersion: INACTIVITY_POLICY_VERSION, inactivityAutoTerminate: INACTIVITY_AUTO_TERMINATE,
         taskVariant: TASK_VARIANT,
         mouseQcRequested: _mouseQcState.requested,
         mouseQcEnabled: _mouseQcState.enabled,
@@ -2798,12 +2814,15 @@
       jsPsych: jsPsych, env: _env, participantId: PROLIFIC_PID || workerId,
       taskVersion: TASK_VERSION, stimuliVersion: stimuli_version, pilotMode: PILOT_MODE, devMode: DEV_MODE,
       conditionLabelVersion: condition_label_version, consentTextVersion: 'drone-task-20261104',
+      inactivityPolicyVersion: INACTIVITY_POLICY_VERSION, inactivityAutoTerminate: INACTIVITY_AUTO_TERMINATE,
       showConsent: SHOW_CONSENT, stage: DEV_MODE ? _stage : 'full', devNtrials: DEV_NTRIALS, auditFull: AUDIT_FULL,
       mouseQcRequested: _mouseQcState.requested, mouseQcEnabled: _mouseQcState.enabled,
       memoryScreeningRequested: _memoryScreenState.requested, memoryScreeningEnabled: _memoryScreenState.enabled,
       designManifest: {
         stimuli_version: stimuli_version,
         condition_label_version: condition_label_version,
+        inactivity_policy_version: INACTIVITY_POLICY_VERSION,
+        inactivity_auto_terminate: INACTIVITY_AUTO_TERMINATE,
         condition_ids: CANONICAL_CONDITION_LABELS.slice(),
         volatility_labels: factors_vol.slice(), stochasticity_labels: factors_stc.slice(),
         condition_metrics: MAIN_CONDITION_AUDIT,

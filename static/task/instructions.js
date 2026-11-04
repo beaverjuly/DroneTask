@@ -610,10 +610,7 @@ var inst2_locking_and_bag = {
       ],
       'However, you should not leave the collector in one place for ' +
         '<strong>more than a few turns</strong>.',
-      [
-        'If you do, we will <em>warn you</em>,',
-        'and if you persist, we may have to <strong>end the game early!</strong>'
-      ]
+      'If you do, we will <em>remind you</em> to move the collector.'
     ]) + catchOutcomeDemos(),
 
     // P4: introduce and fully explain green before green practice.
