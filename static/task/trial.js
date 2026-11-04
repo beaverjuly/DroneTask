@@ -326,6 +326,219 @@ jsPsych.plugins["trial"] = (function () {
     return Math.max(minVal, Math.min(maxVal, x));
   }
 
+  // The collector and supplied sequences use this rail interval. Rendering
+  // and scoring share one resolved position; text/card clamps are readability
+  // choices and never define the landing point.
+  var LANDING_BOUNDS = { min: 10, max: 90 };
+
+  function resolveLandingPosition(trial) {
+    if (trial.bag_position === null || trial.bag_position === undefined ||
+        trial.bag_position === '' || !isFinite(Number(trial.bag_position))) {
+      throw new Error('A finite supply landing position is required.');
+    }
+    return clampPercent(Number(trial.bag_position), LANDING_BOUNDS.min, LANDING_BOUNDS.max);
+  }
+
+  function createTrialExecution(displayElement, trial, onset) {
+    var execution = {
+      active: true, stimulusOpen: false, timers: [], imageRequest: 0,
+      landingPosition: resolveLandingPosition(trial),
+      state: {
+        stim_display_outcome: trial.hide_stimulus ? 'hidden' : (!trial.stim_img ? 'no_stimulus' : 'not_presented'),
+        stim_preload_failed: null, stim_fallback_emoji: null,
+        stim_display_status: 'not_presented', stim_load_route: null,
+        stim_image_loaded: null, stim_image_decoded: null,
+        stim_load_error: null, stim_fallback_reason: null,
+        stim_requested_elapsed_ms: null, stim_visible_elapsed_ms: null,
+        stim_visible_duration_ms: null
+      }
+    };
+    execution.elapsed = function () {
+      var clock = typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now();
+      return Math.max(0, clock - onset);
+    };
+    execution.get = function (id) {
+      return execution.active ? displayElement.querySelector('#' + id) : null;
+    };
+    execution.later = function (callback, delay) {
+      var timer = setTimeout(function () {
+        if (execution.active) callback();
+      }, delay);
+      execution.timers.push(timer);
+      return timer;
+    };
+    execution.stopPresentation = function () {
+      if (execution.state.stim_visible_elapsed_ms !== null && execution.stimulusOpen) {
+        execution.state.stim_visible_duration_ms =
+          Math.max(0, execution.elapsed() - execution.state.stim_visible_elapsed_ms);
+      }
+      execution.stimulusOpen = false;
+      execution.imageRequest++;
+      var image = execution.get('stimulus-img');
+      if (image) { image.onload = null; image.onerror = null; }
+    };
+    execution.stop = function () {
+      execution.stopPresentation();
+      execution.active = false;
+      execution.timers.forEach(clearTimeout);
+      execution.timers = [];
+    };
+    return execution;
+  }
+
+  function showStimulus(trial, execution) {
+    var state = execution.state;
+    state.stim_requested_elapsed_ms = execution.elapsed();
+    if (trial.hide_stimulus) {
+      state.stim_display_outcome = state.stim_display_status = 'hidden';
+      return;
+    }
+    if (!trial.stim_img) {
+      state.stim_display_outcome = state.stim_display_status = 'no_stimulus';
+      return;
+    }
+    var card = execution.get('stimulus-card');
+    var emoji = execution.get('emoji-stim');
+    var image = execution.get('stimulus-img');
+    if (!card) {
+      state.stim_display_outcome = state.stim_display_status = 'missing_element';
+      state.stim_load_error = 'missing_stimulus_card';
+      return;
+    }
+    execution.stimulusOpen = true;
+    card.style.left = clampPercent(execution.landingPosition, 18, 82) + '%';
+    card.style.display = 'flex';
+
+    function current() {
+      return execution.active && execution.stimulusOpen && execution.get('stimulus-card') === card;
+    }
+    function visible(outcome, status) {
+      if (!current()) return;
+      state.stim_display_outcome = outcome;
+      state.stim_display_status = status;
+      if (state.stim_visible_elapsed_ms === null) state.stim_visible_elapsed_ms = execution.elapsed();
+      if (isImageStim(trial.stim_img) && typeof logDisplayOutcome === 'function') {
+        logDisplayOutcome(trial.stim_img, outcome, state.stim_fallback_emoji);
+      }
+    }
+    function fallback(reason) {
+      if (!current()) return;
+      execution.imageRequest++;
+      if (image) {
+        image.onload = null; image.onerror = null;
+        image.removeAttribute('src'); image.style.display = 'none';
+      }
+      state.stim_fallback_reason = reason;
+      if (!emoji) {
+        state.stim_display_outcome = state.stim_display_status = 'load_error';
+        state.stim_load_error = reason;
+        return;
+      }
+      var item = typeof getFallbackEmoji === 'function' ? getFallbackEmoji(trial.stim_img) : '\u2753';
+      state.stim_fallback_emoji = item;
+      emoji.textContent = item; emoji.style.display = 'block';
+      visible('fallback_emoji', 'fallback_emoji');
+    }
+    if (!isImageStim(trial.stim_img)) {
+      if (image) { image.removeAttribute('src'); image.style.display = 'none'; }
+      if (!emoji) {
+        state.stim_display_outcome = state.stim_display_status = 'missing_element';
+        state.stim_load_error = 'missing_emoji_element';
+        return;
+      }
+      emoji.textContent = trial.stim_img; emoji.style.display = 'block';
+      visible('emoji', 'emoji');
+      return;
+    }
+
+    var url = trial.stim_img;
+    state.stim_image_loaded = false;
+    state.stim_image_decoded = null;
+    if (typeof isPreloadFailed === 'function') {
+      try { state.stim_preload_failed = !!isPreloadFailed(url); }
+      catch (error) { state.stim_preload_failed = null; }
+    }
+    if (state.stim_preload_failed === true) { fallback('preload_failed'); return; }
+    if (!image) { fallback('missing_image_element'); return; }
+    if (emoji) { emoji.textContent = ''; emoji.style.display = 'none'; }
+    state.stim_display_outcome = state.stim_display_status = 'load_pending';
+
+    function loadImage(resolved, route) {
+      if (!current()) return;
+      var request = ++execution.imageRequest;
+      var loadingComplete = false;
+      state.stim_load_route = route;
+      function validRequest() {
+        return current() && request === execution.imageRequest && execution.get('stimulus-img') === image;
+      }
+      function reveal(decoded) {
+        if (!validRequest()) return;
+        if (!(Number(image.naturalWidth) > 0)) {
+          state.stim_load_error = 'image_load_error'; fallback('image_load_error'); return;
+        }
+        state.stim_image_loaded = true;
+        state.stim_image_decoded = decoded;
+        image.onload = null; image.onerror = null;
+        image.style.display = 'block'; image.style.visibility = 'visible';
+        visible(route, decoded === true ? 'decoded' : 'loaded');
+      }
+      function loaded() {
+        if (!validRequest() || loadingComplete) return;
+        loadingComplete = true;
+        state.stim_image_loaded = Number(image.naturalWidth) > 0;
+        if (!state.stim_image_loaded) {
+          state.stim_load_error = 'image_load_error'; fallback('image_load_error'); return;
+        }
+        if (typeof image.decode === 'function') {
+          try {
+            Promise.resolve(image.decode()).then(function () { reveal(true); }, function () {
+              if (!validRequest()) return;
+              state.stim_load_error = 'image_decode_error';
+              // A load event with nonzero naturalWidth remains displayable
+              // even if a browser cannot complete its optional decode call.
+              reveal(false);
+            });
+          } catch (error) { state.stim_load_error = 'image_decode_error'; reveal(false); }
+        } else { reveal(null); }
+      }
+      image.onload = loaded;
+      image.onerror = function () {
+        if (!validRequest()) return;
+        state.stim_image_loaded = false;
+        state.stim_load_error = 'image_load_error';
+        fallback('image_load_error');
+      };
+      image.style.display = 'block'; image.style.visibility = 'hidden';
+      image.src = resolved;
+      if (image.complete && Number(image.naturalWidth) > 0) loaded();
+    }
+    var resolved = url;
+    if (typeof resolvePreloadedUrl === 'function') {
+      try { resolved = resolvePreloadedUrl(url) || url; }
+      catch (error) { resolved = url; }
+    }
+    if (resolved.indexOf('blob:') === 0) { loadImage(resolved, 'cached'); }
+    else if (typeof ensurePreloaded === 'function') {
+      state.stim_load_route = 'jit_pending';
+      // A rejected preload can still be followed by a successful direct load.
+      try {
+        Promise.resolve(ensurePreloaded(url)).then(function (entry) {
+          if (!current()) return;
+          if (entry && entry.blobUrl) {
+            loadImage(entry.blobUrl, 'jit_success');
+          } else {
+            state.stim_preload_failed = true;
+            loadImage(url, 'direct_load');
+          }
+        }, function () {
+          if (!current()) return;
+          state.stim_preload_failed = true;
+          loadImage(url, 'direct_load');
+        });
+      } catch (error) { state.stim_preload_failed = true; loadImage(url, 'direct_load'); }
+    } else { loadImage(resolved, 'direct_load'); }
+  }
+
   function isImageStim(src) {
     return typeof src === "string" && (src.indexOf("/") !== -1 || /\.png$/i.test(src));
   }
@@ -378,9 +591,8 @@ jsPsych.plugins["trial"] = (function () {
   }
 
   /* ── Bag explosion: spawn fragments at the landing point ── */
-  /* ── Bag explosion: spawn fragments at the landing point ── */
-  function showBagExplosion(trial, captureCount, valenceClass) {
-    var layer = document.getElementById("fragment-layer");
+  function showBagExplosion(trial, captureCount, valenceClass, execution) {
+    var layer = execution.get("fragment-layer");
     if (!layer) return;
 
     // Clear any leftover fragments from a previous trial.
@@ -392,13 +604,17 @@ jsPsych.plugins["trial"] = (function () {
         ? trial.supply_distribution
         : defaultDist;
 
-    var bagX = clampPercent(trial.bag_position, 12, 88);
+    var bagX = execution.landingPosition;
+    // Preserve the ordinary 80vw scene's spread, while respecting its 1400px
+    // maximum on very wide monitors instead of expanding fragments with vw.
+    var layerWidth = layer.getBoundingClientRect().width;
+    var sceneUnit = layerWidth > 0 ? layerWidth / 80 : window.innerWidth / 100;
 
     offsets.forEach(function (offset, i) {
       var frag = document.createElement("div");
       frag.className = "bag-fragment " + valenceClass;
 
-      var dxVw = offset * 1.15;
+      var dxPx = offset * 1.15 * sceneUnit;
 
       // small upward pop
       var dyVh = -(0.6 + Math.random() * 0.5);
@@ -416,8 +632,8 @@ jsPsych.plugins["trial"] = (function () {
       var delayMs = Math.random() * 12;
 
       frag.style.left = bagX + "%";
-      frag.style.setProperty("--dx", dxVw + "vw");
-      frag.style.setProperty("--dx-mid", dxVw * 0.72 + "vw");
+      frag.style.setProperty("--dx", dxPx + "px");
+      frag.style.setProperty("--dx-mid", dxPx * 0.72 + "px");
       frag.style.setProperty("--dy", dyVh + "vh");
       frag.style.setProperty("--fall-mid", fallMidVh + "vh");
       frag.style.setProperty("--fall", fallVh + "vh");
@@ -429,7 +645,7 @@ jsPsych.plugins["trial"] = (function () {
     });
   }
 
-  function fly(trial) {
+  function fly(trial, execution) {
     var valence = trial.valence || "reward";
     var va = getValenceConfig(valence);
 
@@ -444,11 +660,11 @@ jsPsych.plugins["trial"] = (function () {
     setCollectorLocked();
 
     // — Step 1: bag dot appears at the top and drops to the landing point.
-    setTimeout(function () {
+    execution.later(function () {
       // Keep the drone visible during visible practice trials.
       // Do not reset left here if it has already traveled during the response phase.
       if (trial.show_drone) {
-        var drone = document.getElementById("drone");
+        var drone = execution.get("drone");
         if (drone) {
           if (!trial.animate_drone) {
             drone.style.left = trial.drone_position + "%";
@@ -461,9 +677,9 @@ jsPsych.plugins["trial"] = (function () {
       // animation changes only its vertical position, matching the real game:
       // the circle begins a little left or right of the drone and falls
       // straight down without lateral motion.
-      var bagDot = document.getElementById("bag-dot");
+      var bagDot = execution.get("bag-dot");
       if (bagDot) {
-        var bagLeft = clampPercent(trial.bag_position, 12, 88);
+        var bagLeft = execution.landingPosition;
         bagDot.style.left = bagLeft + "%";
         // Reset any state from a previous trial.
         bagDot.className = "bag-dot " + va.bagClass;
@@ -477,24 +693,24 @@ jsPsych.plugins["trial"] = (function () {
     }, bagDelay);
 
     // — Step 2: bag has landed → pulse + fragment burst.
-    setTimeout(function () {
-      var distance = Math.abs(trial.bucket_position - trial.bag_position);
+    execution.later(function () {
+      var distance = Math.abs(trial.bucket_position - execution.landingPosition);
       var captureCount = computeCaptureCount(distance);
       trial.supply_caught = captureCount;
 
       // Switch from drop animation to landing pulse. The pulse fades out the
       // bag dot while the fragments take over the visual space.
-      var bagDot = document.getElementById("bag-dot");
+      var bagDot = execution.get("bag-dot");
       if (bagDot) {
         bagDot.classList.remove("dropping");
         bagDot.classList.add("landed");
       }
 
-      showBagExplosion(trial, captureCount, va.bagClass);
+      showBagExplosion(trial, captureCount, va.bagClass, execution);
     }, landDelay);
 
     // — Step 3: feedback value text appears near the landing position.
-    setTimeout(function () {
+    execution.later(function () {
       var captureCount = trial.supply_caught;
       var valueChange = va.feedback_sign(captureCount);
       var displayText;
@@ -505,104 +721,27 @@ jsPsych.plugins["trial"] = (function () {
 
       var color = va.feedback_color(captureCount);
 
-      var fb = document.getElementById("fb");
+      var fb = execution.get("fb");
       if (fb) {
         fb.textContent = displayText;
         fb.style.color = color;
-        fb.style.left = clampPercent(trial.bag_position, 12, 88) + "%";
+        fb.style.left = clampPercent(execution.landingPosition, 12, 88) + "%";
         fb.style.display = "block";
       }
     }, valueDelay);
 
-    // — Step 4: item stimulus card appears.
-    // Practice stimuli are text emojis; main-task stimuli are PNG paths.
-    setTimeout(function () {
-      var card = document.getElementById("stimulus-card");
-      var emojiEl = document.getElementById("emoji-stim");
-      var imgEl = document.getElementById("stimulus-img");
-
-      if (card && trial.stim_img && !trial.hide_stimulus) {
-        if (isImageStim(trial.stim_img)) {
-          var _url = trial.stim_img;
-          var _failed = typeof isPreloadFailed === "function" && isPreloadFailed(_url);
-          _stim_preload_failed = _failed;
-
-          if (_failed) {
-            // ── Fallback: show deterministic emoji instead of broken image ──
-            var _emoji = typeof getFallbackEmoji === "function"
-              ? getFallbackEmoji(_url) : "\u2753";
-            _stim_display_outcome = "fallback_emoji";
-            _stim_fallback_emoji  = _emoji;
-            if (imgEl)   { imgEl.removeAttribute("src"); imgEl.style.display = "none"; }
-            if (emojiEl) { emojiEl.textContent = _emoji; emojiEl.style.display = "block"; }
-            if (typeof logDisplayOutcome === "function")
-              logDisplayOutcome(_url, "fallback_emoji", _emoji);
-          } else {
-            // ── Normal: resolve from blob cache (instant) or JIT load ──
-            if (emojiEl) { emojiEl.textContent = ""; emojiEl.style.display = "none"; }
-            if (imgEl) {
-              var _resolved = typeof resolvePreloadedUrl === "function"
-                ? resolvePreloadedUrl(_url) : _url;
-              var _isBlob = _resolved.indexOf("blob:") === 0;
-              var _showImg = function () {
-                imgEl.style.display = "block";
-                imgEl.style.visibility = "hidden";
-                imgEl.src = _resolved;
-                if (typeof imgEl.decode === "function") {
-                  imgEl.decode().then(function () { imgEl.style.visibility = "visible"; },
-                                      function () { imgEl.style.visibility = "visible"; });
-                } else { imgEl.style.visibility = "visible"; }
-              };
-
-              if (_isBlob) {
-                _stim_display_outcome = "cached";
-                _showImg();
-                if (typeof logDisplayOutcome === "function")
-                  logDisplayOutcome(_url, "cached", null);
-              } else if (typeof ensurePreloaded === "function") {
-                ensurePreloaded(_url).then(function (entry) {
-                  if (entry && entry.blobUrl) {
-                    _resolved = entry.blobUrl;
-                    _stim_display_outcome = "jit_success";
-                  } else {
-                    _stim_display_outcome = "direct_load";
-                  }
-                  _showImg();
-                  if (typeof logDisplayOutcome === "function")
-                    logDisplayOutcome(_url, _stim_display_outcome, null);
-                });
-              } else {
-                _stim_display_outcome = "direct_load";
-                _showImg();
-                if (typeof logDisplayOutcome === "function")
-                  logDisplayOutcome(_url, "direct_load", null);
-              }
-            }
-          }
-        } else {
-          if (imgEl) {
-            imgEl.removeAttribute("src");
-            imgEl.style.display = "none";
-          }
-          if (emojiEl) {
-            emojiEl.textContent = trial.stim_img;
-            emojiEl.style.display = "block";
-          }
-        }
-
-        card.style.left = clampPercent(trial.bag_position, 18, 82) + "%";
-        card.style.display = "flex";
-      }
-    }, itemDelay);
+    // — Step 4: image delivery is scoped to this trial, including async work.
+    execution.later(function () { showStimulus(trial, execution); }, itemDelay);
 
     // — Step 5: cleanup — clear bag, fragments, value, card, drone, landing marker.
-    setTimeout(function () {
-      var fb = document.getElementById("fb");
-      var card = document.getElementById("stimulus-card");
-      var bagDot = document.getElementById("bag-dot");
-      var peLine = document.getElementById("pe-line");
-      var drone = document.getElementById("drone");
-      var fragLayer = document.getElementById("fragment-layer");
+    execution.later(function () {
+      execution.stopPresentation();
+      var fb = execution.get("fb");
+      var card = execution.get("stimulus-card");
+      var bagDot = execution.get("bag-dot");
+      var peLine = execution.get("pe-line");
+      var drone = execution.get("drone");
+      var fragLayer = execution.get("fragment-layer");
 
       if (fb) fb.style.display = "none";
       if (card) card.style.display = "none";
@@ -630,9 +769,8 @@ plugin.trial = function (display_element, trial) {
 
     var _bucket_start_pos = trial.bucket_position;
     var _bucket_end_pos   = trial.bucket_position;
-    var _stim_display_outcome  = null;   // 'cached'|'jit_success'|'fallback_emoji'|'direct_load'
-    var _stim_preload_failed   = false;
-    var _stim_fallback_emoji   = null;
+    var execution = createTrialExecution(display_element, trial, _trial_onset_perf);
+    var trialFinished = false;
     var _rt_first_move_ms = null;
     var _rt_last_move_ms  = null;
     var _num_moves        = 0;
@@ -666,7 +804,7 @@ plugin.trial = function (display_element, trial) {
     if (trial.show_drone && trial.animate_drone) {
       // Collector responses clear jsPsych response timers. Keep drone travel
       // independent so an early arrow cannot cancel the scheduled movement.
-      droneTravelTimer = setTimeout(function () {
+      droneTravelTimer = execution.later(function () {
         droneTravelTimer = null;
         var drone = display_element.querySelector('#drone');
         if (drone) {
@@ -792,7 +930,7 @@ plugin.trial = function (display_element, trial) {
           // Participant hasn't slid yet — flash the tip instead of advancing.
           tipEl.textContent = movementPrompt;
           tipEl.style.opacity = '1';
-          setTimeout(function () { tipEl.style.opacity = '0'; }, 2200);
+          execution.later(function () { tipEl.style.opacity = '0'; }, 2200);
         } else {
           end_trial(1);
         }
@@ -827,9 +965,9 @@ plugin.trial = function (display_element, trial) {
 
       // Practice: keyboard stays live; Next button drives end_trial.
       if (!trial.is_moving_practice) {
-        setTimeout(function () {
+        execution.later(function () {
           jsPsych.pluginAPI.cancelAllKeyboardResponses();
-          fly(trial);
+          fly(trial, execution);
           jsPsych.pluginAPI.setTimeout(function () {
             end_trial(1);
           }, trial.drop_duration);
@@ -837,7 +975,7 @@ plugin.trial = function (display_element, trial) {
       }
     };
 
-    setTimeout(function () {
+    execution.later(function () {
       keyboardListener1 = jsPsych.pluginAPI.getKeyboardResponse({
         callback_function: after_1st_response,
         valid_responses: trial.choices,
@@ -937,13 +1075,17 @@ plugin.trial = function (display_element, trial) {
     };
 
     var end_trial = function (completed) {
+      if (trialFinished) return;
+      trialFinished = true;
+      execution.stop();
       if (droneTravelTimer !== null) clearTimeout(droneTravelTimer);
       jsPsych.pluginAPI.clearAllTimeouts();
       jsPsych.pluginAPI.cancelAllKeyboardResponses();
 
       setCollectorUnlocked();
 
-      var supply_caught_value = completed === 1 ? trial.supply_caught : null;
+      var supply_caught_value = completed === 1 && typeof trial.supply_caught === 'number' &&
+        isFinite(trial.supply_caught) ? trial.supply_caught : null;
 
       // Score = the points shown to the participant.
       // reward: score === supply_caught (0 to +10)
@@ -995,10 +1137,12 @@ plugin.trial = function (display_element, trial) {
           typeof trial.true_stc_param !== "undefined" ? trial.true_stc_param : null,
         vol_level: typeof trial.vol_level !== "undefined" ? trial.vol_level : null,
         stc_level: typeof trial.stc_level !== "undefined" ? trial.stc_level : null,
-        stim_display_outcome:  _stim_display_outcome,
-        stim_preload_failed:   _stim_preload_failed,
-        stim_fallback_emoji:   _stim_fallback_emoji
+        bag_rendered_position: execution.landingPosition,
+        bag_scoring_position: execution.landingPosition,
+        bag_position_adjusted: execution.landingPosition !== Number(trial.bag_position)
       };
+
+      Object.keys(execution.state).forEach(function (key) { trial_data[key] = execution.state[key]; });
 
       // Keep the visible practice drone painted until the next practice turn
       // replaces the scene synchronously. This avoids a blank/flicker frame
@@ -1017,7 +1161,7 @@ plugin.trial = function (display_element, trial) {
           missed_response();
         } else {
           jsPsych.pluginAPI.cancelAllKeyboardResponses();
-          fly(trial);
+          fly(trial, execution);
           jsPsych.pluginAPI.setTimeout(function () {
             end_trial(1);
           }, trial.drop_duration);

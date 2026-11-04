@@ -1,36 +1,29 @@
 
-var stimuli_version = "v14-separate-memory-demo-emojis";
+var stimuli_version = "v15-trajectory-aligned-labels";
+var condition_label_version = "trajectory-aligned-v2-20261104";
 
-// ── Block design ──────────────────────────────────────────────────
-// Block 1: reward, high vol / low sto
-// Block 2: reward, low vol / high sto
-// Block 3: loss,   high vol / low sto
-// Block 4: loss,   low vol / high sto
+// ── Canonical design labels ───────────────────────────────────────
+// Indices stay attached to the same trajectories and reward/loss assignments.
+// 0 = A reward, small drone shifts / larger supply offsets
+// 1 = B reward, large drone shifts / smaller supply offsets
+// 2 = C loss,   small drone shifts / larger supply offsets
+// 3 = D loss,   large drone shifts / smaller supply offsets
 //
-// Convention:
-//   vol 49 = high volatility,  vol 4  = low volatility
-//   stc 64 = high stochasticity, stc 16 = low stochasticity
-var factors_vol = [49, 4, 49, 4];
-var factors_stc = [16, 64, 16, 64];
+// Labels were corrected in condition_label_version v2. The older v14 files
+// used the opposite high/low words. Recorded legacy labels must remain intact.
+// 49 versus 4 and 64 versus 16 are retained nominal design codes. They are
+// not estimates of the empirical variance of these fixed, shifted sequences.
+var factors_vol = [4, 49, 4, 49];
+var factors_stc = [64, 16, 64, 16];
 var factors_valence = ['reward', 'reward', 'loss', 'loss'];
 
-// ── Latent change-point documentation ─────────────────────────────
-// The latent drone trajectory contains abrupt jumps (change points)
-// at specific serial positions within each 50-trial block.  These are
-// relevant for the slider-memory test which probes items near boundaries.
-//
-// High-volatility blocks (vol = 49, blocks 1 & 3):
-//   Change points at trials: 3, 5, 11, 19, 25, 37, 39, 47
-//   (frequent jumps — mean run length ≈ 49 trials equivalent)
-//
-// Low-volatility blocks (vol = 4, blocks 2 & 4):
-//   Change points at trials: 3, 5, 11, 15, 19, 21, 25, 29, 31, 37, 39, 45, 47
-//   (infrequent jumps — mean run length ≈ 4 trials)
-//
-// The six slider-memory pairs that straddle change points:
-//   [2,4]   [11,13]   [16,18]   [22,24]   [34,36]   [39,41]
-// For each pair the middle item (3, 12, 17, 23, 35, 40) may or may not
-// sit on a change point depending on the block's volatility schedule.
+// ── Latent change points ──────────────────────────────────────────
+// Both amplitudes use the same 15 change positions, one based within block:
+// 2, 3, 5, 12, 15, 19, 21, 25, 27, 32, 37, 40, 46, 48, 50.
+// High and low volatility here distinguish movement amplitude, not frequency.
+// The legacy one-intervening-item pairs [2,4], [11,13], [39,41] contain
+// a change at their middle item; [16,18], [22,24], [34,36] do not.
+// The runtime audit below derives this schedule directly from the sequences.
 
 var practice_bag_position = [
 	[57.349,67.747,56.168,64.153,71.952,78.877,68.78,68.03,75.309,82.184,61.193,61.554,70.756,74.713,79.699,76.142,67.515,73.378,65.231,60.974,66.369,73.609,69.924,66.916,56.155,64.316,67.842,68.096,73.969,58.099,64.794,67.012,57.162,68.873,71.183,81.587,69.566,59.935,72.316,68.248,59.185,59.445,38.543,41.158,50.988,52.986,56.839,46.948,48.404,50.041],
@@ -65,64 +58,125 @@ function shiftSequence(seq, delta, minVal, maxVal) {
 }
 
 // base latent sequences
-var highVol_base_drone = main_drone_position[0].slice();
-var lowVol_base_drone  = main_drone_position[1].slice();
+var lowVol_base_drone = main_drone_position[0].slice();
+var highVol_base_drone  = main_drone_position[1].slice();
 
-var highVol_base_bag = main_bag_position[0].slice();
-var lowVol_base_bag  = main_bag_position[1].slice();
+var lowVol_base_bag = main_bag_position[0].slice();
+var highVol_base_bag  = main_bag_position[1].slice();
 
 // Uniform shifts applied to the whole sequence
 // Adjust these for more or less separation between reward and loss blocks.
-var HIGHVOL_SHIFT_DELTA = 6;
-var LOWVOL_SHIFT_DELTA  = -4;
+var LOWVOL_SHIFT_DELTA = 6;
+var HIGHVOL_SHIFT_DELTA  = -4;
 
 // Shifted variants
 // Shift both drone and bag by the SAME delta so the task structure stays unchanged.
-var highVol_shifted_drone = shiftSequence(highVol_base_drone, HIGHVOL_SHIFT_DELTA, 10, 90);
-var highVol_shifted_bag  = shiftSequence(highVol_base_bag,  HIGHVOL_SHIFT_DELTA, 10, 90);
-
 var lowVol_shifted_drone = shiftSequence(lowVol_base_drone, LOWVOL_SHIFT_DELTA, 10, 90);
 var lowVol_shifted_bag  = shiftSequence(lowVol_base_bag,  LOWVOL_SHIFT_DELTA, 10, 90);
+
+var highVol_shifted_drone = shiftSequence(highVol_base_drone, HIGHVOL_SHIFT_DELTA, 10, 90);
+var highVol_shifted_bag  = shiftSequence(highVol_base_bag,  HIGHVOL_SHIFT_DELTA, 10, 90);
 
 // Randomize whether REWARD blocks use shifted sequences or LOSS blocks use shifted sequences.
 // This is evaluated once at page load, so it stays fixed within a participant.
 var reward_uses_shifted_sequences = Math.random() < 0.5;
 
 // Assemble the 4 block-specific sequences conditionally.
-// Block 1: reward, high vol / low stc
-// Block 2: reward, low vol / high stc
-// Block 3: loss,   high vol / low stc
-// Block 4: loss,   low vol / high stc
+// Canonical 0/2 use small shifts and larger offsets; 1/3 use larger shifts
+// and smaller offsets. Presentation order is assigned by the Latin square.
 if (reward_uses_shifted_sequences) {
   main_drone_position = [
-    highVol_shifted_drone.slice(), // block 1 reward highVol
-    lowVol_shifted_drone.slice(),  // block 2 reward lowVol
-    highVol_base_drone.slice(),    // block 3 loss highVol
-    lowVol_base_drone.slice()      // block 4 loss lowVol
+    lowVol_shifted_drone.slice(), // canonical A reward lowVol
+    highVol_shifted_drone.slice(),  // canonical B reward highVol
+    lowVol_base_drone.slice(),    // canonical C loss lowVol
+    highVol_base_drone.slice()      // canonical D loss highVol
   ];
 
   main_bag_position = [
-    highVol_shifted_bag.slice(), // block 1 reward highVol
-    lowVol_shifted_bag.slice(),  // block 2 reward lowVol
-    highVol_base_bag.slice(),    // block 3 loss highVol
-    lowVol_base_bag.slice()      // block 4 loss lowVol
+    lowVol_shifted_bag.slice(), // canonical A reward lowVol
+    highVol_shifted_bag.slice(),  // canonical B reward highVol
+    lowVol_base_bag.slice(),    // canonical C loss lowVol
+    highVol_base_bag.slice()      // canonical D loss highVol
   ];
 } else {
   main_drone_position = [
-    highVol_base_drone.slice(),    // block 1 reward highVol
-    lowVol_base_drone.slice(),     // block 2 reward lowVol
-    highVol_shifted_drone.slice(), // block 3 loss highVol
-    lowVol_shifted_drone.slice()   // block 4 loss lowVol
+    lowVol_base_drone.slice(),    // canonical A reward lowVol
+    highVol_base_drone.slice(),     // canonical B reward highVol
+    lowVol_shifted_drone.slice(), // canonical C loss lowVol
+    highVol_shifted_drone.slice()   // canonical D loss highVol
   ];
 
   main_bag_position = [
-    highVol_base_bag.slice(),    // block 1 reward highVol
-    lowVol_base_bag.slice(),     // block 2 reward lowVol
-    highVol_shifted_bag.slice(), // block 3 loss highVol
-    lowVol_shifted_bag.slice()   // block 4 loss lowVol
+    lowVol_base_bag.slice(),    // canonical A reward lowVol
+    highVol_base_bag.slice(),     // canonical B reward highVol
+    lowVol_shifted_bag.slice(), // canonical C loss lowVol
+    highVol_shifted_bag.slice()   // canonical D loss highVol
   ];
 }
 console.log("[stimuli] reward_uses_shifted_sequences =", reward_uses_shifted_sequences);
+
+// Compute realized geometry independently of the declared labels. Every
+// transition remains visible; only nonzero shifts define movement amplitude.
+function getMainConditionMetrics() {
+  return main_drone_position.map(function(drone, index) {
+    var supply = main_bag_position[index];
+    if (!Array.isArray(drone) || !Array.isArray(supply) || drone.length !== 50 || supply.length !== 50) {
+      throw new Error('[design] Each canonical condition requires 50 drone and supply positions.');
+    }
+    var steps = [], changes = [], offsets = [];
+    for (var t = 0; t < drone.length; t++) {
+      if (!Number.isFinite(drone[t]) || !Number.isFinite(supply[t]) ||
+          drone[t] < 0 || drone[t] > 100 || supply[t] < 0 || supply[t] > 100) {
+        throw new Error('[design] Positions must be finite percentages within the rail.');
+      }
+      offsets.push(Math.abs(supply[t] - drone[t]));
+      if (t > 0) {
+        var delta = Math.abs(drone[t] - drone[t-1]);
+        steps.push(delta);
+        if (delta > 1e-9) changes.push({trial:t+1, distance:delta});
+      }
+    }
+    var mean = function(values) {
+      return values.length ? values.reduce(function(a,b) { return a+b; }, 0) / values.length : null;
+    };
+    return {
+      canonical_design_idx:index, valence:factors_valence[index],
+      nominal_vol_code:factors_vol[index], nominal_stc_code:factors_stc[index],
+      vol_level:factors_vol[index] === 49 ? 'high' : factors_vol[index] === 4 ? 'low' : null,
+      stc_level:factors_stc[index] === 64 ? 'high' : factors_stc[index] === 16 ? 'low' : null,
+      n_transitions:steps.length, n_position_changes:changes.length,
+      mean_absolute_drone_shift:mean(steps),
+      mean_absolute_nonzero_drone_shift:mean(changes.map(function(change) { return change.distance; })),
+      mean_absolute_drone_to_landing_distance:mean(offsets),
+      change_point_trials:changes.map(function(change) { return change.trial; })
+    };
+  });
+}
+
+function validateMainConditionLabels() {
+  var metrics = getMainConditionMetrics();
+  ['reward', 'loss'].forEach(function(valence) {
+    var group = metrics.filter(function(row) { return row.valence === valence; });
+    if (group.length !== 2 || group.some(function(row) { return row.vol_level === null || row.stc_level === null; })) {
+      throw new Error('[design] Missing or unsupported uncertainty label for ' + valence + '.');
+    }
+    var volLow = group.filter(function(row) { return row.vol_level === 'low'; })[0];
+    var volHigh = group.filter(function(row) { return row.vol_level === 'high'; })[0];
+    var stcLow = group.filter(function(row) { return row.stc_level === 'low'; })[0];
+    var stcHigh = group.filter(function(row) { return row.stc_level === 'high'; })[0];
+    if (!volLow || !volHigh || !stcLow || !stcHigh ||
+        !(volHigh.mean_absolute_nonzero_drone_shift > volLow.mean_absolute_nonzero_drone_shift) ||
+        !(volHigh.mean_absolute_drone_shift > volLow.mean_absolute_drone_shift) ||
+        !(stcHigh.mean_absolute_drone_to_landing_distance > stcLow.mean_absolute_drone_to_landing_distance)) {
+      throw new Error('[design] Declared high/low uncertainty labels disagree with realized ' + valence + ' geometry.');
+    }
+  });
+  return metrics;
+}
+
+// Fail immediately if a later array or metadata edit reverses the labels.
+var MAIN_CONDITION_AUDIT = validateMainConditionLabels();
+
 
 var SLIDER_PAIRS = [[2,4],[11,13],[16,18],[22,24],[34,36],[39,41]];
 var BOUNDARY_MIDDLE_PAIRS = [[2,4],[11,13],[39,41]];

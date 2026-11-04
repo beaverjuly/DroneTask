@@ -5,20 +5,17 @@ const path = require('node:path');
 const vm = require('node:vm');
 const crypto = require('node:crypto');
 const root = path.resolve(__dirname, '../..');
-const files = ['static/task/stimuli.js', 'static/task/preload.js',
+const files = ['static/task/stimuli.js', 'static/task/latin_square.js', 'static/task/preload.js',
   'static/task/memory_screening/memory_screening.js'];
-// Read the actual circle and fragment landing clamps from the encoding plugin.
-// Fail rather than silently assume bounds if the implementation changes shape.
+// Read the shared scoring/rendering bounds from the encoding implementation.
+// The named object is the renderer contract, rather than two independent clamps.
 const trialSource = fs.readFileSync(path.join(root,'static/task/trial.js'),'utf8');
-function supplyBounds(variable) {
-  const expression = new RegExp('var\\s+' + variable + '\\s*=\\s*clampPercent\\(trial\\.bag_position,\\s*([\\d.]+),\\s*([\\d.]+)\\)');
-  const match = trialSource.match(expression);
-  if (!match) throw new Error('Cannot locate supply rendering bounds for ' + variable);
-  return [Number(match[1]),Number(match[2])];
-}
-const circleBounds=supplyBounds('bagLeft'), fragmentBounds=supplyBounds('bagX');
-if (JSON.stringify(circleBounds)!==JSON.stringify(fragmentBounds)) {
-  throw new Error('Circle and fragment rendering bounds disagree.');
+const boundsMatch = trialSource.match(/var\s+LANDING_BOUNDS\s*=\s*\{\s*min:\s*([\d.]+),\s*max:\s*([\d.]+)\s*\}/);
+if (!boundsMatch) throw new Error('Cannot locate the shared LANDING_BOUNDS renderer contract.');
+const circleBounds=[Number(boundsMatch[1]),Number(boundsMatch[2])];
+const fragmentBounds=circleBounds.slice();
+if (!trialSource.includes('resolveLandingPosition')) {
+  throw new Error('Shared landing position resolver is missing.');
 }
 function load(shiftReward) {
   const math = Object.create(Math);
@@ -53,8 +50,10 @@ const screenTimeline = {
 const main = [false,true].map(shiftReward => {
   const ctx = load(shiftReward);
   return {reward_uses_shifted_sequences:shiftReward,
+    condition_label_version:ctx.condition_label_version,
+    condition_audit:ctx.validateMainConditionLabels(),
     blocks: ctx.main_drone_position.map((drone,i) => ({
-      condition:i+1, valence:ctx.factors_valence[i],
+      condition:i+1, condition_id:ctx.getCanonicalConditionId(i), valence:ctx.factors_valence[i],
       vol_param:ctx.factors_vol[i], stc_param:ctx.factors_stc[i],
       drone:drone, landing:ctx.main_bag_position[i]
     }))};
@@ -64,7 +63,8 @@ const multiSeed = Array.from({length:100},(_,i) =>
 console.log(JSON.stringify({
   screen:design, screen_timeline:screenTimeline, variants:main,
   renderer:{source:'static/task/trial.js',supply_bounds:circleBounds,
-    fragment_bounds:fragmentBounds,extracted_variables:['bagLeft','bagX']},
+    fragment_bounds:fragmentBounds,extracted_variables:['LANDING_BOUNDS'],
+    shared_landing_resolver:'resolveLandingPosition'},
   main_pool:c.STIMULUS_IMAGE_POOL,
   practice:c.PRACTICE_STIMULUS_ITEMS,
   fallback:c.FALLBACK_EMOJI,

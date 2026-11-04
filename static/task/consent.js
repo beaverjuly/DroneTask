@@ -1,11 +1,12 @@
 // ──────────────────────────────────────────────────────────────
 // consent.js — required USC IRB consent gate
 //
-// Approved source: "Approved Informed Consent 4.18.23.pdf"
-// Study ID: UP-23-00359; version date: 04/18/2023.
+// Source document: "Approved Informed Consent 4.18.23.pdf"
+// Study ID: UP-23-00359; source document date: 04/18/2023.
 //
-// The approved wording below is reproduced verbatim. Presentation-only
-// markup and styling adapt the three-page document for a web browser.
+// Drone Task text adapted at the researcher's request on 11/04/2026.
+// Procedures, risks and platform names describe this task's actual components.
+// This adaptation is not labelled as a verbatim copy of the source document.
 // ──────────────────────────────────────────────────────────────
 
 /**
@@ -29,14 +30,14 @@ window.buildConsentTrial = function(callbacks) {
   function approvalStamp() {
     return '<aside class="consent-approval" aria-label="IRB approval information">' +
       '<span>Study ID: UP-23-00359</span>' +
-      '<span>Valid From: 4/18/2023</span>' +
+      '<span>Source document date: 4/18/2023</span>' +
     '</aside>';
   }
 
   function pageFooter(pageNumber) {
     return '<footer class="consent-footer">' +
       '<div>' +
-        '<div>Version Date: <span class="consent-version">[04/18/2023]</span></div>' +
+        '<div>Task text version: <span class="consent-version">11/04/2026</span></div>' +
         '<div class="consent-template-version">USC IRB ICF Template Version Date: 10/10/2022</div>' +
       '</div>' +
       '<div>Page ' + pageNumber + ' of 3</div>' +
@@ -328,15 +329,15 @@ window.buildConsentTrial = function(callbacks) {
 
         <section class="consent-section">
           <h3>PROCEDURES</h3>
-          <p>If you decide to take part, this is what will happen: you will be asked to complete a series of online surveys and behavioral tasks. The online surveys will ask questions about you, and may include questions about your mental health and suicide. During the tasks, you will repeatedly be presented with images on the computer screen and asked to make decisions or responses using button-presses or mouse-clicks. Before and after the behavioral tasks, you may be asked to answer some questions about the tasks. You might be asked to participate in future phases of the study, which will take place using the same online survey platform. If you are asked to participate in future phases, you will be given the opportunity to provide informed consent for each phase separately.</p>
+          <p>If you decide to take part, you will play a computer game in which you move a collector to catch supplies dropped by a drone. You will answer questions about the order and relative timing of items shown during the game, complete a brief mouse movement task, and answer questions about your experience of the task and your demographics. You will respond using the keyboard and mouse or trackpad. Instructions, practice turns and comprehension questions are provided before the game. Please allow approximately 50 minutes.</p>
         </section>
 
         <section class="consent-section">
           <h3>RISKS AND DISCOMFORTS</h3>
           <p>Possible risks and discomforts you could experience during this study include:</p>
 
-          <h4>Surveys/Questionnaires</h4>
-          <p>This study includes questions related to mental health: about your emotions and reactions to being placed in certain situations, and the levels at which you may identify with certain thoughts or feelings. Some participants may find these questions troubling. You can choose to skip or stop answering any questions you don’t want to. The experimenters are not clinicians and not in a position to diagnose any disorders or offer medical advice. If the questions trouble you, we urge you to seek further advice or information from healthcare professionals. At the completion of the experiment, we will provide you with resources for learning more about mental health conditions and for seeking support if you so wish. Some of the questions may ask you about suicide. If your responses indicate some levels of suicidal thoughts, you will be provided with a list of resources to contact for further support. The researchers will not be monitoring your responses in real time, and will not be able to know if you have sought support from the resources provided.</p>
+          <h4>Computer task</h4>
+          <p>You may feel tired or frustrated while completing the game and memory questions. You may stop participating at any time. The questionnaire asks about your task experience and demographics.</p>
         </section>
 
         ${approvalStamp()}
@@ -348,7 +349,7 @@ window.buildConsentTrial = function(callbacks) {
 
         <section class="consent-section">
           <h4>Breach of Confidentiality</h4>
-          <p>There is a small risk that people who are not connected with this study will learn your identity or your personal information. To mitigate this risk, your data will be collected anonymously meaning the researchers will not have access to your personal identifying information. We will not ask you for any identifiable information during or after this experiment. The survey platforms will have access to your identifiers and contact information, but will not have access to your responses.</p>
+          <p>There is a small risk that people who are not connected with this study will learn your identity or your personal information. Your responses are recorded under study identifiers, including your Prolific ID, rather than your name. We do not ask for your name or contact details. Prolific manages recruitment and payment, and Pavlovia stores your task responses.</p>
         </section>
 
         <section class="consent-section">
@@ -358,10 +359,10 @@ window.buildConsentTrial = function(callbacks) {
 
         <section class="consent-section">
           <h3>PRIVACY/CONFIDENTIALITY</h3>
-          <p>Your data will be collected anonymously. Researchers have no access to your personal identifying information, which you have provided to the online platform.</p>
+          <p>Researchers can link your responses to your Prolific ID but do not receive your name or contact details from Prolific. Your responses include game and memory answers, response times, mouse movement records, task experience and demographic answers.</p>
           <p>The University of Southern California’s Institutional Review Board (IRB) and Human Subject’s Protections Program (HSPP) may review your records. Organizations that may also inspect and copy your information include the funding agency National Institutes of Health.</p>
-          <p>Your anonymous data might be used or distributed for future research studies without your additional informed consent. Your anonymous data will be retained by the investigator for future use indefinitely.</p>
-          <p>This study is conducted on [Amazon Mechanical Turk or Prolific], and it follows their Privacy Policy. We highly recommend that you familiarize yourself with the privacy policies of the platform. Please be aware that while researchers do not have access to your identifiable information, there is a potential risk of breach of confidentiality associated with any online platform.</p>
+          <p>Data with participant identifiers removed might be used or distributed for future research studies without your additional informed consent. Research data will be retained by the investigator for future use indefinitely.</p>
+          <p>Participants are recruited through Prolific, and the experiment is hosted on Pavlovia. These platforms process data under their respective privacy policies. We recommend that you familiarize yourself with those policies. There is a potential risk of breach of confidentiality associated with any online platform.</p>
         </section>
 
         <section class="consent-section">
@@ -436,7 +437,9 @@ window.buildConsentTrial = function(callbacks) {
     data: {
       trial_category: 'consent',
       consent_study_id: 'UP-23-00359',
-      consent_version_date: '04/18/2023'
+      consent_version_date: '11/04/2026',
+      consent_source_version_date: '04/18/2023',
+      consent_text_version: 'drone-task-20261104'
     }
   };
 };

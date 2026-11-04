@@ -214,7 +214,12 @@ https://run.pavlovia.org/jiaheyi/DroneTask/
 
 Successful production completion uses the Drone Task Pilot 1 default Prolific
 path `C149FVM1`, configured for manual review. Redirect happens only after the
-server acknowledges the final recording. Pilot and dev routes never redirect.
+server acknowledges the final recording and closes the session. Inactivity and
+failed practice movement use the same code through an explicit early exit
+manual review path. Their saved outcome remains `early_terminated`, with the
+exit reason preserved. The return route does not approve, reject, or determine
+payment. If automatic navigation is blocked, the saved confirmation screen
+provides a return button and the completion code. Pilot and dev routes never redirect.
 The current Prolific pilot excludes memory screening (`memory_screen=0`).
 The separate paid screening completion destination remains unset; configure
 that path only if screening is enabled for a later study.

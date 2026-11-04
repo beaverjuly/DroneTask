@@ -131,16 +131,21 @@ See [analysis/README.md](analysis/README.md) for the input and export controls.
 
 |condition_id             |Volatility|Stochasticity|Valence|
 |-------------------------|----------|-------------|-------|
-|`A_reward_highVol_lowStc`|high      |low          |reward |
-|`B_reward_lowVol_highStc`|low       |high         |reward |
-|`C_loss_highVol_lowStc`  |high      |low          |loss   |
-|`D_loss_lowVol_highStc`  |low       |high         |loss   |
+|`A_reward_lowVol_highStc`|low       |high         |reward |
+|`B_reward_highVol_lowStc`|high      |low          |reward |
+|`C_loss_lowVol_highStc`  |low       |high         |loss   |
+|`D_loss_highVol_lowStc`  |high      |low          |loss   |
 
-These are saved nominal condition labels. Their high versus low ordering is
-opposite to the realized drone shifts and supply distances in the assigned
-arrays and recorded data. The analysis preserves the labels and exposes the
-geometry comparison rather than silently renaming conditions. Resolve that
-design interpretation before using uncertainty manipulation contrasts.
+These labels apply from `condition_label_version=trajectory-aligned-v2-20261104`
+with stimuli v15. High and low words now match the realized drone shift and
+supply distance ordering, while the assigned trajectories, block indices,
+valence and boundary positions are preserved. The numeric factor values are
+nominal design codes rather than estimated empirical variances.
+
+Earlier v14 recordings used the opposite high and low labels. Their raw data
+remain unchanged and the analysis retains those historical labels. Compare
+versions explicitly instead of pooling corrected and historical labels as if
+they meant the same condition.
 
 ## Dev routes
 
@@ -178,10 +183,13 @@ each of 20 turns, with 10 left and 10 right shifts including the first move
 from its baseline. The shift is the rounded midpoint of the main groups’ mean
 absolute movements on turns when the drone changes position. Each main block
 contributes 15 actual shifts; its 34 stationary transitions are excluded.
-Supplies land exactly 2.957285 percentage points from the
+Supplies land exactly 2.941055 percentage points from the
 drone, the midpoint of the main blocks’ mean absolute rendered distances, with
 10 left and 10 right landings in an irregular order. These control movement
 size and supply distance without establishing constant psychological surprise.
+This describes `ms-hidden-medium-v6` and the shared 10 through 90 percent
+landing bounds. Historical v5 screenings used a 2.957285 point supply offset
+under the earlier rendering contract and remain versioned separately.
 Twenty fixed object images were selected using published affect
 and clarity ratings and checked against the practice and main identity pools.
 A passing full route reminds participants that the drone remains hidden.

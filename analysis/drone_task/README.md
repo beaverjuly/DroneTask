@@ -25,4 +25,6 @@ Block conditions are joined from encoding observations. Volatility and stochasti
 
 The PNGs and saved notebook outputs use safe labels. Derived tables remain private and retain identifiers needed for joins. Optional components have separate [mouse QC](../mouse_qc/README.md) and [memory screen](../memory_screen/README.md) reports.
 
-The nominal high versus low condition labels run opposite to the recorded movement and supply distance ordering. The report preserves those labels and exports an explicit geometry check. This pattern also appears in the legacy recordings and assigned source arrays. Resolve this interpretation before using a high versus low manipulation contrast.
+Historical v14 recordings have high and low condition labels opposite to their realized movement and supply distance ordering. From `condition_label_version=trajectory-aligned-v2-20261104`, labels match the realized ordering while trajectories, block indices, valence and boundaries stay fixed. The report preserves each session’s recorded labels and explicit geometry checks. It never relabels historical rows or treats corrected and historical label versions as equivalent.
+
+The earlier renderer clamped the supply center to 12 through 88 percent although scoring used the raw position. New recordings retain `bag_rendered_position`, `bag_scoring_position` and `bag_position_adjusted` so equality is auditable. Historical positions and missing display telemetry cannot be reconstructed as newly recorded measurements.

@@ -2,7 +2,7 @@
 (function(root) {
   'use strict';
   var SCHEMA = 'drone-data-v2';
-  var VERSION = 'save-2.0.0-2026-10-26';
+  var VERSION = 'save-2.1.0-2026-11-04';
   function uuid() {
     if (root.crypto && root.crypto.randomUUID) return root.crypto.randomUUID();
     return 'run_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,14);
@@ -149,6 +149,9 @@
       this.record('session_manifest',Object.assign({
         session_started_at:this.startedAt,route_stage:this.options.stage || 'full',
         task_version:this.options.taskVersion,build_id:VERSION,
+        stimuli_version:this.options.stimuliVersion || null,
+        condition_label_version:this.options.conditionLabelVersion || null,
+        consent_text_version:this.options.consentTextVersion || null,
         progress_version:root.DroneTaskProgress ? root.DroneTaskProgress.version : null,
         pilot_mode:!!this.options.pilotMode,dev_mode:!!this.options.devMode,
         audit_full:!!this.options.auditFull,
@@ -323,6 +326,26 @@
     return [{label:'Download CSV',run:function(){offer(self.finalSnapshot.csv,self.finalSnapshot.filename);}},
       {label:'Download save receipt',run:function(){offer(JSON.stringify(self.receipt,null,2),self.finalSnapshot.filename.replace(/\.csv$/,'.receipt.json'),'application/json');}}];
   };
+  function completionPath(config,outcome) {
+    // Outcome and exit_reason describe behavior. A Prolific code only routes
+    // the saved submission; it must not turn an early exit into completion.
+    var path={kind:'none',destination:null,code:null};
+    if (config.PILOT_MODE || config.DEV_MODE) return path;
+    if (outcome==='memory_screened_out') {
+      var screenUrl=config.memoryScreeningCompletionUrl;
+      if (typeof screenUrl==='string' && /^https:\/\//.test(screenUrl) && screenUrl.indexOf('REPLACE_')===-1) {
+        path.kind='memory_screening';path.destination=screenUrl;
+      }
+      return path;
+    }
+    var code=outcome==='completed'?config.CODE_SUCCESS:
+      outcome==='early_terminated'?config.CODE_EARLY_REVIEW:null;
+    if (typeof code!=='string' || !/^[A-Za-z0-9_-]+$/.test(code) || /^REPLACE_/.test(code)) return path;
+    path.kind=outcome==='completed'?'full_completion':'early_exit_manual_review';
+    path.code=code;
+    path.destination='https://app.prolific.com/submissions/complete?cc='+encodeURIComponent(code);
+    return path;
+  }
   Recorder.prototype.finalize=async function(config) {
     var self=this;
     if (this.finalizing) return;
@@ -347,6 +370,7 @@
     else if (result && result.status==='failed' && !this.options.auditFull) outcome='memory_screened_out';
     else if (config.getLowQuality() || count.observed_main_encoding!==200 || count.observed_main_memory_pairs!==56 || count.observed_demographics!==1) outcome='early_terminated';
     this.outcome=outcome;
+    var completion=completionPath(config,outcome);
     var events=this.js.data.getInteractionData().values();
     // Capture the interaction snapshot before upload; event rows are the primary log.
     var summary=this.record('session_summary',Object.assign({},count,this.expected(outcome),{
@@ -355,7 +379,9 @@
       memory_screening_passed:result ? result.passed : null,
       cache_status:this.cacheStatus,session_started_at:this.startedAt,session_finished_at:new Date().toISOString(),
       interactions:JSON.stringify(events),total_interactions:events.length,
-      final_phase:this.lastPhase
+      final_phase:this.lastPhase,
+      completion_path:completion.kind,
+      completion_route_configured:!!completion.destination
     }));
     this.record('save_event',{event_name:'final_save_started',save_is_final:true,save_acknowledged:false});
     await this.flushCache();
@@ -392,19 +418,34 @@
           server_session_completed:received.acknowledged===true && received.session_closed===true,
           data_schema_version:SCHEMA,data_saving_version:VERSION
         });
-        if (received.acknowledged && received.disposition==='uploaded') await self.clearCache();
+        var success=received.acknowledged===true && received.disposition==='uploaded' && received.session_closed===true;
+        if (success) await self.clearCache();
         document.removeEventListener('visibilitychange',self.visibility);root.removeEventListener('pagehide',self.pagehide);
-        var success=received.acknowledged && received.disposition==='uploaded';
         if (root.DroneTaskProgressActive) root.DroneTaskProgressActive.finishSaving();
-        var message=success?'Your responses have been saved and confirmed by the server.':'A CSV copy has been offered for download. Cloud saving has not been confirmed. Please keep the downloaded file.';
+        var message=success?'Your responses have been saved and confirmed by the server.':'Cloud saving has not been confirmed. Download a copy of your recording and keep it before closing this tab.';
         var actions=self.auditActions();
-        self.panel(outcome==='configuration_error'?'Session could not finish':'Thank you for participating',message,actions);
-        if (!config.PILOT_MODE && !config.DEV_MODE && success) {
-          var destination=null;
-          if (outcome==='memory_screened_out') destination=config.memoryScreeningCompletionUrl;
-          else if (outcome==='completed') destination='https://app.prolific.com/submissions/complete?cc='+encodeURIComponent(config.CODE_SUCCESS);
-          else if (outcome==='early_terminated' && config.CODE_REJECT && !/^REPLACE_/.test(config.CODE_REJECT)) destination='https://app.prolific.com/submissions/complete?cc='+encodeURIComponent(config.CODE_REJECT);
-          if (destination && destination.indexOf('REPLACE_')===-1) root.location.assign(destination);
+        var title=outcome==='configuration_error'?'Session could not finish':
+          outcome==='early_terminated'?'Your study session ended early':'Thank you for participating';
+        if (success && outcome==='early_terminated' && !config.PILOT_MODE && !config.DEV_MODE) {
+          message+=' Please return to Prolific to submit this session for researcher review. The researcher will review your session and payment.';
+        }
+        if (success && !config.PILOT_MODE && !config.DEV_MODE &&
+            (outcome==='completed' || outcome==='early_terminated') && !completion.destination) {
+          message+=' A return code is not configured. Contact the researcher through Prolific and explain how the task ended; keep a copy of your recording.';
+        }
+        function returnToProlific() {
+          // Navigation failure must not be reported as an upload failure. The
+          // confirmed save, manual return button and code remain available.
+          try {root.location.assign(completion.destination);}
+          catch(navigationError) {console.warn('[Recording] Automatic return was blocked; use the displayed return code.',navigationError);}
+        }
+        if (success && completion.destination) {
+          actions.unshift({label:'Return to Prolific',run:returnToProlific});
+          if (completion.code) message+=' If the return page does not open, use completion code '+completion.code+' on Prolific.';
+        }
+        self.panel(title,message,actions);
+        if (success && completion.destination) {
+          returnToProlific();
         }
       } catch(error) {
         self.panel('Your recording is still available','The server has not confirmed saving. Retry the upload or download your recording before closing this tab.',[

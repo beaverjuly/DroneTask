@@ -2,10 +2,10 @@
 // latin_square.js — Latin-square block-order counterbalancing
 //
 // Canonical design indices:
-//   0 = reward, high volatility / low stochasticity
-//   1 = reward, low  volatility / high stochasticity
-//   2 = loss,   high volatility / low stochasticity
-//   3 = loss,   low  volatility / high stochasticity
+//   0 = reward, low volatility / high stochasticity
+//   1 = reward, high volatility / low stochasticity
+//   2 = loss,   low volatility / high stochasticity
+//   3 = loss,   high volatility / low stochasticity
 //
 // The latent position sequences remain attached to their canonical
 // design index. The Latin Square only changes the order in which
@@ -21,10 +21,10 @@
 // ──────────────────────────────────────────────────────────────
 
 var CANONICAL_CONDITION_LABELS = [
-  'A_reward_highVol_lowStc',
-  'B_reward_lowVol_highStc',
-  'C_loss_highVol_lowStc',
-  'D_loss_lowVol_highStc'
+  'A_reward_lowVol_highStc',
+  'B_reward_highVol_lowStc',
+  'C_loss_lowVol_highStc',
+  'D_loss_highVol_lowStc'
 ];
 
 var LATIN_SQUARE_4 = [
@@ -99,6 +99,15 @@ function getLatinSquareGroup() {
  * Sets globals: latin_square_group, block_order, randomized, block_order_labels
  */
 function initLatinSquare() {
+  if (typeof validateMainConditionLabels === 'function') {
+    validateMainConditionLabels().forEach(function(row, index) {
+      var expected = String.fromCharCode(65 + index) + '_' + row.valence + '_' +
+        row.vol_level + 'Vol_' + row.stc_level + 'Stc';
+      if (CANONICAL_CONDITION_LABELS[index] !== expected) {
+        throw new Error('[LATIN] Condition ID disagrees with trajectory labels for canonical index ' + index);
+      }
+    });
+  }
   window.latin_square_group = getLatinSquareGroup();
   window.block_order = LATIN_SQUARE_4[latin_square_group].slice();
 

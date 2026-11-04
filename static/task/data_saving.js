@@ -94,6 +94,8 @@ function buildMetadataStampTrial(env, ids, opts) {
         consent_shown:                opts.showConsent,
         task_version:                 opts.taskVersion,
         stimuli_version:              opts.stimuliVersion,
+        condition_label_version:      opts.conditionLabelVersion || null,
+        consent_text_version:         opts.consentTextVersion || null,
         task_variant:                 opts.taskVariant,
         mouse_qc_requested:           opts.mouseQcRequested,
         mouse_qc_enabled:             opts.mouseQcEnabled,
@@ -152,10 +154,13 @@ function downloadCSV(prolificPid, workerId) {
  *
  * @param {Object} env    - from initEnvironment()
  * @param {Object} config - { PROLIFIC_PID, workerId, assignmentId, hitId,
- *                            PILOT_MODE, DEV_MODE, CODE_SUCCESS, CODE_REJECT,
+ *                            PILOT_MODE, DEV_MODE, CODE_SUCCESS, CODE_EARLY_REVIEW,
  *                            getConsentDeclined, getLowQuality, verifyUnload }
  *   getConsentDeclined / getLowQuality are getter functions so we capture
  *   the value at on_finish time, not at construction time.
+ *   CODE_EARLY_REVIEW must refer to a manually reviewed Prolific completion
+ *   path. It routes saved early exits without changing their recorded outcome
+ *   or automatically making a payment or rejection decision.
  */
 function buildOnFinishCallback(env, config) {
   return function() {

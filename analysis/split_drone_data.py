@@ -42,6 +42,7 @@ COMMON_COLS = [
     'run_uuid', 'row_uuid', 'row_sequence', 'data_schema_version',
     'task_phase', 'trial_category', 'elapsed_ms', 'utc_timestamp',
     'session_started_utc', 'session_start_utc', 'build_id',
+    'condition_label_version', 'consent_text_version',
 ]
 
 # ─── Column definitions per table ────────────────────────────
@@ -76,7 +77,9 @@ META_COLS = [
     'latin_square_group', 'latin_square_order', 'latin_square_order_labels',
     'reward_uses_shifted_sequences', 'stimulus_block_orders',
     'perf_timer_ms_per_call', 'perf_dom_ms_per_op', 'perf_slow_flag',
-    'consent_study_id', 'consent_version_date', 'consent_accepted',
+    'consent_study_id', 'consent_version_date', 'consent_source_version_date',
+    'consent_text_version', 'consent_accepted',
+    'completion_path', 'completion_route_configured',
     'task_version', 'stimuli_version',
     'preload_loaded', 'preload_total', 'preload_failed',
     'preload_elapsed_ms', 'preload_mode',
@@ -94,6 +97,7 @@ ENCODING_COLS = [
     'true_vol_param', 'true_stc_param', 'vol_level', 'stc_level',
     'valence', 'stim_img',
     'drone_position', 'bag_position',
+    'bag_rendered_position', 'bag_scoring_position', 'bag_position_adjusted',
     'bucket_start_pos', 'bucket_end_pos', 'bucket_position',
     'supply_caught', 'score', 'stayed', 'completed',
     'num_moves', 'rt_first_move_ms', 'rt_last_move_ms',
@@ -104,6 +108,10 @@ ENCODING_COLS = [
     'stim_display_outcome',   # cached | jit_success | fallback_emoji | direct_load
     'stim_preload_failed',    # true/false
     'stim_fallback_emoji',    # emoji string if fallback, else null
+    'stim_display_status', 'stim_load_route',
+    'stim_image_loaded', 'stim_image_decoded', 'stim_load_error',
+    'stim_fallback_reason', 'stim_requested_elapsed_ms',
+    'stim_visible_elapsed_ms', 'stim_visible_duration_ms',
 ]
 
 MEMORY_COLS = [
@@ -132,6 +140,8 @@ MEMORY_COLS = [
     'order_timed_out', 'distance_timed_out', 'placement_timed_out',
     'order_final_omission', 'distance_final_omission', 'placement_final_omission',
     'order_attempts_json', 'distance_attempts_json', 'placement_attempts_json',
+    'memory_item_display_log_json', 'memory_item_display_schema_version',
+    'stim_left_fallback_used', 'stim_right_fallback_used',
     # Layout metadata
     'order_keymap_mode', 'order_layout_mode', 'was_legacy_slider_pair',
     # Preload failure tracking
@@ -146,6 +156,7 @@ PRACTICE_COLS = [
     'practice_no', 'trial', 'practice_valence',
     'stim_img',
     'drone_position', 'bag_position',
+    'bag_rendered_position', 'bag_scoring_position', 'bag_position_adjusted',
     'bucket_start_pos', 'bucket_end_pos', 'bucket_position',
     'supply_caught', 'score', 'stayed', 'completed', 'practice_wind_offset',
     'num_moves', 'rt_first_move_ms', 'rt_last_move_ms',
@@ -153,6 +164,10 @@ PRACTICE_COLS = [
     'trial_onset_elapsed', 'trial_duration_ms',
     'miss_reason',
     'stim_display_outcome', 'stim_preload_failed', 'stim_fallback_emoji',
+    'stim_display_status', 'stim_load_route',
+    'stim_image_loaded', 'stim_image_decoded', 'stim_load_error',
+    'stim_fallback_reason', 'stim_requested_elapsed_ms',
+    'stim_visible_elapsed_ms', 'stim_visible_duration_ms',
 ]
 
 COMPREHENSION_COLS = [
@@ -232,6 +247,8 @@ MEMORY_SCREENING_ORDER_COLS = [
     'order_choice_side', 'order_choice_img',
     'order_correct', 'order_correct_bin', 'order_rt', 'timed_out',
     'had_timeout', 'attempt_number', 'order_attempts_json',
+    'memory_item_display_log_json', 'memory_item_display_schema_version',
+    'stim_left_fallback_used', 'stim_right_fallback_used',
     'order_total_duration_ms', 'response_timeout_ms',
     'order_keymap_mode', 'order_layout_mode',
 ]

@@ -209,7 +209,16 @@ status without writing participant identifiers into its report tables.
 The [URL guide](../URLs%20CheatSheet.md#recording-audit) contains complete
 recording rehearsal links for yourself and friends.
 
-The main task report preserves nominal condition labels and compares them with
-realized movement and supply distances. Their ordering is inverted in the
-current and legacy data. This is an existing design interpretation issue that
-must be resolved before high versus low manipulation contrasts are interpreted.
+The main task report preserves recorded condition labels and compares them
+with realized movement and supply distances. Historical v14 recordings have
+inverted high and low labels. From `trajectory-aligned-v2-20261104`, the runtime
+labels match the realized ordering without changing assigned trajectories.
+The loader preserves `condition_label_version` and includes it in the
+comparability group when recorded. Historical data are never relabelled.
+
+Split encoding, practice and screening tables retain rendered and scoring
+landing positions, display load and decode status, actual visible timing, and
+fallback reasons when supplied. Missing legacy telemetry remains missing.
+Metadata also retains the consent source and text versions and the configured
+completion route. A configured return route is not proof the browser navigated
+or that Prolific approved payment.

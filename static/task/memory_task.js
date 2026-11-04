@@ -288,10 +288,44 @@ jsPsych.plugins['memory-task'] = (function() {
     return Math.max(52, Math.min(84, Math.floor(boxSize * 0.55)));
   }
 
-  function createStimCard(src, size) {
+  // Each presentation owns its async work. A late load/decode/JIT callback
+  // cannot update a replaced screen, retry, or later jsPsych trial.
+  var activeMemoryDisplay = null;
+
+  function createMemoryDisplayLifecycle(displayElement) {
+    if (activeMemoryDisplay) activeMemoryDisplay.close('trial_replaced');
+    var owner = {
+      active: true, displayElement: displayElement, screenId: 0,
+      stage: null, attempt: null, screenElement: null, started: performance.now(), slots: [], records: []
+    };
+    owner.elapsed = function() { return Math.round(performance.now() - owner.started); };
+    owner.current = function(screenId) {
+      return owner.active && activeMemoryDisplay === owner &&
+        (screenId === undefined || screenId === owner.screenId) &&
+        (!owner.screenElement || owner.displayElement.contains(owner.screenElement));
+    };
+    owner.retireScreen = function(reason) {
+      owner.slots.forEach(function(slot) { slot.cancel(reason); });
+      owner.slots = [];
+    };
+    owner.beginScreen = function(stage, attempt) {
+      owner.retireScreen('screen_replaced');
+      owner.screenId++; owner.screenElement = null;
+      owner.stage = stage; owner.attempt = attempt;
+      return owner.screenId;
+    };
+    owner.close = function(reason) {
+      if (!owner.active) return;
+      owner.retireScreen(reason || 'trial_finished');
+      owner.active = false;
+    };
+    activeMemoryDisplay = owner;
+    return owner;
+  }
+
+  function createStimCard(src, size, owner, role, itemIndex) {
     var card = document.createElement('div');
     var boxSize = getStimBoxSize(size);
-
     card.style.cssText =
       'display:flex;flex-direction:column;align-items:center;justify-content:center;' +
       'width:' + boxSize + 'px;height:' + boxSize + 'px;' +
@@ -299,102 +333,180 @@ jsPsych.plugins['memory-task'] = (function() {
       'background:rgba(0,0,0,.18);' +
       'box-shadow:' + cardBaseShadow() + ';';
 
-    if (isEmojiStim(src)) {
+    var screenId = owner.screenId;
+    var record = {
+      presentation_index: owner.records.length + 1,
+      stage: owner.stage, response_attempt: owner.attempt, role: role,
+      is_probe: role === 'placement_probe',
+      item_index: itemIndex === undefined ? null : itemIndex,
+      source: src || null, load_route: null, outcome: 'pending', status: 'load_pending',
+      preload_failed: null, image_loaded: null, image_decoded: null,
+      error: null, fallback_emoji: null, displayed: false,
+      requested_rt_ms: owner.elapsed(), loaded_rt_ms: null,
+      ready_rt_ms: null, displayed_rt_ms: null, retired_rt_ms: null,
+      retired_reason: null
+    };
+    owner.records.push(record);
+    var slot = {card: card, img: null, ready: false, assetReady: false, record: record};
+    var exposureOpen = false;
+    var cancelled = false;
+    var subscribers = [];
+    var requestId = 0;
+    function current() { return !cancelled && owner.current(screenId); }
+    function detachImage() {
+      if (slot.img) { slot.img.onload = null; slot.img.onerror = null; }
+    }
+    slot.cancel = function(reason) {
+      if (cancelled) return;
+      cancelled = true; requestId++;
+      detachImage(); subscribers = [];
+      record.retired_rt_ms = owner.elapsed();
+      record.retired_reason = reason;
+      if (!record.displayed) {
+        record.outcome = 'not_displayed';
+        record.status = 'cancelled_before_display';
+      }
+    };
+    slot.onAssetReady = function(callback) {
+      if (!current()) return;
+      if (slot.assetReady) callback();
+      else subscribers.push(callback);
+    };
+    slot.markDisplayed = function() {
+      if (!current() || !exposureOpen || !slot.ready || record.displayed || card.isConnected === false ||
+          !owner.displayElement.contains(card)) return;
+      record.displayed = true;
+      record.displayed_rt_ms = owner.elapsed();
+      record.outcome = record.fallback_emoji ? 'fallback_emoji' : record.load_route;
+      if (!isEmojiStim(src) && typeof logDisplayOutcome === 'function') {
+        logDisplayOutcome(src, record.outcome, record.fallback_emoji);
+      }
+    };
+    slot.openExposure = function() {
+      if (!current()) return;
+      exposureOpen = true;
+      slot.markDisplayed();
+    };
+    owner.slots.push(slot);
+    function assetReady() {
+      if (!current() || slot.assetReady) return;
+      slot.assetReady = true;
+      var callbacks = subscribers.slice(); subscribers = [];
+      callbacks.forEach(function(callback) { if (current()) callback(); });
+    }
+    function ready(status) {
+      if (!current() || slot.ready) return;
+      slot.ready = true;
+      record.status = status;
+      record.outcome = 'ready_not_displayed';
+      record.ready_rt_ms = owner.elapsed();
+      assetReady();
+      slot.markDisplayed();
+    }
+    function emojiSpan(value) {
       var span = document.createElement('span');
-      span.textContent = src;
+      span.textContent = value;
       span.style.cssText =
         'font-size:' + getStimFontSize(size, boxSize) + 'px;' +
         'line-height:1;display:flex;align-items:center;justify-content:center;' +
         'width:100%;height:100%;user-select:none;';
       card.appendChild(span);
-      return { card: card, img: null, ready: true };
     }
+    function fallback(reason) {
+      if (!current()) return;
+      requestId++; detachImage();
+      record.error = reason;
+      if (slot.img) {
+        slot.img.removeAttribute('src'); slot.img.style.display = 'none';
+      }
+      var emoji = '\u2753';
+      if (typeof getFallbackEmoji === 'function') {
+        try { emoji = getFallbackEmoji(src) || emoji; } catch (error) {}
+      }
+      record.fallback_emoji = emoji;
+      emojiSpan(emoji);
+      ready('fallback_emoji');
+    }
+    if (isEmojiStim(src)) {
+      record.load_route = 'emoji';
+      emojiSpan(src); ready('emoji');
+      return slot;
+    }
+    record.image_loaded = false;
+    if (!src) { fallback('missing_stimulus'); return slot; }
+    if (typeof isPreloadFailed === 'function') {
+      try { record.preload_failed = !!isPreloadFailed(src); }
+      catch (error) { record.preload_failed = null; }
+    }
+    if (record.preload_failed === true) { fallback('preload_failed'); return slot; }
 
     var img = document.createElement('img');
     img.style.cssText =
       'max-width:' + boxSize + 'px;height:auto;max-height:' + boxSize + 'px;' +
       'border-radius:8px;background:rgba(255,255,255,.08);visibility:hidden;';
-
-    var _failed = typeof isPreloadFailed === 'function' && isPreloadFailed(src);
-
-    if (_failed) {
-      var emoji = typeof getFallbackEmoji === 'function'
-        ? getFallbackEmoji(src) : '\u2753';
-      var fallbackSpan = document.createElement('span');
-      fallbackSpan.textContent = emoji;
-      fallbackSpan.style.cssText =
-        'font-size:' + getStimFontSize(size, boxSize) + 'px;' +
-        'line-height:1;display:flex;align-items:center;justify-content:center;' +
-        'width:100%;height:100%;user-select:none;';
-      card.appendChild(fallbackSpan);
-      if (typeof logDisplayOutcome === 'function') {
-        logDisplayOutcome(src, 'fallback_emoji', emoji);
+    card.appendChild(img); slot.img = img;
+    function loadImage(resolved, route) {
+      if (!current()) return;
+      var request = ++requestId;
+      var loadedOnce = false;
+      record.load_route = route;
+      function valid() { return current() && request === requestId; }
+      function reveal(decoded) {
+        if (!valid()) return;
+        if (!(Number(img.naturalWidth) > 0)) { fallback('image_load_error'); return; }
+        record.image_loaded = true; record.image_decoded = decoded;
+        detachImage(); img.style.visibility = 'visible';
+        ready(decoded === true ? 'decoded' : 'loaded');
       }
-      return {
-        card: card,
-        img: null,
-        ready: true,
-        preload_failed: true,
-        fallback_emoji: emoji
+      function loaded() {
+        if (!valid() || loadedOnce) return;
+        loadedOnce = true;
+        record.image_loaded = Number(img.naturalWidth) > 0;
+        record.loaded_rt_ms = owner.elapsed();
+        if (!record.image_loaded) { fallback('image_load_error'); return; }
+        record.status = 'loaded';
+        // Retain the existing load-based wrapper readiness. Decoding controls
+        // only the image reveal and its display log, never response timeouts.
+        assetReady();
+        if (typeof img.decode === 'function') {
+          try {
+            Promise.resolve(img.decode()).then(function() { reveal(true); }, function() {
+              if (!valid()) return;
+              record.error = 'image_decode_error'; reveal(false);
+            });
+          } catch (error) { record.error = 'image_decode_error'; reveal(false); }
+        } else { reveal(null); }
+      }
+      img.onload = loaded;
+      img.onerror = function() {
+        if (!valid()) return;
+        record.image_loaded = false;
+        fallback('image_load_error');
       };
+      img.src = resolved;
+      if (img.complete && Number(img.naturalWidth) > 0) loaded();
     }
-
-    card.appendChild(img);
-    var resolvedSrc = (typeof resolvePreloadedUrl === 'function')
-      ? resolvePreloadedUrl(src) : src;
-    var isBlob = resolvedSrc.indexOf('blob:') === 0;
-    var outcome = isBlob ? 'cached' : 'jit_success';
-
-    var showFn = function() {
-      img.src = resolvedSrc;
-      if (typeof img.decode === 'function') {
-        img.decode().then(
-          function() { img.style.visibility = 'visible'; },
-          function() { img.style.visibility = 'visible'; }
-        );
-      } else {
-        img.addEventListener('load', function() {
-          img.style.visibility = 'visible';
-        }, { once: true });
-
-        if (img.complete) {
-          img.style.visibility = 'visible';
-        }
-      }
-    };
-
-    if (isBlob) {
-      showFn();
-      if (typeof logDisplayOutcome === 'function') {
-        logDisplayOutcome(src, 'cached', null);
-      }
-    } else if (typeof ensurePreloaded === 'function') {
-      ensurePreloaded(src).then(function(entry) {
-        if (entry && entry.blobUrl) {
-          resolvedSrc = entry.blobUrl;
-        } else {
-          outcome = 'direct_load';
-        }
-        showFn();
-        if (typeof logDisplayOutcome === 'function') {
-          logDisplayOutcome(src, outcome, null);
-        }
-      });
-    } else {
-      outcome = 'direct_load';
-      showFn();
-      if (typeof logDisplayOutcome === 'function') {
-        logDisplayOutcome(src, 'direct_load', null);
-      }
+    var resolvedSrc = src;
+    if (typeof resolvePreloadedUrl === 'function') {
+      try { resolvedSrc = resolvePreloadedUrl(src) || src; } catch (error) {}
     }
-
-    return {
-      card: card,
-      img: img,
-      ready: false,
-      preload_failed: false,
-      fallback_emoji: null
-    };
+    if (resolvedSrc.indexOf('blob:') === 0) { loadImage(resolvedSrc, 'cached'); }
+    else if (typeof ensurePreloaded === 'function') {
+      record.load_route = 'jit_pending'; record.status = 'preload_pending';
+      function directAfterPreloadFailure() {
+        if (!current()) return;
+        record.preload_failed = true;
+        loadImage(src, 'direct_load');
+      }
+      try {
+        Promise.resolve(ensurePreloaded(src)).then(function(entry) {
+          if (!current()) return;
+          if (entry && entry.blobUrl) { loadImage(entry.blobUrl, 'jit_success'); }
+          else { directAfterPreloadFailure(); }
+        }, directAfterPreloadFailure);
+      } catch (error) { directAfterPreloadFailure(); }
+    } else { loadImage(resolvedSrc, 'direct_load'); }
+    return slot;
   }
 
   function setSliderInstruction(element, movementText) {
@@ -415,12 +527,12 @@ jsPsych.plugins['memory-task'] = (function() {
     element.style.fontWeight = '600';
   }
 
-  function makeChoiceColumn(stim, labelText) {
+  function makeChoiceColumn(stim, labelText, owner, role, itemIndex) {
     var col = document.createElement('div');
     col.style.cssText =
       'display:flex;flex-direction:column;align-items:center;gap:10px;flex-shrink:0;';
 
-    var stimCard = createStimCard(stim, 'medium');
+    var stimCard = createStimCard(stim, 'medium', owner, role, itemIndex);
 
     var label = document.createElement('div');
     label.style.cssText =
@@ -435,29 +547,23 @@ jsPsych.plugins['memory-task'] = (function() {
   }
 
   function waitForCardAssets(cards, onReady) {
-    var total = cards.length;
-    var loaded = 0;
-
-    function markReady() {
-      loaded++;
-      if (loaded >= total) onReady();
-    }
-
-    for (var i = 0; i < cards.length; i++) {
-      var c = cards[i];
-      if (!c || c.ready || !c.img) {
-        markReady();
-      } else {
-        c.img.addEventListener('load', markReady, { once: true });
-        c.img.addEventListener('error', markReady, { once: true });
-        if (c.img.complete) {
-          markReady();
+    if (!cards.length) { onReady(); return; }
+    var readyCount = 0;
+    cards.forEach(function(card) {
+      var counted = false;
+      card.onAssetReady(function() {
+        if (counted) return;
+        counted = true; readyCount++;
+        if (readyCount === cards.length) {
+          onReady();
+          cards.forEach(function(slot) { slot.openExposure(); });
         }
-      }
-    }
+      });
+    });
   }
 
   plugin.trial = function(display_element, trial) {
+    var displayLifecycle = createMemoryDisplayLifecycle(display_element);
     var _themes = window.BLOCK_THEMES || [];
     var _blockIdx = (typeof trial.block_index === 'number') ? trial.block_index : 0;
     var _theme = (_blockIdx >= 0 && _blockIdx < _themes.length)
@@ -475,9 +581,12 @@ jsPsych.plugins['memory-task'] = (function() {
 
     function _fadeTransition(renderFn) {
       var de = display_element;
+      var screenId = displayLifecycle.screenId;
+      if (!displayLifecycle.current(screenId)) return;
       de.style.transition = 'opacity .18s ease-out';
       de.style.opacity = '0';
       setTimeout(function() {
+        if (!displayLifecycle.current(screenId)) return;
         renderFn();
         de.style.opacity = '0';
         void de.offsetHeight;
@@ -588,6 +697,7 @@ jsPsych.plugins['memory-task'] = (function() {
     var pair = nextPairForBlock(block);
 
     if (pair === null) {
+      displayLifecycle.close('no_pair');
       document.body.style.background = '';
       document.body.style.backgroundAttachment = '';
       jsPsych.finishTrial({
@@ -607,6 +717,8 @@ jsPsych.plugins['memory-task'] = (function() {
         stc_level: _stcLevel,
         condition: _condition,
         skipped_pair: true,
+        memory_item_display_schema_version: 1,
+        memory_item_display_log_json: '[]',
         pair_index: trial.pair_index,
         order_layout_mode: ORDER_LAYOUT_MODE,
         order_keymap_mode: ORDER_KEYMAP_MODE,
@@ -718,13 +830,6 @@ jsPsych.plugins['memory-task'] = (function() {
     var left_img = order_images[0];
     var right_img = order_images[1];
 
-    var _left_preload_failed = typeof isPreloadFailed === 'function' && isPreloadFailed(left_img);
-    var _right_preload_failed = typeof isPreloadFailed === 'function' && isPreloadFailed(right_img);
-    var _left_fallback_emoji = _left_preload_failed && typeof getFallbackEmoji === 'function'
-      ? getFallbackEmoji(left_img) : null;
-    var _right_fallback_emoji = _right_preload_failed && typeof getFallbackEmoji === 'function'
-      ? getFallbackEmoji(right_img) : null;
-
     var order_choice_side = null;
     var order_choice_img = null;
     var order_correct = null;
@@ -741,12 +846,15 @@ jsPsych.plugins['memory-task'] = (function() {
     var stageHistories = { order: [], distance: [], placement: [] };
 
     function recordStage(stage, details) {
+      if (!displayLifecycle.current()) return;
       var event = {
         trial_category: 'response_event', task_phase: 'memory', module: 'memory',
         block: block, display_block: block, pair_index: trial.pair_index,
         trial1_index: idx1, trial2_index: idx2,
         design_idx: _designIdx, canonical_design_idx: _designIdx,
-        condition_id: _conditionId, response_stage: stage
+        condition_id: _conditionId, response_stage: stage,
+        memory_item_display_schema_version: 1,
+        memory_item_display_log_json: JSON.stringify(displayLifecycle.records)
       };
       Object.keys(details).forEach(function(key) { event[key] = details[key]; });
       stageHistories[stage].push(details);
@@ -774,6 +882,8 @@ jsPsych.plugins['memory-task'] = (function() {
     }
 
     function renderOrderScreen() {
+      if (!displayLifecycle.current()) return;
+      var screenId = displayLifecycle.beginScreen('order', attempt_number);
       responded = false;
       var wrap = createBlock3Wrapper();
       wrap.id = 'order-container';
@@ -787,8 +897,8 @@ jsPsych.plugins['memory-task'] = (function() {
         'display:flex;flex-direction:row;justify-content:center;align-items:flex-start;' +
         'gap:' + orderGap + 'px;margin-bottom:20px;flex-wrap:nowrap;width:100%;max-width:720px;';
 
-      var leftChoice = makeChoiceColumn(left_img, '←');
-      var rightChoice = makeChoiceColumn(right_img, '→');
+      var leftChoice = makeChoiceColumn(left_img, '←', displayLifecycle, 'left_reference', left_img === stim1 ? idx1 : idx2);
+      var rightChoice = makeChoiceColumn(right_img, '→', displayLifecycle, 'right_reference', right_img === stim1 ? idx1 : idx2);
 
       pairWrap.appendChild(leftChoice.col);
       pairWrap.appendChild(rightChoice.col);
@@ -796,6 +906,7 @@ jsPsych.plugins['memory-task'] = (function() {
 
       display_element.innerHTML = '';
       display_element.appendChild(wrap);
+      displayLifecycle.screenElement = wrap;
 
       var start_time = performance.now();
       var hasInteracted = false;
@@ -832,6 +943,7 @@ jsPsych.plugins['memory-task'] = (function() {
       }
 
       function submitOrder() {
+        if (!displayLifecycle.current(screenId)) return;
         if (responded) return;
         responded = true;
         clearTimeout(orderTimeoutID);
@@ -852,6 +964,7 @@ jsPsych.plugins['memory-task'] = (function() {
       }
 
       function keyHandler(e) {
+        if (!displayLifecycle.current(screenId)) return;
         if (e.repeat) return;
         if (window.__memorySuppressKeysUntil && performance.now() < window.__memorySuppressKeysUntil) {
           e.preventDefault();
@@ -876,6 +989,7 @@ jsPsych.plugins['memory-task'] = (function() {
       document.addEventListener('keydown', keyHandler);
 
       orderTimeoutID = setTimeout(function() {
+        if (!displayLifecycle.current(screenId)) return;
         if (responded) return;
         if (hasInteracted) {
           submitOrder();
@@ -892,6 +1006,7 @@ jsPsych.plugins['memory-task'] = (function() {
           document.removeEventListener('keydown', keyHandler);
           _showTimeoutBadge(wrap);
           setTimeout(function() {
+            if (!displayLifecycle.current(screenId)) return;
             if (attempt_number < 2) {
               attempt_number++;
               _fadeTransition(function() { renderOrderScreen(); });
@@ -904,8 +1019,10 @@ jsPsych.plugins['memory-task'] = (function() {
     }
 
     function renderDistancePrompt(forceRerender) {
+      if (!displayLifecycle.current()) return;
       if (distancePromptShown && forceRerender !== true) return;
       distancePromptShown = true;
+      var screenId = displayLifecycle.beginScreen('distance', distance_attempt_number);
 
       var true_distance = Math.abs(idx2 - idx1) - 1;
       var STEP = 5;
@@ -924,8 +1041,8 @@ jsPsych.plugins['memory-task'] = (function() {
       pairWrap.style.cssText =
         'display:flex;justify-content:center;align-items:center;' +
         'gap:' + gapPx + 'px;margin-bottom:22px;width:100%;max-width:760px;';
-      var l = createStimCard(left_img, 'medium');
-      var r = createStimCard(right_img, 'medium');
+      var l = createStimCard(left_img, 'medium', displayLifecycle, 'left_reference', left_img === stim1 ? idx1 : idx2);
+      var r = createStimCard(right_img, 'medium', displayLifecycle, 'right_reference', right_img === stim1 ? idx1 : idx2);
       pairWrap.appendChild(l.card);
       pairWrap.appendChild(r.card);
       wrap.appendChild(pairWrap);
@@ -977,6 +1094,7 @@ jsPsych.plugins['memory-task'] = (function() {
 
       display_element.innerHTML = '';
       display_element.appendChild(wrap);
+      displayLifecycle.screenElement = wrap;
 
       var start_time = performance.now();
       var submitted = false;
@@ -1004,6 +1122,7 @@ jsPsych.plugins['memory-task'] = (function() {
       });
 
       function submitDistance(method) {
+        if (!displayLifecycle.current(screenId)) return;
         if (submitted || !hasPlaced) return;
         submitted = true;
         clearTimeout(distTimeoutID);
@@ -1027,6 +1146,7 @@ jsPsych.plugins['memory-task'] = (function() {
       }
 
       function handleKey(e) {
+        if (!displayLifecycle.current(screenId)) return;
         if (submitted) return;
         if (e.repeat && !hasPlaced) return;
         if (e.key === 'ArrowLeft') {
@@ -1054,6 +1174,7 @@ jsPsych.plugins['memory-task'] = (function() {
       document.addEventListener('keydown', handleKey);
 
       distTimeoutID = setTimeout(function() {
+        if (!displayLifecycle.current(screenId)) return;
         if (submitted) return;
         if (hasPlaced) {
           submitDistance('automatic_after_first_move');
@@ -1074,6 +1195,7 @@ jsPsych.plugins['memory-task'] = (function() {
         });
         _showTimeoutBadge(wrap);
         setTimeout(function() {
+          if (!displayLifecycle.current(screenId)) return;
           if (distance_attempt_number < 2) {
             distance_attempt_number++;
             distancePromptShown = false;
@@ -1086,6 +1208,8 @@ jsPsych.plugins['memory-task'] = (function() {
     }
 
     function renderSliderScreen(dist_est_value, true_distance) {
+      if (!displayLifecycle.current()) return;
+      var screenId = displayLifecycle.beginScreen('placement', 1);
       if (!middleStim) {
         console.warn('[memory-task] Skipping slider — no probe stimulus', {
           block: block,
@@ -1108,7 +1232,7 @@ jsPsych.plugins['memory-task'] = (function() {
 
       var probeWrap = document.createElement('div');
       probeWrap.style.cssText = 'text-align:center;margin-bottom:16px;';
-      var probeCard = createStimCard(middleStim, 'large');
+      var probeCard = createStimCard(middleStim, 'large', displayLifecycle, 'placement_probe', middleItemIndex);
 
       probeCard.card.style.width = 'fit-content';
       probeCard.card.style.height = 'fit-content';
@@ -1140,9 +1264,9 @@ jsPsych.plugins['memory-task'] = (function() {
       var firstImg = (true_first_idx === idx1) ? stim1 : stim2;
       var secondImg = (true_first_idx === idx1) ? stim2 : stim1;
 
-      var leftAnchor = createStimCard(firstImg, 'small');
+      var leftAnchor = createStimCard(firstImg, 'small', displayLifecycle, 'first_reference', true_first_idx);
       leftAnchor.card.style.flexShrink = '0';
-      var rightAnchor = createStimCard(secondImg, 'small');
+      var rightAnchor = createStimCard(secondImg, 'small', displayLifecycle, 'second_reference', Math.max(idx1, idx2));
       rightAnchor.card.style.flexShrink = '0';
 
       var trackOuter = document.createElement('div');
@@ -1196,6 +1320,10 @@ jsPsych.plugins['memory-task'] = (function() {
 
       display_element.innerHTML = '';
       display_element.appendChild(wrap);
+      displayLifecycle.screenElement = wrap;
+      // This wrapper was already visible in the original placement screen.
+      // Track individual reveals without adding an asset waiting gate.
+      [probeCard, leftAnchor, rightAnchor].forEach(function(slot) { slot.openExposure(); });
 
       var start_time = performance.now();
       var sliderTimeoutID = null;
@@ -1223,6 +1351,7 @@ jsPsych.plugins['memory-task'] = (function() {
       });
 
       function submitPlacement(method) {
+        if (!displayLifecycle.current(screenId)) return;
         if (placementSubmitted || !hasPlaced) return;
         placementSubmitted = true;
         placement_slider_value = curVal;
@@ -1248,6 +1377,7 @@ jsPsych.plugins['memory-task'] = (function() {
       }
 
       function handleKey(e) {
+        if (!displayLifecycle.current(screenId)) return;
         if (placementSubmitted) return;
         if (e.repeat && !hasPlaced) return;
 
@@ -1278,6 +1408,7 @@ jsPsych.plugins['memory-task'] = (function() {
       document.addEventListener('keydown', handleKey);
 
       sliderTimeoutID = setTimeout(function() {
+        if (!displayLifecycle.current(screenId)) return;
         if (placementSubmitted) return;
         if (hasPlaced) {
           submitPlacement('automatic_after_first_move');
@@ -1298,12 +1429,22 @@ jsPsych.plugins['memory-task'] = (function() {
           placement_probe_index: placementProbeIndex, placement_probe_img: middleStim
         });
         setTimeout(function() {
+          if (!displayLifecycle.current(screenId)) return;
           finishTrial(dist_est_value, true_distance, false);
         }, 3000);
       }, NO_RESPONSE_TIMEOUT_MS);
     }
 
     function finishTrial(dist_est, true_distance, skipped) {
+      if (!displayLifecycle.current()) return;
+      displayLifecycle.close('trial_finished');
+      function shownFallback(source) {
+        return displayLifecycle.records.filter(function(row) {
+          return row.source === source && row.displayed && row.outcome === 'fallback_emoji';
+        });
+      }
+      var leftFallbacks = shownFallback(left_img);
+      var rightFallbacks = shownFallback(right_img);
       var placement_error_from_true_position = null;
       var true_position_pct = null;
 
@@ -1392,10 +1533,20 @@ jsPsych.plugins['memory-task'] = (function() {
         placement_true_midpoint_pct: true_position_pct,
         placement_error_from_true_midpoint: placement_error_from_true_position,
 
-        stim_left_preload_failed: _left_preload_failed,
-        stim_right_preload_failed: _right_preload_failed,
-        stim_left_fallback_emoji: _left_fallback_emoji,
-        stim_right_fallback_emoji: _right_fallback_emoji
+        // Preserve preload semantics using the actual per-presentation state.
+        // A later native-image failure is a distinct displayed fallback.
+        stim_left_preload_failed: displayLifecycle.records.some(function(row) {
+          return row.source === left_img && row.preload_failed === true;
+        }),
+        stim_right_preload_failed: displayLifecycle.records.some(function(row) {
+          return row.source === right_img && row.preload_failed === true;
+        }),
+        stim_left_fallback_used: leftFallbacks.length > 0,
+        stim_right_fallback_used: rightFallbacks.length > 0,
+        stim_left_fallback_emoji: leftFallbacks.length ? leftFallbacks[leftFallbacks.length - 1].fallback_emoji : null,
+        stim_right_fallback_emoji: rightFallbacks.length ? rightFallbacks[rightFallbacks.length - 1].fallback_emoji : null,
+        memory_item_display_schema_version: 1,
+        memory_item_display_log_json: JSON.stringify(displayLifecycle.records)
       };
 
       display_element.innerHTML = '';

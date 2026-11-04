@@ -80,6 +80,52 @@ def load_sources():
             print(f"  \u2717 {p} NOT FOUND")
     return src
 
+def load_runtime_design():
+    """Execute both JS sequence assignments and all four Latin groups.
+
+    Numeric factor values are nominal codes. Geometry is measured from the
+    assembled arrays, after the same shift/clipping steps used by the browser.
+    """
+    import json
+    import subprocess
+    script = r"""
+const fs = require('node:fs'), vm = require('node:vm');
+const files = ['static/task/stimuli.js', 'static/task/latin_square.js'];
+function load(shiftReward) {
+  const math = Object.create(Math);
+  math.random = () => shiftReward ? 0.25 : 0.75;
+  const ctx = {Math:math, console:{log(){}, warn(){}}, Set};
+  ctx.window=ctx;
+  vm.createContext(ctx);
+  files.forEach(file=>vm.runInContext(fs.readFileSync(file,'utf8'),ctx));
+  const groups=[];
+  for (let group=0;group<4;group++) {
+    ctx._urlParams={get:name=>name==='latin_group'?String(group):null};
+    ctx.PROLIFIC_PID='audit';
+    ctx.workerId=ctx.subId=ctx.SESSION_ID='';
+    ctx.initLatinSquare();
+    groups.push({group:group,order:ctx.block_order.slice(),labels:ctx.block_order_labels.slice()});
+  }
+  return {reward_uses_shifted_sequences:shiftReward,
+    stimuli_version:ctx.stimuli_version,condition_label_version:ctx.condition_label_version,
+    factors_vol:ctx.factors_vol,factors_stc:ctx.factors_stc,factors_valence:ctx.factors_valence,
+    condition_ids:ctx.CANONICAL_CONDITION_LABELS,latin_square:ctx.LATIN_SQUARE_4,
+    latin_groups:groups,metrics:ctx.validateMainConditionLabels(),
+    drone:ctx.main_drone_position,landing:ctx.main_bag_position,
+    base_drone:[ctx.lowVol_base_drone,ctx.highVol_base_drone,ctx.lowVol_base_drone,ctx.highVol_base_drone],
+    base_landing:[ctx.lowVol_base_bag,ctx.highVol_base_bag,ctx.lowVol_base_bag,ctx.highVol_base_bag],
+    shift_deltas:[ctx.LOWVOL_SHIFT_DELTA,ctx.HIGHVOL_SHIFT_DELTA],
+    stimulus_pool:ctx.STIMULUS_IMAGE_POOL,practice_emoji:ctx.PRACTICE_EMOJI,
+    slider_pairs:ctx.SLIDER_PAIRS,boundary_pairs:ctx.BOUNDARY_MIDDLE_PAIRS,
+    nonboundary_pairs:ctx.NONBOUNDARY_MIDDLE_PAIRS};
+}
+process.stdout.write(JSON.stringify({variants:[load(false),load(true)]}));
+"""
+    result = subprocess.run(['node', '-e', script], cwd=REPO_ROOT,
+                            text=True, capture_output=True, check=True)
+    return json.loads(result.stdout)
+
+
 # ── JS value parsers ──
 class parse:
     """Namespace of static methods for extracting JS values."""

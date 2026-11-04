@@ -82,9 +82,11 @@ def _raw_metadata(frame, split_metadata):
         if col.startswith(('expected_', 'observed_', 'session_', 'browser_',
                            'viewport_', 'device_', 'route_', 'build_',
                            'mouse_qc_', 'memory_screening_', 'instruction_',
-                           'comprehension_', 'survey_')) or col in (
+                           'comprehension_', 'survey_', 'condition_label_',
+                           'consent_')) or col in (
             'outcome', 'exit_reason', 'final_phase', 'screening_criterion_passed',
             'data_saving_version', 'cache_status', 'audit_full',
+            'completion_path', 'completion_route_configured',
         ):
             meta[col] = _last(frame, col)
     return meta
@@ -95,6 +97,29 @@ def _attach(frame, identity):
     for key in IDENTITY_COLUMNS:
         frame[key] = identity.get(key, pd.NA)
     return frame
+
+
+def _comparability_group(schema, version, metadata):
+    group = schema + ' | ' + (str(version) if _present(version) else 'unknown version')
+    label_version = metadata.get('condition_label_version')
+    return group + ' | condition labels ' + str(label_version) if _present(label_version) else group
+
+
+def _version_checks(frame):
+    """Version changes within one run are a recording conflict, not a cohort.
+
+    Older runs may omit these fields. Their recorded labels and display
+    outcomes remain historical observations rather than inferred new values.
+    """
+    issues = []
+    for column in ('condition_label_version', 'consent_text_version'):
+        if column not in frame:
+            continue
+        versions = [value for value in frame[column].dropna().unique() if _present(value)]
+        if len(versions) > 1:
+            issues.append(('error', 'mixed_' + column,
+                           'More than one recorded version occurs within a canonical run'))
+    return issues
 
 
 def _snapshot_checks(candidates, selected):
@@ -123,6 +148,14 @@ def _snapshot_checks(candidates, selected):
         'completed', 'supply_caught', 'score', 'trajectory_id', 'samples', 'events',
         'mt_row', 'trajectory_completed', 'order_attempts_json',
         'distance_attempts_json', 'placement_attempts_json',
+        'memory_item_display_log_json', 'memory_item_display_schema_version',
+        'stim_left_fallback_used', 'stim_right_fallback_used',
+        'condition_label_version', 'consent_text_version',
+        'bag_rendered_position', 'bag_scoring_position', 'bag_position_adjusted',
+        'stim_display_outcome', 'stim_display_status', 'stim_load_route',
+        'stim_preload_failed', 'stim_fallback_emoji', 'stim_image_loaded',
+        'stim_image_decoded', 'stim_load_error', 'stim_fallback_reason',
+        'stim_requested_elapsed_ms', 'stim_visible_elapsed_ms', 'stim_visible_duration_ms',
     }
     chosen = frame.loc[uuids.ne('')].drop_duplicates('row_uuid').set_index('row_uuid') if uuids.ne('').any() else pd.DataFrame()
     conflicting, missing = set(), set()
@@ -206,7 +239,7 @@ def _raw_load(root, raw_dirs):
                         participant_id=meta.get('participant_id', pd.NA),
                         source_schema=source_schema, task_version=version,
                         source_kind=selected['kind'],
-                        comparability_group=source_schema + ' | ' + (str(version) if _present(version) else 'unknown version'))
+                        comparability_group=_comparability_group(source_schema, version, meta))
         meta.update(identity)
         meta.update(input_mode='raw', selected_source=str(selected['path'].resolve()),
                     source_snapshot_count=len(group['candidates']), snapshot_count=len(group['candidates']),
@@ -219,6 +252,9 @@ def _raw_load(root, raw_dirs):
             if len(frame):
                 parts[table].append(_attach(frame, identity))
         for severity, check, detail in _snapshot_checks(group['candidates'], selected):
+            issues.append(dict(session_id=session_id, session_label=label,
+                               severity=severity, check=check, detail=detail))
+        for severity, check, detail in _version_checks(raw):
             issues.append(dict(session_id=session_id, session_label=label,
                                severity=severity, check=check, detail=detail))
     for error in loaded['errors']:
@@ -264,7 +300,7 @@ def _clean_load(root, module, clean_dir):
         identity = dict(session_id=session_id, session_label=label,
                         participant_id=meta.get('participant_id', pd.NA),
                         source_schema=schema, task_version=version, source_kind='clean',
-                        comparability_group=schema + ' | ' + (str(version) if _present(version) else 'unknown version'))
+                        comparability_group=_comparability_group(schema, version, meta))
         meta.update(identity)
         meta.update(input_mode='clean', selected_source=str(path), source_snapshot_count=pd.NA,
                     snapshot_count=pd.NA, intake_status='loaded')

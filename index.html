@@ -36,8 +36,8 @@
     })();
 
   </script>
-  <script src="static/task/trial.js?v=recording-20261026"></script>
-  <script src="static/task/memory_task.js?v=recording-20261026"></script>
+  <script src="static/task/trial.js?v=verified-display-20261104"></script>
+  <script src="static/task/memory_task.js?v=condition-labels-20261104"></script>
 
 
   <!-- Optional mouse-trajectory QC module. The exact opt-in flag is parsed
@@ -161,20 +161,20 @@
 
   <link href="static/task/game.min.css?v=practice-motion-20260929b" rel="stylesheet" type="text/css"></link>
   <script src="static/task/ui-helpers.js?v=recording-20261026"></script>
-  <script src="static/task/stimuli.js?v=recording-20261026"></script>
+  <script src="static/task/stimuli.js?v=trajectory-labels-20261104"></script>
   <script src="static/task/stimuli-details.js?v=recording-20261026"></script>
   <script src="static/task/comprehension.js?v=recording-20261026"></script>
   <script src="static/task/instructions.js?v=recording-20261026"></script>
-  <script src="static/task/latin_square.js?v=recording-20261026"></script>
+  <script src="static/task/latin_square.js?v=trajectory-labels-20261104"></script>
   <script src="static/task/preload.js?v=recording-20261026"></script>
-  <script src="static/task/data_saving.js?v=recording-20261026"></script>
-  <script src="static/task/data_recorder.js?v=progress-20261026"></script>
+  <script src="static/task/data_saving.js?v=early-review-20261104"></script>
+  <script src="static/task/data_recorder.js?v=early-review-20261104"></script>
   <script src="static/task/progress.js?v=progress-20261026"></script>
   <script src="static/task/dev_routes.js?v=recording-20261026"></script>
   <script src="static/task/survey.js?v=recording-20261026"></script>
 
   <!-- Required consent gate. Runtime fails closed if this script is unavailable. -->
-  <script src="static/task/consent.js?v=recording-20261026"></script>
+  <script src="static/task/consent.js?v=drone-consent-20261104"></script>
 
   <meta charset="UTF-8">
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -913,7 +913,7 @@
     return (v !== null && v !== '') ? v : fallback;
   }
 
-  var TASK_VERSION = 'v3.14.2-prolific-completion';
+  var TASK_VERSION = 'v3.15.0-verified-display-and-labels';
   var DEV_MODE    = _urlParams.get('dev') === '1';
   var DEV_STAGE   = _urlParams.get('stage') || 'full';
   var DEV_NTRIALS = parseInt(_urlParams.get('ntrials'), 10) || 0;
@@ -1017,6 +1017,9 @@
   // its own separately configured paid completion destination below.
   // ──────────────────────────────────────────────────────────────
   var CODE_SUCCESS = 'C149FVM1';
+  // This code is configured for manual review. Returning an early session
+  // preserves its outcome and does not automatically approve, reject or pay it.
+  var CODE_EARLY_REVIEW = CODE_SUCCESS;
   var CODE_REJECT  = 'REPLACE_WITH_PROLIFIC_REJECT_CODE';
   // Optional study-specific screen-out destination, configured by the
   // researcher. Blank keeps a neutral saved-session message on screen.
@@ -1282,6 +1285,7 @@
     data: {
       task_version: TASK_VERSION,
       stimuli_version: stimuli_version,
+      condition_label_version: condition_label_version,
 
       true_vol: factors_vol,
       true_stc: factors_stc,
@@ -2663,6 +2667,7 @@
         SESSION_ID: SESSION_ID, workerId: workerId, subId: subId },
       { pilotMode: PILOT_MODE, devMode: DEV_MODE, showConsent: SHOW_CONSENT,
         taskVersion: TASK_VERSION, stimuliVersion: stimuli_version,
+        conditionLabelVersion: condition_label_version, consentTextVersion: 'drone-task-20261104',
         taskVariant: TASK_VARIANT,
         mouseQcRequested: _mouseQcState.requested,
         mouseQcEnabled: _mouseQcState.enabled,
@@ -2781,11 +2786,17 @@
     timeline = progressTracker.prepare(timeline);
     var recorder = window.DroneDataRecorderActive = DroneDataRecorder.create({
       jsPsych: jsPsych, env: _env, participantId: PROLIFIC_PID || workerId,
-      taskVersion: TASK_VERSION, pilotMode: PILOT_MODE, devMode: DEV_MODE,
+      taskVersion: TASK_VERSION, stimuliVersion: stimuli_version, pilotMode: PILOT_MODE, devMode: DEV_MODE,
+      conditionLabelVersion: condition_label_version, consentTextVersion: 'drone-task-20261104',
       showConsent: SHOW_CONSENT, stage: DEV_MODE ? _stage : 'full', devNtrials: DEV_NTRIALS, auditFull: AUDIT_FULL,
       mouseQcRequested: _mouseQcState.requested, mouseQcEnabled: _mouseQcState.enabled,
       memoryScreeningRequested: _memoryScreenState.requested, memoryScreeningEnabled: _memoryScreenState.enabled,
       designManifest: {
+        stimuli_version: stimuli_version,
+        condition_label_version: condition_label_version,
+        condition_ids: CANONICAL_CONDITION_LABELS.slice(),
+        volatility_labels: factors_vol.slice(), stochasticity_labels: factors_stc.slice(),
+        condition_metrics: MAIN_CONDITION_AUDIT,
         stimulus_block_orders: window._stimulus_block_orders,
         block_order: block_order, block_order_labels: block_order_labels,
         reward_uses_shifted_sequences: reward_uses_shifted_sequences,
@@ -2809,6 +2820,7 @@
         PILOT_MODE:        PILOT_MODE,
         DEV_MODE:          DEV_MODE,
         CODE_SUCCESS:      CODE_SUCCESS,
+        CODE_EARLY_REVIEW: CODE_EARLY_REVIEW,
         CODE_REJECT:       CODE_REJECT,
         getConsentDeclined: function() { return consent_declined; },
         getLowQuality:      function() { return low_quality; },

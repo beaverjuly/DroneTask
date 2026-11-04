@@ -172,6 +172,28 @@ def check_all(data, selected):
     results = []
     def check(name, condition, observed):
         results.append({'check':name, 'pass':bool(condition), 'observed':str(observed)})
+    audits=[row for variant in data['variants'] for row in variant['condition_audit']]
+    check('High and low volatility labels match realized movement',
+          all(variant['condition_label_version']=='trajectory-aligned-v2-20261104' and
+              min(row['mean_absolute_nonzero_drone_shift'] for row in variant['condition_audit'] if row['vol_level']=='high') >
+              max(row['mean_absolute_nonzero_drone_shift'] for row in variant['condition_audit'] if row['vol_level']=='low') and
+              min(row['mean_absolute_drone_shift'] for row in variant['condition_audit'] if row['vol_level']=='high') >
+              max(row['mean_absolute_drone_shift'] for row in variant['condition_audit'] if row['vol_level']=='low')
+              for variant in data['variants']),
+          'both shift assignments; all transitions and nonzero movement')
+    check('High and low stochasticity labels match realized landing distances',
+          all(min(row['mean_absolute_drone_to_landing_distance'] for row in variant['condition_audit'] if row['stc_level']=='high') >
+              max(row['mean_absolute_drone_to_landing_distance'] for row in variant['condition_audit'] if row['stc_level']=='low')
+              for variant in data['variants']), '50 outcomes per block; both assignments')
+    check('Canonical condition IDs match their saved factor labels',
+          all(block['condition_id']==chr(65+block['condition']-1)+'_'+block['valence']+'_'+
+              ('high' if block['vol_param']==49 else 'low')+'Vol_'+
+              ('high' if block['stc_param']==64 else 'low')+'Stc'
+              for variant in data['variants'] for block in variant['blocks']),
+          'stable canonical A/B/C/D identities with trajectory aligned labels')
+    check('Change point schedule derived from the actual arrays',
+          all(row['change_point_trials']==[2,3,5,12,15,19,21,25,27,32,37,40,46,48,50] for row in audits),
+          '15 shared one based change positions per block')
     check('20 encoding turns and 10 questions',len(x)==20 and len(s['pairs'])==10,'20 / 10')
     check('Hidden target and zero regime changes',s['drone_visible'] is False and not any(s['change_points']), 'hidden / 0')
     timeline = data['screen_timeline']
@@ -192,7 +214,7 @@ def check_all(data, selected):
     calibration=shift_calibration_table(data)
     midpoint=float(calibration.midpoint.mean())
     check('Screen mean lies between main volatility groups',calibration.between_group_means.all(),
-          f"source high {calibration.high_vol_mean_nonzero_shift.iloc[0]:.6f} < screen {abs(shifts).mean():.6f} < source low {calibration.low_vol_mean_nonzero_shift.iloc[0]:.6f}; nonzero main shifts, both assignments")
+          f"source low {calibration.low_vol_mean_nonzero_shift.iloc[0]:.6f} < screen {abs(shifts).mean():.6f} < source high {calibration.high_vol_mean_nonzero_shift.iloc[0]:.6f}; nonzero main shifts, both assignments")
     check('Fixed step equals the rounded reference midpoint',np.isclose(s['drone_step_size'],round(midpoint,2),rtol=0,atol=1e-9),
           f'midpoint {midpoint:.9f}; fixed step {s["drone_step_size"]:.2f}')
     reference=main_shift_table(data)
@@ -390,7 +412,7 @@ def plot_shift_comparison(data):
         ax.set_ylabel('Mean absolute shift when position changes (pp)')
         ax.set_ylim(0,max(values)+.8)
         ax.grid(axis='y',alpha=.15)
-    fig.supxlabel('Main means use 15 actual shifts per block; 34 stationary transitions excluded | Whiskers span both assignments | Source labels preserved',fontsize=9)
+    fig.supxlabel('Main means use 15 actual shifts per block; 34 stationary transitions excluded | Whiskers span both assignments | Trajectory aligned labels',fontsize=9)
     return save(fig,'08_mean_shift_comparison')
 
 
@@ -406,11 +428,11 @@ def plot_medium_levels(data):
             ax.text(i,value+.07,f'{value:.3f}',ha='center',fontweight='bold')
         ax.axhline(row.target_midpoint,color=GREEN,ls='--',lw=1.5,
                    label=f'Reference midpoint {row.target_midpoint:.6f}')
-        ax.set(ylabel=ylabel,ylim=(0,max(values)+.6))
+        ax.set(ylabel=ylabel,ylim=(0,max(values)*1.18+.1))
         ax.set_title(title,loc='left',fontsize=12)
         ax.grid(axis='y',alpha=.15)
         ax.legend(frameon=False,fontsize=8,loc='upper right')
-    fig.supxlabel('Movement uses 15 nonzero shifts per main block | Landing distance uses all 50 rendered circle centres | Source labels are preserved',fontsize=9)
+    fig.supxlabel('Movement uses 15 nonzero shifts per main block | Landing distance uses all 50 rendered circle centres | High and low labels match measured ordering',fontsize=9)
     return save(fig,'09_medium_levels')
 
 

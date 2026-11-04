@@ -14,8 +14,8 @@
 (function (root) {
   'use strict';
 
-  var VERSION = 'ms-3.4.0-2026-10-25';
-  var SERIES_VERSION = 'ms-hidden-medium-v5';
+  var VERSION = 'ms-3.5.0-2026-11-04';
+  var SERIES_VERSION = 'ms-hidden-medium-v6';
   var ITEM_VERSION = 'ms-objects-normed-g2';
   var N_ENCODING = 20;
   var N_PAIRS = 10;
@@ -55,18 +55,18 @@
   // Midpoint of mean absolute shifts WHEN the main drone changes position,
   // rounded to 0.01 pp. Each block contributes 15 actual shifts; the 34 zero
   // shifts, unknown initial baseline, and between-block jumps are excluded.
-  // Source vol=4 averages 14.099333 pp; vol=49 averages 4.000600 pp under
-  // both reward/loss assignments. Their labels run opposite to movement.
+  // Source vol=4 averages 4.000600 pp; vol=49 averages 14.099333 pp under
+  // both reward/loss assignments. Labels follow the realized movement.
   var DRONE_STEP_SIZE = 9.05;
   var DRONE_STEP_METRIC = 'mean_absolute_nonzero_main_drone_shift';
   var DRONE_DIRECTIONS = [1,1,-1,-1,1,-1,-1,1,-1,-1,1,1,-1,1,1,-1,1,1,-1,-1];
   var DRONE_ANIMATION_DURATION = 450;
   // Midpoint of the main groups' mean absolute rendered circle distances.
-  // The real renderer clamps supply centres to 12..88 percent of the rail.
-  // Source stc=16 averages 3.38752 pp; stc=64 averages 2.52705 pp after
-  // that clamp. Equal magnitudes control unsigned distance while these
+  // Rendering and scoring share the 10..90 percent rail interval.
+  // Source stc=16 averages 2.49459 pp; stc=64 averages 3.38752 pp.
+  // Equal magnitudes control unsigned distance while these
   // balanced, nonalternating signs vary its direction independently of items.
-  var SUPPLY_OFFSET_SIZE = 2.957285;
+  var SUPPLY_OFFSET_SIZE = 2.941055;
   var SUPPLY_OFFSET_METRIC = 'mean_absolute_rendered_drone_to_landing_distance';
   var SUPPLY_DIRECTIONS = [1,1,-1,1,-1,-1,1,-1,-1,1,-1,-1,1,1,-1,-1,1,1,-1,1];
 
@@ -192,7 +192,7 @@
     return {
       version: VERSION, series_version: SERIES_VERSION, seed: seed,
       run_id: options.runId || 'ms-' + hashSeed(seed).toString(16),
-      item_version: ITEM_VERSION, drone_visible: false, series_seed: 'memory-screen-medium-v5',
+      item_version: ITEM_VERSION, drone_visible: false, series_seed: 'memory-screen-medium-v6',
       drone_initial_position: DRONE_INITIAL_POSITION, drone_step_size: DRONE_STEP_SIZE,
       drone_step_metric: DRONE_STEP_METRIC,
       drone_directions: DRONE_DIRECTIONS.slice(), drone_start_positions: starts,
