@@ -1,14 +1,14 @@
 # Memory screen analysis
 
-Open [memory_screen_analysis.ipynb](memory_screen_analysis.ipynb) for the optional initial memory screen. The companion helper reconstructs the criterion, audits recorded geometry and items, distinguishes retry history from final omissions, and compares order accuracy with the same session’s main blocks.
+Open [prePilot_memory_screen_analysis.ipynb](prePilot_memory_screen_analysis.ipynb) for the optional initial memory screen. The companion helper reconstructs the criterion, audits recorded geometry and items, distinguishes retry history from final omissions, and compares order accuracy with the same session’s main blocks.
 
 | Location | Contents |
 |---|---|
-| `analysis/data/memory_screen/raw/` | Module only raw exports |
-| `analysis/data/drone_task/raw/` | Shared full experiment exports |
-| `analysis/data/memory_screen/clean/` | Explicit alternative split screen collection |
-| `analysis/data/memory_screen/derived/` | Audit CSVs with public session labels |
-| `analysis/data/memory_screen/derived/figures/` | Embedded figures exported as PNG files |
+| `analysis/data/prePilot/memory_screen/raw/` | Module only raw exports |
+| `analysis/data/prePilot/drone_task/raw/` | Shared full experiment exports |
+| `analysis/data/prePilot/memory_screen/clean/` | Explicit alternative split screen collection |
+| `analysis/data/prePilot/memory_screen/derived/` | Audit CSVs with public session labels |
+| `analysis/data/prePilot/memory_screen/derived/figures/` | Embedded figures exported as PNG files |
 
 Raw input is the default. `DRONE_INPUT_MODE` can select `raw` or `clean`. An explicit `DRONE_CLEAN_DIR` defaults to clean input unless `DRONE_INPUT_MODE=raw` is set. `DRONE_DERIVED_DIR` redirects all module audit exports and the figures subfolder. The notebook controls remain editable after these environment defaults are applied. The shared [session loader](../session_io.py) consolidates cumulative checkpoint and final snapshots by run identity, checks overlapping recorded observations, and preserves distinct legacy sessions. It never rewrites clean files or pools raw and clean copies. Set `INPUT_MODE = 'clean'` and optionally `CLEAN_DIR` for a selected flat clean collection. `RAW_DIRS` can restrict raw intake to a folder, file or list of sources.
 
@@ -23,5 +23,5 @@ Observed positions are checked against saved arrays, and against the live design
 Run from the repository root, `analysis/`, or this module directory using the project environment and Node. The [design notebook](../../design_checks/notebooks/06_memory_screen.ipynb) documents assigned materials. To execute and save all outputs from the repository root use
 
 ```sh
-MPLBACKEND=Agg MPLCONFIGDIR="$PWD/.venv-design/matplotlib" JUPYTER_PATH="$PWD/.venv-design/share/jupyter" IPYTHONDIR="$PWD/.venv-design/ipython" .venv-design/bin/python -m nbconvert --to notebook --execute --inplace analysis/memory_screen/memory_screen_analysis.ipynb --ExecutePreprocessor.timeout=180 --ExecutePreprocessor.kernel_name=drone-design
+MPLBACKEND=Agg MPLCONFIGDIR="$PWD/.venv-design/matplotlib" JUPYTER_PATH="$PWD/.venv-design/share/jupyter" IPYTHONDIR="$PWD/.venv-design/ipython" .venv-design/bin/python -m nbconvert --to notebook --execute --inplace analysis/memory_screen/prePilot_memory_screen_analysis.ipynb --ExecutePreprocessor.timeout=180 --ExecutePreprocessor.kernel_name=drone-design
 ```

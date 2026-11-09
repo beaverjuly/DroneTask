@@ -2,30 +2,49 @@
 
 Each task component has its own code folder and matching private data folder.
 
-| Component | Notebook | Data |
+The downloaded Prolific Pilot1 collection has a separate, private batch at
+`analysis/data/Pilot1/`. Start its matched cohort report with
+[Pilot1_analysis.ipynb](drone_task/Pilot1_analysis.ipynb). It preserves
+original provider exports, reconciles partial and final snapshots, and keeps
+approval review separate from the exploratory group outcomes. Its dedicated
+loader excludes older friend and development pilots from this study cohort.
+The report places learning validation before memory sensitivity and exploratory
+memory condition differences. It retains the two intended condition comparisons,
+reaction times and source derived randomization checks. Mouse acquisition and trajectory
+features are in a separate
+[Pilot1 mouse notebook](mouse_qc/Pilot1_mouse_analysis.ipynb). Its private
+outputs belong to `analysis/data/Pilot1/derived/mouse_qc/`; the main report
+uses `analysis/data/Pilot1/derived/group_analysis/`.
+
+| Earlier cohort | Notebook | Data |
 |---|---|---|
-| Drone task | [drone_analysis.ipynb](drone_task/drone_analysis.ipynb) | `analysis/data/drone_task/` |
-| Mouse QC | [mouse_trajectory_analysis.ipynb](mouse_qc/mouse_trajectory_analysis.ipynb) | `analysis/data/mouse_qc/` |
-| Memory screen | [memory_screen_analysis.ipynb](memory_screen/memory_screen_analysis.ipynb) | `analysis/data/memory_screen/` |
+| Drone task | [prePilot_drone_analysis.ipynb](drone_task/prePilot_drone_analysis.ipynb) | `analysis/data/prePilot/drone_task/` |
+| Mouse QC | [prePilot_mouse_analysis.ipynb](mouse_qc/prePilot_mouse_analysis.ipynb) | `analysis/data/prePilot/mouse_qc/` |
+| Memory screen | [prePilot_memory_screen_analysis.ipynb](memory_screen/prePilot_memory_screen_analysis.ipynb) | `analysis/data/prePilot/memory_screen/` |
 
 ```text
 analysis/
 ├── drone_task/
 │   ├── drone_analysis.py
-│   ├── drone_analysis.ipynb
+│   ├── prePilot_drone_analysis.ipynb
+│   ├── Pilot1_analysis.ipynb
+│   ├── Pilot1_analysis.py
+│   ├── Pilot1_intake.py
+│   ├── Pilot1_randomization.py
 │   └── README.md
 ├── mouse_qc/
 │   ├── mouse_features.py
-│   ├── mouse_trajectory_analysis.ipynb
+│   ├── prePilot_mouse_analysis.ipynb
+│   ├── Pilot1_mouse_analysis.ipynb
+│   ├── Pilot1_mouse_analysis.py
 │   └── README.md
 ├── memory_screen/
 │   ├── memory_screen_analysis.py
-│   ├── memory_screen_analysis.ipynb
+│   ├── prePilot_memory_screen_analysis.ipynb
 │   └── README.md
 ├── data/
-│   ├── drone_task/       # raw/, clean/, derived/
-│   ├── mouse_qc/         # raw/, clean/, derived/
-│   ├── memory_screen/    # raw/, clean/, derived/
+│   ├── prePilot/         # drone_task/, mouse_qc/, memory_screen/
+│   ├── Pilot1/           # source_exports/, raw/, derived/
 │   └── README.md
 ├── split_drone_data.py   # shared dispatcher
 ├── session_io.py         # canonical read only notebook intake
@@ -35,7 +54,13 @@ analysis/
 
 ## Data preparation
 
-Put full session exports in `analysis/data/drone_task/raw/`. A full export may
+The three prePilot notebooks use only `analysis/data/prePilot/`. The Pilot1
+notebooks explicitly select `analysis/data/Pilot1/` through `Pilot1_intake.py`.
+Neither route automatically pools the other cohort. Generic calculation,
+feature and session loading helpers remain shared.
+
+Put earlier development and friend session exports in
+`analysis/data/prePilot/drone_task/raw/`. A full export may
 contain all three task components and should have one canonical raw copy.
 Module-only development exports belong in the respective module's raw folder.
 All raw, clean, and derived data folders are gitignored.
@@ -84,7 +109,7 @@ explicitly.
 
 ```python
 bundle = load_module_tables('mouse_qc', root=ROOT, input_mode='clean',
-                            clean_dir=ROOT / 'analysis/data/mouse_qc/clean/debug_2026-10-04')
+                            clean_dir=ROOT / 'analysis/data/prePilot/mouse_qc/clean/debug_2026-10-04')
 ```
 
 Clean intake searches only that folder. Nested debug folders are excluded from
@@ -108,8 +133,8 @@ and writes each table to its module's clean folder. It creates missing data
 directories automatically. To process one source or use another organized data root,
 
 ```sh
-python analysis/split_drone_data.py analysis/data/drone_task/raw/session.csv
-python analysis/split_drone_data.py analysis/data/drone_task/raw/ -o /path/to/analysis-data
+python analysis/split_drone_data.py analysis/data/prePilot/drone_task/raw/session.csv
+python analysis/split_drone_data.py analysis/data/prePilot/drone_task/raw/ -o /path/to/analysis-data
 python analysis/split_drone_data.py --explode-mouse
 ```
 
@@ -162,9 +187,9 @@ session outcome and expected versus observed counts when auditing completeness.
 ## Run the notebooks
 
 ```sh
-jupyter lab analysis/drone_task/drone_analysis.ipynb
-jupyter lab analysis/mouse_qc/mouse_trajectory_analysis.ipynb
-jupyter lab analysis/memory_screen/memory_screen_analysis.ipynb
+jupyter lab analysis/drone_task/prePilot_drone_analysis.ipynb
+jupyter lab analysis/mouse_qc/prePilot_mouse_analysis.ipynb
+jupyter lab analysis/memory_screen/prePilot_memory_screen_analysis.ipynb
 ```
 
 Each notebook resolves the repository root from its current working directory

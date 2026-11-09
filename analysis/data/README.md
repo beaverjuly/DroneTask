@@ -1,30 +1,44 @@
 # Analysis data
 
-| Component | Raw exports | Split tables | Derived outputs |
-|---|---|---|---|
-| Drone task | `drone_task/raw/` | `drone_task/clean/` | `drone_task/derived/` |
-| Mouse QC | `mouse_qc/raw/` | `mouse_qc/clean/` | `mouse_qc/derived/` |
-| Memory screen | `memory_screen/raw/` | `memory_screen/clean/` | `memory_screen/derived/` |
+| Cohort | Folder | Intake and reports |
+| --- | --- | --- |
+| Earlier development and friend sessions | `prePilot/` | The three `prePilot_` notebooks and default shared loader |
+| First Prolific pilot | `Pilot1/` | `Pilot1_intake.py`, `Pilot1_analysis.ipynb` and `Pilot1_mouse_analysis.ipynb` |
 
-Paths in this table are relative to `analysis/data/`. The data subfolders are
-private and gitignored. The shared splitter creates missing folders.
+Both folders are private and gitignored. The cohorts are loaded separately.
+Original provider filenames and file contents are preserved inside their
+labelled cohort directories.
 
-Store a full mixed session once in `drone_task/raw/`. Its experimental, mouse,
-and screening rows are routed to separate clean directories. Store module-only
-development sessions in that module's raw folder. Exact byte copies are ignored
-during default raw discovery.
+## prePilot layout
 
-Run `python analysis/split_drone_data.py` from the repository root. Its optional
-`-o` argument points to an alternate data root with the same three-module layout.
-Full-session metadata is available in all three clean folders to support
-assignment and completion audits. Module-only sources contribute metadata to
-their own module.
+| Component | Raw exports | Optional split tables | Derived outputs |
+| --- | --- | --- | --- |
+| Drone task | `prePilot/drone_task/raw/` | `prePilot/drone_task/clean/` | `prePilot/drone_task/derived/` |
+| Mouse QC | `prePilot/mouse_qc/raw/` | `prePilot/mouse_qc/clean/` | `prePilot/mouse_qc/derived/` |
+| Memory screen | `prePilot/memory_screen/raw/` | `prePilot/memory_screen/clean/` | `prePilot/memory_screen/derived/` |
 
-Mouse QC accepts `DRONE_CLEAN_DIR` and `DRONE_DERIVED_DIR` for a separate QA
-dataset. The memory-screen notebook exposes raw, clean, and derived directory
-settings and an explicit raw or clean input mode. It can discover shared full
-sessions without copying them into its own raw folder.
+Full mixed sessions belong once in `prePilot/drone_task/raw/`. Module only
+development sessions belong in that module's raw folder. The default session
+loader reconciles repeated copies and cumulative checkpoints within these
+three folders. Existing mouse debug collections remain under the corresponding
+prePilot clean and derived directories.
 
-The preserved mouse development dataset is under
-`mouse_qc/clean/debug_2026-10-04/`, with its derived results under
-`mouse_qc/derived/debug_2026-10-04/`.
+`python analysis/split_drone_data.py` defaults to `analysis/data/prePilot/`.
+Its optional `-o` selects another data root with the same three module layout.
+Explicit raw, clean and derived overrides remain supported.
+
+## Pilot1 layout
+
+| Folder | Purpose |
+| --- | --- |
+| `Pilot1/source_exports/` | Original Pavlovia and Prolific exports with acquisition provenance |
+| `Pilot1/raw/` | All original working task CSV copies, including partials and checkpoints |
+| `Pilot1/derived/intake/` | Canonical runs, submission matching and recording audit |
+| `Pilot1/derived/group_analysis/` | Main learning, memory, response timing and assignment analyses |
+| `Pilot1/derived/mouse_qc/` | Separate mouse tables and figures |
+| `Pilot1/derived/archives/` | Earlier analysis sources and results retained as provenance |
+
+The Pilot1 notebook imports its dedicated intake helper and never relies on the
+prePilot defaults. `Pilot1_relocation_manifest.json` records the former and
+current input paths and verifies unchanged hashes. Original acquisition and
+historical provenance manifests retain their recorded paths.

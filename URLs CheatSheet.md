@@ -45,7 +45,7 @@ the upload was acknowledged. A local download alone remains unconfirmed.
 If saving fails, retry or download the recovery recording before closing.
 
 Place each CSV and its matching `.receipt.json` in
-`analysis/data/drone_task/raw/`. Keep filenames unchanged when possible.
+`analysis/data/prePilot/drone_task/raw/`. Keep filenames unchanged when possible.
 Run [07_data_saving.ipynb](design_checks/notebooks/07_data_saving.ipynb),
 or run `python design_checks/scripts/data_saving_audit.py` from the repository
 root. The audit groups cumulative snapshots by run and keeps interrupted

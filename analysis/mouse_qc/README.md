@@ -1,5 +1,19 @@
 # Mouse trajectory recording audit
 
+## Pilot1
+
+[Pilot1_mouse_analysis.ipynb](Pilot1_mouse_analysis.ipynb) analyzes only
+the 15 matched submitted participants in `analysis/data/Pilot1/`. It shares
+the main task intake without pooling historical or development recordings.
+`Pilot1_mouse_analysis.py` checks acquisition and exports sampling summaries,
+full continuous paths and geometry comparisons.
+Tables and PNGs are in `analysis/data/Pilot1/derived/mouse_qc/`.
+
+Click only records retain endpoints and duration but cannot establish path
+straightness or continuous speed. Off square paths remain visible. No mouse
+classifier or participation exclusion is applied. The ordinary notebook below
+retains its existing data scope and measurement controls.
+
 The notebook audits the optional eight movement mouse module. It does not change experiment execution or exclude participants. Eight movements from one person are repeated observations rather than eight independent participants. Synthetic paths test measurement behaviour, not bot detection accuracy.
 
 ## Run
@@ -8,7 +22,7 @@ The default input is canonical raw data, loaded through `analysis/session_io.py`
 
 ```bash
 .venv-design/bin/python analysis/mouse_qc/mouse_features.py --selftest
-MPLBACKEND=Agg MPLCONFIGDIR="$PWD/.venv-design/matplotlib" JUPYTER_PATH="$PWD/.venv-design/share/jupyter" IPYTHONDIR="$PWD/.venv-design/ipython" .venv-design/bin/python -m nbconvert --to notebook --execute --inplace analysis/mouse_qc/mouse_trajectory_analysis.ipynb --ExecutePreprocessor.kernel_name=drone-design --ExecutePreprocessor.timeout=180
+MPLBACKEND=Agg MPLCONFIGDIR="$PWD/.venv-design/matplotlib" JUPYTER_PATH="$PWD/.venv-design/share/jupyter" IPYTHONDIR="$PWD/.venv-design/ipython" .venv-design/bin/python -m nbconvert --to notebook --execute --inplace analysis/mouse_qc/prePilot_mouse_analysis.ipynb --ExecutePreprocessor.kernel_name=drone-design --ExecutePreprocessor.timeout=180
 ```
 
 Run from anywhere within the repository. Jupyter resolves the root from the notebook location. For interactive use, open the notebook with the `drone-design` kernel.
@@ -16,16 +30,16 @@ Run from anywhere within the repository. Jupyter resolves the root from the note
 | Location | Contents |
 | --- | --- |
 | `analysis/mouse_qc/` | Feature helper and executed analysis notebook |
-| `analysis/data/mouse_qc/raw/` | Module only raw exports |
-| `analysis/data/drone_task/raw/` | Full experiment raw exports, including mouse rows |
-| `analysis/data/mouse_qc/clean/` | Optional split metadata, trajectory and summary tables |
-| `analysis/data/mouse_qc/derived/` | Audit tables, usable features and session summaries |
-| `analysis/data/mouse_qc/derived/figures/` | Three PNG figures also embedded in the notebook |
+| `analysis/data/prePilot/mouse_qc/raw/` | Module only raw exports |
+| `analysis/data/prePilot/drone_task/raw/` | Full experiment raw exports, including mouse rows |
+| `analysis/data/prePilot/mouse_qc/clean/` | Optional split metadata, trajectory and summary tables |
+| `analysis/data/prePilot/mouse_qc/derived/` | Audit tables, usable features and session summaries |
+| `analysis/data/prePilot/mouse_qc/derived/figures/` | Three PNG figures also embedded in the notebook |
 
 An explicit `DRONE_CLEAN_DIR` switches to clean input and reads only the specified flat folder. Nested debug collections are excluded by default. `DRONE_INPUT_MODE` can explicitly select `raw` or `clean`. Use `DRONE_DERIVED_DIR` to keep debug outputs separate.
 
 ```bash
-DRONE_CLEAN_DIR="$PWD/analysis/data/mouse_qc/clean/debug_2026-10-04" DRONE_DERIVED_DIR="$PWD/analysis/data/mouse_qc/derived/debug_2026-10-04" jupyter lab analysis/mouse_qc/mouse_trajectory_analysis.ipynb
+DRONE_CLEAN_DIR="$PWD/analysis/data/prePilot/mouse_qc/clean/debug_2026-10-04" DRONE_DERIVED_DIR="$PWD/analysis/data/prePilot/mouse_qc/derived/debug_2026-10-04" jupyter lab analysis/mouse_qc/prePilot_mouse_analysis.ipynb
 ```
 
 ## Audit and interpretation

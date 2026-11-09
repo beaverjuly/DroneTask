@@ -1,0 +1,173 @@
+{
+  "reference_id": "Piray2024_author_data_diagonal_v1",
+  "publication_doi": "10.1038/s41467-024-53459-z",
+  "repository": "https://github.com/payampiray/stovol-learning",
+  "commit": "71121dc4ca34aee35c619a6e9cb380a18d0411e3",
+  "source_urls": {
+    "experiment1/data.mat": "https://github.com/payampiray/stovol-learning/blob/71121dc4ca34aee35c619a6e9cb380a18d0411e3/experiment1/data.mat",
+    "experiment1/model_neutral.mat": "https://github.com/payampiray/stovol-learning/blob/71121dc4ca34aee35c619a6e9cb380a18d0411e3/experiment1/model_neutral.mat",
+    "experiment2/data.mat": "https://github.com/payampiray/stovol-learning/blob/71121dc4ca34aee35c619a6e9cb380a18d0411e3/experiment2/data.mat",
+    "experiment2/model_neutral.mat": "https://github.com/payampiray/stovol-learning/blob/71121dc4ca34aee35c619a6e9cb380a18d0411e3/experiment2/model_neutral.mat",
+    "code/model_neutral.m": "https://github.com/payampiray/stovol-learning/blob/71121dc4ca34aee35c619a6e9cb380a18d0411e3/code/model_neutral.m",
+    "code/get_data.m": "https://github.com/payampiray/stovol-learning/blob/71121dc4ca34aee35c619a6e9cb380a18d0411e3/code/get_data.m"
+  },
+  "source_sha256": {
+    "experiment1/data.mat": "dbb6446bc412f5fcf883dcb4b0a950e74b3109814001f7c0ccbe968d0a197271",
+    "experiment1/model_neutral.mat": "f3ed8748ea051b0529552e46959a6734c554726edccf4a92ffb2b442aabacefe",
+    "experiment2/data.mat": "b6d74c615b7ec8f4ff5e9c4ccb058ce89e47568be6f22dfbbfc0f3ec3c65a0f5",
+    "experiment2/model_neutral.mat": "2626eb0a2ac40eeb92672f37e999ddea6dcc3717b7faefbbe05949c394b9b564",
+    "code/model_neutral.m": "c7d00dd46bc6c86ba4f56d3a1789b62e4c286258c32dfaeddefb50a6428e801e",
+    "code/get_data.m": "1f81392ec44f645b5ffc13772c7fad5b2b223bd1a9ef23f92d70510c776146d7"
+  },
+  "estimator": "Separate block OLS update on prediction error with intercept, 49 consecutive transitions. HighVol+lowSto minus lowVol+highSto.",
+  "factor_mapping": {
+    "lowVol_highSto": {
+      "vol": 4,
+      "sto": 64,
+      "column_one_based": 3
+    },
+    "highVol_lowSto": {
+      "vol": 49,
+      "sto": 16,
+      "column_one_based": 2
+    }
+  },
+  "bootstrap": {
+    "unit": "participant",
+    "seed": 20261108,
+    "resamples": 10000,
+    "interval": "percentile95"
+  },
+  "geometry_sd_ddof": 0,
+  "privacy": "Aggregate public reference only. No participant rows or identifiers included.",
+  "verification": [
+    {
+      "experiment": 1,
+      "participants": 223,
+      "max_recomputed_stored_slope_difference": 1.3322676295501878e-15,
+      "transitions_per_block": 49
+    },
+    {
+      "experiment": 2,
+      "participants": 420,
+      "max_recomputed_stored_slope_difference": 1.7763568394002505e-15,
+      "transitions_per_block": 49
+    }
+  ],
+  "studies": [
+    {
+      "study": "Piray 2024 Experiment 1",
+      "experiment": 1,
+      "low": {
+        "n": 223,
+        "mean": 0.6443207501362778,
+        "sd": 0.19631900100596572,
+        "ci_low": 0.618427247910355,
+        "ci_high": 0.6699197458278153
+      },
+      "high": {
+        "n": 223,
+        "mean": 0.7497692120293852,
+        "sd": 0.17965699500077612,
+        "ci_low": 0.726098609106824,
+        "ci_high": 0.7727440582979629
+      },
+      "contrast": {
+        "n": 223,
+        "mean": 0.10544846189310741,
+        "sd": 0.17918023125295945,
+        "ci_low": 0.0821314461038247,
+        "ci_high": 0.12910497951750444
+      },
+      "positive": 157,
+      "negative": 66,
+      "tied": 0
+    },
+    {
+      "study": "Piray 2024 Experiment 2",
+      "experiment": 2,
+      "low": {
+        "n": 420,
+        "mean": 0.6154434045270161,
+        "sd": 0.21139886139029493,
+        "ci_low": 0.5952567548737309,
+        "ci_high": 0.6359922553975275
+      },
+      "high": {
+        "n": 420,
+        "mean": 0.7081461476115443,
+        "sd": 0.19441118952644904,
+        "ci_low": 0.6896342381053356,
+        "ci_high": 0.7263974906902495
+      },
+      "contrast": {
+        "n": 420,
+        "mean": 0.09270274308452811,
+        "sd": 0.1898248855509376,
+        "ci_low": 0.0746662955514191,
+        "ci_high": 0.11126666122970062
+      },
+      "positive": 301,
+      "negative": 119,
+      "tied": 0
+    }
+  ],
+  "geometry": [
+    {
+      "study": "Piray 2024 Experiment 1",
+      "regime": "LowVol + highSto",
+      "turns": 50,
+      "target_changes": 49,
+      "transitions": 49,
+      "nonzero_shift_mean_pp": 1.7050816326530607,
+      "all_shift_mean_pp": 1.7050816326530607,
+      "supply_offset_sd_pp": 7.658255771675427,
+      "supply_offset_mean_abs_pp": 6.11574,
+      "supply_offset_mean_square_pp2": 59.55202758,
+      "nominal_vol_code": 4,
+      "nominal_sto_code": 64
+    },
+    {
+      "study": "Piray 2024 Experiment 1",
+      "regime": "HighVol + lowSto",
+      "turns": 50,
+      "target_changes": 49,
+      "transitions": 49,
+      "nonzero_shift_mean_pp": 5.967795918367346,
+      "all_shift_mean_pp": 5.967795918367346,
+      "supply_offset_sd_pp": 3.8292101744354525,
+      "supply_offset_mean_abs_pp": 3.05792,
+      "supply_offset_mean_square_pp2": 14.888665599999992,
+      "nominal_vol_code": 49,
+      "nominal_sto_code": 16
+    },
+    {
+      "study": "Piray 2024 Experiment 2",
+      "regime": "LowVol + highSto",
+      "turns": 50,
+      "target_changes": 49,
+      "transitions": 49,
+      "nonzero_shift_mean_pp": 1.7050816326530607,
+      "all_shift_mean_pp": 1.7050816326530607,
+      "supply_offset_sd_pp": 7.658255771675427,
+      "supply_offset_mean_abs_pp": 6.11574,
+      "supply_offset_mean_square_pp2": 59.55202758,
+      "nominal_vol_code": 4,
+      "nominal_sto_code": 64
+    },
+    {
+      "study": "Piray 2024 Experiment 2",
+      "regime": "HighVol + lowSto",
+      "turns": 50,
+      "target_changes": 49,
+      "transitions": 49,
+      "nonzero_shift_mean_pp": 5.967795918367346,
+      "all_shift_mean_pp": 5.967795918367346,
+      "supply_offset_sd_pp": 3.8292101744354525,
+      "supply_offset_mean_abs_pp": 3.05792,
+      "supply_offset_mean_square_pp2": 14.888665599999992,
+      "nominal_vol_code": 49,
+      "nominal_sto_code": 16
+    }
+  ]
+}

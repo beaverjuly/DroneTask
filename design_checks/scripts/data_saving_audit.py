@@ -18,9 +18,9 @@ import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_INPUTS = [ROOT / 'analysis/data' / module / 'raw'
+DEFAULT_INPUTS = [ROOT / 'analysis/data/prePilot' / module / 'raw'
                   for module in ['drone_task', 'memory_screen', 'mouse_qc']]
-DEFAULT_OUTPUT = ROOT / 'analysis/data/drone_task/derived/data_saving_audit'
+DEFAULT_OUTPUT = ROOT / 'analysis/data/prePilot/drone_task/derived/data_saving_audit'
 SCHEMA_VERSION = 'drone-data-v2'
 COMMON_FIELDS = ['data_schema_version', 'run_uuid', 'row_uuid', 'row_sequence',
                  'task_phase', 'elapsed_ms', 'utc_timestamp']

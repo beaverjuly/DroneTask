@@ -4,11 +4,11 @@ split_drone_data.py — Post-process DroneTask raw CSVs from Pavlovia.
 
 Usage:
     python analysis/split_drone_data.py
-    python analysis/split_drone_data.py analysis/data/drone_task/raw/single_file.csv
-    python analysis/split_drone_data.py analysis/data/drone_task/raw/ -o /path/to/analysis-data
+    python analysis/split_drone_data.py analysis/data/prePilot/drone_task/raw/single_file.csv
+    python analysis/split_drone_data.py analysis/data/prePilot/drone_task/raw/ -o /path/to/analysis-data
 
 The CLI routes clean tables into drone_task, mouse_qc, and memory_screen
-under analysis/data (or the data root supplied with -o). Full-session raw
+under analysis/data/prePilot (or the data root supplied with -o). Full-session raw
 exports belong in drone_task/raw; module-only raw exports have their own raw
 folders. Full-session metadata is retained in every module for denominator audits.
 
@@ -35,7 +35,7 @@ from pathlib import Path
 import pandas as pd
 
 ANALYSIS_DIR = Path(__file__).resolve().parent
-DATA_DIR = ANALYSIS_DIR / 'data'
+DATA_DIR = ANALYSIS_DIR / 'data' / 'prePilot'
 MODULES = ('drone_task', 'mouse_qc', 'memory_screen')
 
 COMMON_COLS = [
@@ -815,9 +815,9 @@ def process_one(filepath, outdir, explode_mouse=False, module_dirs=None):
 def main():
     ap = argparse.ArgumentParser(description='Split DroneTask Pavlovia CSVs.')
     ap.add_argument('input', nargs='?', default=str(DATA_DIR),
-                    help='Single raw CSV, raw directory, or organized data root (default: analysis/data)')
+                    help='Single raw CSV, raw directory, or organized data root (default: analysis/data/prePilot)')
     ap.add_argument('-o', '--outdir', default=None,
-                    help='Organized data root containing module/clean directories (default: analysis/data)')
+                    help='Organized data root containing module/clean directories (default: analysis/data/prePilot)')
     ap.add_argument('--explode-mouse', action='store_true',
                     help='Also write a long mouse-events table when QC data exist')
     args = ap.parse_args()

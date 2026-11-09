@@ -47,7 +47,7 @@ The data saving notebook explains the recording lifecycle and includes an
 executable audit for raw session CSV files and optional receipt JSON files.
 It exports source configuration and synthetic diagnostic figures under
 `figures/data_saving`. Participant audit tables remain in the ignored directory
-`analysis/data/drone_task/derived/data_saving_audit`.
+`analysis/data/prePilot/drone_task/derived/data_saving_audit`.
 
 ```sh
 python design_checks/scripts/data_saving_audit.py /path/to/sample/folder

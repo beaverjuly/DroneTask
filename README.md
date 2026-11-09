@@ -2,19 +2,26 @@
 
 Post-processing and analysis tools for DroneTask data collected via Pavlovia.
 
+| Cohort | Main report | Private data |
+| --- | --- | --- |
+| Earlier development and friend sessions | [prePilot report](analysis/drone_task/prePilot_drone_analysis.ipynb) | `analysis/data/prePilot/` |
+| First Prolific pilot | [Pilot1 report](analysis/drone_task/Pilot1_analysis.ipynb) | `analysis/data/Pilot1/` |
+
+The two cohorts have separate intake paths. Pilot1 mouse trajectories have their
+own [analysis notebook](analysis/mouse_qc/Pilot1_mouse_analysis.ipynb).
+
 ## Folder layout
 
 ```
 DroneTask/
 ├── analysis/
-│   ├── split_drone_data.py     # raw → per-table CSVs (run first)
+│   ├── split_drone_data.py     # shared optional CSV splitter
 │   ├── drone_task/             # main task analysis notebook
 │   ├── mouse_qc/               # mouse trajectory notebook and features
 │   ├── memory_screen/          # memory screen notebook and helpers
-│   ├── data/                   # private data, organized by module
-│   │   ├── drone_task/         # raw/, clean/, derived/
-│   │   ├── mouse_qc/           # raw/, clean/, derived/
-│   │   └── memory_screen/      # raw/, clean/, derived/
+│   ├── data/                   # private data, separated by cohort
+│   │   ├── prePilot/           # drone_task/, mouse_qc/, memory_screen/
+│   │   └── Pilot1/             # source_exports/, raw/, derived/
 │   ├── requirements.txt        # dependencies for all three analyses
 │   └── README.md               # analysis workflow and data routing
 ├── design_checks/
@@ -62,7 +69,7 @@ drone_task_{run_uuid}_final.receipt.json
 
 The splitter also accepts older `DroneTask_{participantId}_SESSION_...csv`
 exports. It consolidates cumulative snapshots by run and routes tidy tables to
-`analysis/data/<module>/clean/`, retaining analysis and recording fields. Main task,
+`analysis/data/prePilot/<module>/clean/` by default, retaining analysis and recording fields. Main task,
 mouse QC, and memory screen outputs have separate directories.
 
 ### Usage
@@ -72,10 +79,10 @@ mouse QC, and memory screen outputs have separate directories.
 python analysis/split_drone_data.py
 
 # Single file
-python analysis/split_drone_data.py analysis/data/drone_task/raw/DroneTask_abc123_SESSION_2026-06-21_17h42.csv
+python analysis/split_drone_data.py analysis/data/prePilot/drone_task/raw/DroneTask_abc123_SESSION_2026-06-21_17h42.csv
 
 # Custom data root, containing <module>/clean/ output folders
-python analysis/split_drone_data.py analysis/data/drone_task/raw/ -o /path/to/analysis-data
+python analysis/split_drone_data.py analysis/data/prePilot/drone_task/raw/ -o /path/to/analysis-data
 ```
 
 ### Output
@@ -106,7 +113,7 @@ pip install pandas
 
 ```bash
 pip install pandas numpy scipy statsmodels matplotlib seaborn
-jupyter lab analysis/drone_task/drone_analysis.ipynb
+jupyter lab analysis/drone_task/prePilot_drone_analysis.ipynb
 ```
 
 The notebooks read canonical raw exports through `analysis/session_io.py`.
@@ -121,7 +128,7 @@ explicit inputs. Raw data and existing split files are never rewritten.
 | Mouse QC | Completion and signal integrity, actual paths, sampling cadence, matched synthetic controls, and sensitivity diagnostics |
 
 Figures are embedded in the executed notebooks and exported under each module's
-private `analysis/data/<module>/derived/figures` directory. Public outputs use
+private `analysis/data/prePilot/<module>/derived/figures` directory. Public outputs use
 ordinal session labels. Internal identifiers remain in private derived tables.
 With one current pilot, results are descriptive rather than population effects,
 validated screening thresholds, parameter recovery, or recruitment power claims.
@@ -230,7 +237,7 @@ use the ordinary completion or rejection code. A separate destination can be
 configured in `MEMORY_SCREENING_COMPLETION_URL`, otherwise a neutral saved
 session message remains on screen. See
 the consolidated [specification and design audit](design_checks/notebooks/06_memory_screen.ipynb),
-the [separate screen analysis](analysis/memory_screen/memory_screen_analysis.ipynb),
+the [separate screen analysis](analysis/memory_screen/prePilot_memory_screen_analysis.ipynb),
 and [`URLs CheatSheet.md`](URLs%20CheatSheet.md).
 
 ## Optional mouse-trajectory QC

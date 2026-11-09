@@ -197,7 +197,7 @@ def _snapshot_checks(candidates, selected):
 def _raw_load(root, raw_dirs):
     audit = _import_file('_drone_session_audit', root / 'design_checks/scripts/data_saving_audit.py')
     splitter = _import_file('_drone_session_splitter', root / 'analysis/split_drone_data.py')
-    inputs = raw_dirs if raw_dirs is not None else [root / 'analysis/data' / module / 'raw' for module in MODULES]
+    inputs = raw_dirs if raw_dirs is not None else [root / 'analysis/data/prePilot' / module / 'raw' for module in MODULES]
     loaded = audit.load_samples(inputs)
     groups = loaded['sessions']
     # Display ordinals are intentionally not persistent identifiers. The UUID
@@ -277,7 +277,7 @@ def _raw_load(root, raw_dirs):
 
 
 def _clean_load(root, module, clean_dir):
-    directory = Path(clean_dir).expanduser().resolve() if clean_dir is not None else root / 'analysis/data' / module / 'clean'
+    directory = Path(clean_dir).expanduser().resolve() if clean_dir is not None else root / 'analysis/data/prePilot' / module / 'clean'
     parts = {name: [] for name in TABLE_NAMES}
     inventory, issues, accounted = [], [], set()
     # Flat only. An old nested debug folder requires its own explicit path.
